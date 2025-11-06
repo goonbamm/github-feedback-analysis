@@ -16,6 +16,8 @@ console = Console()
 class Analyzer:
     """Transform collected data into actionable metrics."""
 
+    web_base_url: str = "https://github.com"
+
     def compute_metrics(self, collection: CollectionResult) -> MetricSnapshot:
         """Compute derived metrics from the collected artefacts."""
 
@@ -51,12 +53,13 @@ class Analyzer:
             },
         }
 
+        repo_root = f"{self.web_base_url.rstrip('/')}/{collection.repo}"
         evidence = {
             "commits": [
-                "https://github.com/{}/commits".format(collection.repo),
+                f"{repo_root}/commits",
             ],
             "pull_requests": [
-                "https://github.com/{}/pulls".format(collection.repo),
+                f"{repo_root}/pulls",
             ],
         }
 

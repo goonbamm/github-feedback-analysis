@@ -38,6 +38,19 @@ def _load_config() -> Config:
 def init(
     pat: str = typer.Option(..., prompt=True, hide_input=True, help="GitHub Personal Access Token"),
     months: int = typer.Option(12, help="Default analysis window in months"),
+    api_url: str = typer.Option(
+        "https://api.github.com", help="Base REST API URL (set to your Enterprise host if needed)"
+    ),
+    graphql_url: str = typer.Option(
+        "https://api.github.com/graphql",
+        help="GraphQL endpoint URL (Enterprise: https://<host>/api/graphql)",
+    ),
+    web_url: str = typer.Option(
+        "https://github.com", help="Web URL used when generating evidence links"
+    ),
+    verify_ssl: bool = typer.Option(
+        True, help="Verify HTTPS certificates when calling the GitHub API"
+    ),
     llm_endpoint: str = typer.Option(
         "http://localhost:8000/v1/chat/completions", help="Default LLM endpoint"
     ),
@@ -47,6 +60,10 @@ def init(
 
     config = Config.load()
     config.update_auth(pat)
+    config.server.api_url = api_url
+    config.server.graphql_url = graphql_url
+    config.server.web_url = web_url
+    config.server.verify_ssl = verify_ssl
     config.llm.endpoint = llm_endpoint
     config.llm.model = llm_model
     config.defaults.months = months
@@ -105,8 +122,13 @@ def analyze(
         exclude_bots=not include_bots,
     )
 
-    collector = Collector(config)
-    analyzer = Analyzer()
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    analyzer = Analyzer(web_base_url=config.server.web_url)
     reporter = Reporter()
 
     collection = collector.collect(repo=repo, months=months, filters=filters)

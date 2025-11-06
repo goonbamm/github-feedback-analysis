@@ -1,8 +1,6 @@
 # GitHub Feedback Analysis
 
-GitHub Feedback Analysis는 GitHub 저장소의 활동 데이터를 수집하고, 핵심 지표를 계산하며, 요약 리포트를 자동으로 만들어주는 CLI 도구입니다. 한 번의 명령으로 저장소를 분석하고, 마크다운 및 PDF 보고서를 받아볼 수 있습니다.
-
-> **참고**: 현재 버전은 전체 워크플로우를 체험할 수 있도록 결정적인(Deterministic) 더미 데이터를 사용합니다. GitHub API 연동과 세부 지표 확장은 추후 버전에서 손쉽게 추가할 수 있도록 설계되어 있습니다.
+GitHub Feedback Analysis는 GitHub 저장소의 활동 데이터를 수집하고, 핵심 지표를 계산하며, 요약 리포트를 자동으로 만들어주는 CLI 도구입니다. 한 번의 명령으로 저장소를 분석하고, 마크다운 및 PDF 보고서를 받아볼 수 있습니다. GitHub.com뿐 아니라 GitHub Enterprise(Server) 환경에서도 API 엔드포인트만 지정하면 동일한 플로우로 동작합니다.
 
 ## 주요 기능
 
@@ -35,6 +33,10 @@ gf init
 | --- | --- | --- |
 | `--pat` | (필수) | GitHub PAT. 명령 실행 중 프롬프트에서 안전하게 입력합니다. |
 | `--months` | `12` | 기본 분석 기간(개월). 나중에 `gf analyze`에서 별도 지정하지 않으면 이 값이 사용됩니다. |
+| `--api-url` | `https://api.github.com` | REST API 베이스 URL. GitHub Enterprise(Server)의 경우 `https://<host>/api/v3` 형태로 입력합니다. |
+| `--graphql-url` | `https://api.github.com/graphql` | GraphQL 엔드포인트 URL. Enterprise 기본값은 `https://<host>/api/graphql`입니다. |
+| `--web-url` | `https://github.com` | 보고서에서 링크를 생성할 때 사용할 웹 URL. Enterprise 웹 UI 주소로 변경하세요. |
+| `--verify-ssl` | `True` | Enterprise 환경에서 사설 인증서를 사용할 경우 `False`로 비활성화할 수 있습니다. |
 | `--llm-endpoint` | `http://localhost:8000/v1/chat/completions` | 추후 AI 분석에 사용할 LLM 엔드포인트 주소. |
 | `--llm-model` | 빈 문자열 | 기본 LLM 모델 ID. 필요 시만 입력합니다. |
 
@@ -93,13 +95,19 @@ gf suggest-templates
 ## 추가 팁
 
 - `gf show-config` 명령으로 현재 설정을 빠르게 확인할 수 있습니다.
-- 분석 시 네트워크 상황이나 GitHub API 제한에 따라 시간이 걸릴 수 있습니다. 기본적으로 재시도 로직과 캐시가 구성되어 있습니다.
+- PAT에는 최소 `repo`, `read:org`, `read:user` 권한이 있어야 안정적으로 메트릭을 수집할 수 있습니다.
+- 대용량 저장소를 분석할 때는 GitHub API 속도 제한에 주의하세요. 너무 큰 기간을 한 번에 요청하면 시간이 오래 걸릴 수 있습니다.
 
-## GitHub Enterprise 사용 시 주의사항
+## GitHub Enterprise 사용 가이드
 
-- 현재 버전은 실제 GitHub API를 호출하지 않고 결정적인 더미 데이터를 생성하는 데모 구조입니다. 사내 GitHub Enterprise(Server) 인스턴스와는 연동되지 않습니다.
-- Enterprise 전용 도메인을 설정할 수 있는 옵션이 없어 `github.com` 이외 호스트를 사용할 수 없습니다.
-- 자세한 검증 결과와 향후 보완 과제는 [`docs/enterprise_support.md`](docs/enterprise_support.md)에서 확인할 수 있습니다.
+사내 GitHub Enterprise(Server) 인스턴스에서도 다음 설정만 맞추면 동일한 CLI 워크플로우를 사용할 수 있습니다.
+
+1. `gf init` 실행 시 `--api-url`, `--graphql-url`, `--web-url`을 Enterprise 도메인에 맞게 입력합니다.
+   - 예시) `gf init --api-url https://github.example.com/api/v3 --graphql-url https://github.example.com/api/graphql --web-url https://github.example.com`
+2. 사설 인증서를 사용한다면 `--verify-ssl False` 옵션을 지정하세요. (가능하다면 내부 신뢰 저장소에 루트 인증서를 배포하는 것을 권장합니다.)
+3. Enterprise 인스턴스에서 발급한 PAT를 사용하고, 필요한 OAuth 권한(`repo`, `read:org`, `read:user`)을 부여합니다.
+
+동일한 설정은 `~/.config/github_feedback/config.toml`에서 수동으로 수정할 수도 있습니다. 보다 자세한 작동 원리와 호환성 점검 내용은 [`docs/enterprise_support.md`](docs/enterprise_support.md)에서 확인할 수 있습니다.
 
 ## 개발 환경
 
