@@ -95,6 +95,12 @@ gf suggest-templates
 - `gf show-config` 명령으로 현재 설정을 빠르게 확인할 수 있습니다.
 - 분석 시 네트워크 상황이나 GitHub API 제한에 따라 시간이 걸릴 수 있습니다. 기본적으로 재시도 로직과 캐시가 구성되어 있습니다.
 
+## GitHub Enterprise 사용 시 주의사항
+
+- 현재 버전은 실제 GitHub API를 호출하지 않고 결정적인 더미 데이터를 생성하는 데모 구조입니다. 사내 GitHub Enterprise(Server) 인스턴스와는 연동되지 않습니다.
+- Enterprise 전용 도메인을 설정할 수 있는 옵션이 없어 `github.com` 이외 호스트를 사용할 수 없습니다.
+- 자세한 검증 결과와 향후 보완 과제는 [`docs/enterprise_support.md`](docs/enterprise_support.md)에서 확인할 수 있습니다.
+
 ## 개발 환경
 
 테스트 및 개발에 필요한 의존성을 설치하고, 단위 테스트를 실행하려면 다음 명령을 활용하세요.
