@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "github-feedback"
+version = "0.1.0"
+description = "Analyze GitHub repository feedback cycles and generate reports"
+authors = [
+  {name = "GitHub Feedback Team", email = "devnull@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+  "typer>=0.9",
+  "rich>=13.0",
+  "pydantic>=2.5",
+  "requests>=2.31",
+  "tomli-w>=1.0",
+  "fpdf2>=2.7"
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[project.scripts]
+gf = "github_feedback.cli:app"
+
+[tool.setuptools.package-data]
+"github_feedback" = ["templates/*.md"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
