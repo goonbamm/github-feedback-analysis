@@ -11,11 +11,25 @@ GitHub Feedback Analysis는 GitHub 저장소의 활동 데이터를 수집하고
 
 ## 설치 방법
 
+### pip (기존 Python 환경)
+
 ```bash
 git clone https://github.com/<your-account>/github-feedback-analysis.git
 cd github-feedback-analysis
 pip install -e .
 ```
+
+### uv (격리된 가상환경 권장)
+
+```bash
+git clone https://github.com/<your-account>/github-feedback-analysis.git
+cd github-feedback-analysis
+uv venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+테스트 의존성까지 포함하려면 `pip install -e .[test]` 또는 `uv pip install -e .[test]`를 실행하세요. `uv`는 `pip`와 호환되는 인터페이스를 제공하며, 필요한 의존성(`tomli` 등)을 자동으로 설치합니다.
 
 위 명령을 실행하면 현재 파이썬 환경에서 `gf` CLI를 사용할 수 있습니다.
 
@@ -33,6 +47,7 @@ gf init
 | --- | --- | --- |
 | `--pat` | (필수) | GitHub PAT. 명령 실행 중 프롬프트에서 안전하게 입력합니다. |
 | `--months` | `12` | 기본 분석 기간(개월). 나중에 `gf analyze`에서 별도 지정하지 않으면 이 값이 사용됩니다. |
+| `--enterprise-host` | 없음 | GitHub Enterprise(Server) 기본 웹 주소. `https://github.example.com` 형태로 입력하면 아래 URL 옵션이 자동으로 채워집니다. |
 | `--api-url` | `https://api.github.com` | REST API 베이스 URL. GitHub Enterprise(Server)의 경우 `https://<host>/api/v3` 형태로 입력합니다. |
 | `--graphql-url` | `https://api.github.com/graphql` | GraphQL 엔드포인트 URL. Enterprise 기본값은 `https://<host>/api/graphql`입니다. |
 | `--web-url` | `https://github.com` | 보고서에서 링크를 생성할 때 사용할 웹 URL. Enterprise 웹 UI 주소로 변경하세요. |
@@ -40,7 +55,17 @@ gf init
 | `--llm-endpoint` | `http://localhost:8000/v1/chat/completions` | 추후 AI 분석에 사용할 LLM 엔드포인트 주소. |
 | `--llm-model` | 빈 문자열 | 기본 LLM 모델 ID. 필요 시만 입력합니다. |
 
-저장된 설정은 `gf show-config`로 언제든 확인할 수 있으며, PAT은 마스킹되어 노출되지 않습니다.
+`--enterprise-host`를 지정하면 `--api-url`, `--graphql-url`, `--web-url` 값을 별도로 입력하지 않아도 됩니다. 저장된 설정은 `gf show-config`로 언제든 확인할 수 있으며, PAT은 마스킹되어 노출되지 않습니다.
+
+#### 예시 시나리오
+
+가상의 인물 **이지은**이 가상의 회사 **네오브릿지(NeoBridge)** 의 GitHub Enterprise 인스턴스를 분석하려고 한다고 가정해 봅니다. Enterprise 주소가 `https://github.neobridge.example`라면 다음과 같이 초기 설정을 수행할 수 있습니다.
+
+```bash
+gf init --months 6 --enterprise-host https://github.neobridge.example --llm-model neobridge-insight
+```
+
+명령을 실행하면 PAT 입력 프롬프트가 표시됩니다. 이지은은 Enterprise에서 발급받은 토큰(예: `ghp_example1234...`)을 입력한 뒤 Enter를 누르면 설정이 저장되고, 이후 `gf analyze` 명령을 바로 사용할 수 있습니다.
 
 ### 2. 저장소 분석 (`gf analyze`)
 
@@ -92,6 +117,22 @@ gf suggest-templates
 - `REVIEW_GUIDE.md`
 - `CONTRIBUTING.md`
 
+## GitHub PAT 발급 가이드
+
+GitHub Personal Access Token(PAT)은 API 호출을 인증하기 위한 비밀번호와 같습니다. 다음 절차를 따르면 누구나 쉽게 발급받을 수 있습니다.
+
+1. GitHub.com 또는 사내 GitHub Enterprise 웹 사이트에 로그인합니다.
+2. 우측 상단 프로필 사진을 클릭한 뒤 **Settings** → **Developer settings** → **Personal access tokens**로 이동합니다.
+3. **Tokens (classic)**에서 **Generate new token**을 선택하고, 토큰 설명에 용도를 적어 둡니다. (예: `github-feedback-report`)
+4. 만료 기간을 조직 정책에 맞게 설정합니다. 가능하면 주기적으로 갱신되는 기간을 선택하는 것이 안전합니다.
+5. 다음 권한을 체크합니다.
+   - `repo`
+   - `read:org`
+   - `read:user`
+6. **Generate token**을 클릭한 뒤 표시된 토큰 값을 복사해 `gf init` 실행 시 입력합니다.
+
+> ⚠️ 보안상 토큰은 한 번만 표시됩니다. 발급 직후 안전한 비밀 저장소(예: 1Password, Vault)에 보관하고, 채팅이나 이슈에 평문으로 남기지 마세요.
+
 ## 추가 팁
 
 - `gf show-config` 명령으로 현재 설정을 빠르게 확인할 수 있습니다.
@@ -102,8 +143,8 @@ gf suggest-templates
 
 사내 GitHub Enterprise(Server) 인스턴스에서도 다음 설정만 맞추면 동일한 CLI 워크플로우를 사용할 수 있습니다.
 
-1. `gf init` 실행 시 `--api-url`, `--graphql-url`, `--web-url`을 Enterprise 도메인에 맞게 입력합니다.
-   - 예시) `gf init --api-url https://github.example.com/api/v3 --graphql-url https://github.example.com/api/graphql --web-url https://github.example.com`
+1. `gf init` 실행 시 `--enterprise-host https://github.example.com`처럼 호스트 한 번만 입력하면 API/GraphQL/Web URL이 자동으로 구성됩니다.
+   - 세부 값을 직접 지정하고 싶다면 기존처럼 `--api-url`, `--graphql-url`, `--web-url` 옵션을 사용해도 됩니다.
 2. 사설 인증서를 사용한다면 `--verify-ssl False` 옵션을 지정하세요. (가능하다면 내부 신뢰 저장소에 루트 인증서를 배포하는 것을 권장합니다.)
 3. Enterprise 인스턴스에서 발급한 PAT를 사용하고, 필요한 OAuth 권한(`repo`, `read:org`, `read:user`)을 부여합니다.
 

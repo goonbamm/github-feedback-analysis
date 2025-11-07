@@ -38,6 +38,13 @@ def _load_config() -> Config:
 def init(
     pat: str = typer.Option(..., prompt=True, hide_input=True, help="GitHub Personal Access Token"),
     months: int = typer.Option(12, help="Default analysis window in months"),
+    enterprise_host: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Base URL of your GitHub Enterprise host (e.g. https://github.example.com). "
+            "When provided, API, GraphQL, and web URLs are derived automatically."
+        ),
+    ),
     api_url: str = typer.Option(
         "https://api.github.com", help="Base REST API URL (set to your Enterprise host if needed)"
     ),
@@ -57,6 +64,15 @@ def init(
     llm_model: str = typer.Option("", help="Preferred model identifier for the LLM"),
 ) -> None:
     """Initialise local configuration and store credentials securely."""
+
+    if enterprise_host:
+        host = enterprise_host.strip()
+        if not host.startswith(("http://", "https://")):
+            host = f"https://{host}"
+        host = host.rstrip("/")
+        api_url = f"{host}/api/v3"
+        graphql_url = f"{host}/api/graphql"
+        web_url = host
 
     config = Config.load()
     config.update_auth(pat)
