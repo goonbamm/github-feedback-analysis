@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import requests
 
@@ -22,6 +22,9 @@ class Collector:
     config: Config
     session: Optional[requests.Session] = None
     _headers: Dict[str, str] = field(init=False, default_factory=dict)
+    _request: Callable[[str, Optional[Dict[str, Any]]], List[Dict[str, Any]]] = field(
+        init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.config.auth is None or not self.config.auth.pat:
@@ -31,6 +34,7 @@ class Collector:
             "Authorization": f"Bearer {self.config.auth.pat}",
             "Accept": "application/vnd.github+json",
         }
+        object.__setattr__(self, "_request", self._request_impl)
 
     def collect(
         self,
@@ -42,7 +46,11 @@ class Collector:
 
         filters = filters or AnalysisFilters()
 
-        console.log("Collecting GitHub data", repo=repo, months=months)
+        console.log(
+            "Collecting GitHub data",
+            f"repo={repo}",
+            f"months={months}",
+        )
 
         since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
 
@@ -74,7 +82,9 @@ class Collector:
         base = self.config.server.api_url.rstrip("/")
         return f"{base}/{path.lstrip('/')}"
 
-    def _request(self, path: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def _request_impl(
+        self, path: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         response = self._get_session().get(
             self._build_api_url(path),
             params=params,

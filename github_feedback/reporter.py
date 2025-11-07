@@ -33,7 +33,7 @@ class Reporter:
         self.ensure_structure()
         report_path = self.output_dir / "report.md"
 
-        console.log("Writing markdown report", path=str(report_path))
+        console.log("Writing markdown report", f"path={report_path}")
 
         summary_lines = ["# GitHub Feedback Report", ""]
         summary_lines.append(f"Repository: **{metrics.repo}**")
@@ -82,7 +82,10 @@ class Reporter:
                 f"Repository: {metrics.repo}\n"
                 f"Period: {metrics.months} months\n"
             )
-            console.log("PDF dependency missing; wrote placeholder text file", path=str(pdf_path))
+            console.log(
+                "PDF dependency missing; wrote placeholder text file",
+                f"path={pdf_path}",
+            )
             return pdf_path
 
         pdf = FPDF()
@@ -129,7 +132,7 @@ class Reporter:
             pdf.ln(2)
 
         pdf.output(str(pdf_path))
-        console.log("Writing PDF report", path=str(pdf_path))
+        console.log("Writing PDF report", f"path={pdf_path}")
         return pdf_path
 
     def generate_templates(self) -> Sequence[Path]:
@@ -156,7 +159,7 @@ class Reporter:
             path = template_dir / filename
             path.write_text(contents, encoding="utf-8")
             created_paths.append(path)
-            console.log("Generated template", path=str(path))
+            console.log("Generated template", f"path={path}")
         return created_paths
 
     @staticmethod
