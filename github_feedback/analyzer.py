@@ -21,7 +21,7 @@ class Analyzer:
     def compute_metrics(self, collection: CollectionResult) -> MetricSnapshot:
         """Compute derived metrics from the collected artefacts."""
 
-        console.log("Analyzing repository trends", repo=collection.repo)
+        console.log("Analyzing repository trends", f"repo={collection.repo}")
 
         velocity_score = collection.commits / max(collection.months, 1)
         collaboration_score = (

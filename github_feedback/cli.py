@@ -39,7 +39,8 @@ def init(
     pat: str = typer.Option(..., prompt=True, hide_input=True, help="GitHub Personal Access Token"),
     months: int = typer.Option(12, help="Default analysis window in months"),
     enterprise_host: Optional[str] = typer.Option(
-        None,
+        "",
+        prompt="GitHub Enterprise host (press enter for github.com)",
         help=(
             "Base URL of your GitHub Enterprise host (e.g. https://github.example.com). "
             "When provided, API, GraphQL, and web URLs are derived automatically."
@@ -65,8 +66,9 @@ def init(
 ) -> None:
     """Initialise local configuration and store credentials securely."""
 
-    if enterprise_host:
-        host = enterprise_host.strip()
+    host_input = (enterprise_host or "").strip()
+    if host_input:
+        host = host_input
         if not host.startswith(("http://", "https://")):
             host = f"https://{host}"
         host = host.rstrip("/")
@@ -115,7 +117,12 @@ def show_config() -> None:
 
 @app.command()
 def analyze(
-    repo: str = typer.Option(..., "--repo", help="Repository in owner/name format"),
+    repo: str = typer.Option(
+        "",
+        "--repo",
+        prompt="Repository to analyse (owner/name)",
+        help="Repository in owner/name format",
+    ),
     months: Optional[int] = typer.Option(None, help="Number of months to analyse"),
     include_branch: Optional[str] = typer.Option(None, help="Branch to include"),
     exclude_branch: Optional[str] = typer.Option(None, help="Branch to exclude"),
@@ -147,7 +154,12 @@ def analyze(
     analyzer = Analyzer(web_base_url=config.server.web_url)
     reporter = Reporter()
 
-    collection = collector.collect(repo=repo, months=months, filters=filters)
+    repo_input = repo.strip()
+    if not repo_input:
+        console.print("Repository value cannot be empty.")
+        raise typer.Exit(code=1)
+
+    collection = collector.collect(repo=repo_input, months=months, filters=filters)
     metrics = analyzer.compute_metrics(collection)
 
     metrics_payload = {

@@ -7,7 +7,7 @@
 
 1. **Enterprise 호스트 및 TLS 설정 지원**
    - 설정 모델에 `ServerConfig`가 추가되어 REST API, GraphQL, 웹 URL, TLS 검증 여부를 저장합니다.【F:github_feedback/config.py†L13-L88】
-   - `gf init` 명령에서 Enterprise 호스트 한 번만 입력해도 각 URL이 자동으로 채워지며, 설정 파일(`~/.config/github_feedback/config.toml`)에 즉시 반영됩니다.【F:github_feedback/cli.py†L42-L84】
+   - `gf init` 명령의 Enterprise 호스트 프롬프트에 한 번만 입력해도 각 URL이 자동으로 채워지며, 설정 파일(`~/.config/github_feedback/config.toml`)에 즉시 반영됩니다.【F:github_feedback/cli.py†L42-L87】
 
 2. **PAT 기반 인증과 실제 데이터 수집**
    - `Collector`는 초기화 시 PAT가 없으면 오류를 발생시키며, `requests.Session`에 `Authorization: Bearer <PAT>` 헤더를 설정합니다.【F:github_feedback/collector.py†L16-L46】
@@ -22,7 +22,7 @@
 
 ## Enterprise 환경 체크리스트
 
-1. `gf init --enterprise-host https://<host>` 명령만으로 API/GraphQL/Web URL을 한 번에 구성합니다. 필요 시 개별 URL 옵션으로 덮어쓸 수 있습니다.【F:github_feedback/cli.py†L56-L67】
+1. `gf init` 실행 시 프롬프트에서 Enterprise 호스트를 입력하거나 `--enterprise-host https://<host>` 옵션을 사용하면 API/GraphQL/Web URL이 한 번에 구성됩니다. 필요 시 개별 URL 옵션으로 덮어쓸 수 있습니다.【F:github_feedback/cli.py†L56-L70】
 2. 사설 인증서를 사용하는 경우 `--verify-ssl False`로 지정하거나, 내부 CA를 신뢰 저장소에 추가합니다.
 3. Enterprise에서 발급한 PAT에 `repo`, `read:org`, `read:user` 권한을 부여합니다.【F:README.md†L133-L147】
 
