@@ -29,7 +29,7 @@ test = ["pytest>=7.4"]
 gf = "github_feedback.cli:app"
 
 [tool.setuptools.package-data]
-"github_feedback" = ["templates/*.md"]
+"github_feedback" = ["templates/*.md", "fonts/*.ttf"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

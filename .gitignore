@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 reports/
 templates/
+github_feedback/fonts/HangulSimplified-Regular.ttf
