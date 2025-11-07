@@ -130,7 +130,6 @@ def analyze(
     exclude_path: Optional[str] = typer.Option(None, help="Path prefix to exclude"),
     include_language: Optional[str] = typer.Option(None, help="File extension to include"),
     include_bots: bool = typer.Option(False, help="Include bot commits in the analysis"),
-    generate_pdf: bool = typer.Option(True, help="Also generate a PDF report"),
 ) -> None:
     """Collect data, compute metrics, and generate reports."""
 
@@ -177,15 +176,9 @@ def analyze(
     markdown_path = reporter.generate_markdown(metrics)
     console.print("Markdown report generated:", markdown_path)
 
-    if generate_pdf:
-        pdf_path = reporter.generate_pdf(metrics)
-        console.print("PDF report generated:", pdf_path)
-
 
 @app.command()
-def report(
-    formats: str = typer.Option("md,pdf", help="Comma separated list of output formats"),
-) -> None:
+def report() -> None:
     """Generate reports from the latest cached metrics."""
 
     metrics_file = Path("reports") / "metrics.json"
@@ -209,11 +202,7 @@ def report(
     )
 
     reporter = Reporter()
-    formats_list = [fmt.strip().lower() for fmt in formats.split(",") if fmt.strip()]
-    if "md" in formats_list:
-        reporter.generate_markdown(metrics)
-    if "pdf" in formats_list:
-        reporter.generate_pdf(metrics)
+    reporter.generate_markdown(metrics)
 
     console.print("Report regeneration complete.")
 
