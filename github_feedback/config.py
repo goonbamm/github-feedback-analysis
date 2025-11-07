@@ -6,7 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import tomli
+try:
+    import tomllib as tomli  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover - fallback for older runtimes
+    import tomli  # type: ignore[no-redef]
 from pydantic import BaseModel, ValidationError
 from tomli_w import dump as toml_dump
 
