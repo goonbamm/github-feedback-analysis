@@ -1,6 +1,6 @@
 # 🚀 GitHub Feedback Analysis
 
-GitHub Feedback Analysis는 GitHub 저장소의 활동 데이터를 수집하고, 핵심 지표를 계산하며, 요약 리포트를 자동으로 만들어주는 CLI 도구입니다. 한 번의 명령으로 저장소를 분석하고, 마크다운 및 PDF 보고서를 받아볼 수 있습니다. GitHub.com뿐 아니라 GitHub Enterprise(Server) 환경에서도 API 엔드포인트만 지정하면 동일한 플로우로 동작합니다.
+GitHub Feedback Analysis는 GitHub 저장소의 활동 데이터를 수집하고, 핵심 지표를 계산하며, 요약 리포트를 자동으로 만들어주는 CLI 도구입니다. 한 번의 명령으로 저장소를 분석하고, 마크다운 보고서를 받아볼 수 있습니다. GitHub.com뿐 아니라 GitHub Enterprise(Server) 환경에서도 API 엔드포인트만 지정하면 동일한 플로우로 동작합니다.
 
 ## ✨ 주요 기능
 
@@ -15,7 +15,7 @@ GitHub Feedback Analysis는 크게 세 단계로 저장소 활동을 이해합�
 
 1. **수집(Collector)**: `gf analyze` 명령을 실행하면 저장된 PAT과 Enterprise 설정을 바탕으로 GitHub REST/GraphQL API에서 커밋, 풀 리퀘스트, 리뷰, 이슈 데이터를 가져옵니다. 브랜치·경로·언어 필터로 원하는 범위를 좁힐 수도 있습니다.
 2. **분석(Analyzer)**: 수집된 활동 데이터를 사용해 기여자별 커밋 수, 리뷰 응답 속도, 머지 리드타임 등 핵심 지표를 계산하고, 구성된 웹 URL을 활용해 증거 링크를 만듭니다.
-3. **보고(Reporter)**: 계산된 지표는 `reports/metrics.json`에 저장되며, 마크다운·PDF 템플릿을 통해 읽기 쉬운 리포트로 변환됩니다. LLM 관련 설정을 채워 두면 향후 AI 기반 인사이트 기능과도 연동할 수 있습니다.
+3. **보고(Reporter)**: 계산된 지표는 `reports/metrics.json`에 저장되며, 마크다운 템플릿을 통해 읽기 쉬운 리포트로 변환됩니다. LLM 관련 설정을 채워 두면 향후 AI 기반 인사이트 기능과도 연동할 수 있습니다.
 
 모든 과정은 로컬에서 수행되며 `~/.config/github_feedback/config.toml`에 저장된 자격 증명과 기본 옵션을 재사용합니다.
 
@@ -89,12 +89,9 @@ gf analyze --repo octocat/Hello-World --months 6 --include-branch main --include
 | `--exclude-path` | 없음 | 특정 경로를 제외합니다. |
 | `--include-language` | 없음 | 파일 확장자 기반으로 언어를 필터링합니다. 예: `py`, `ts`. |
 | `--include-bots` | `False` | 기본적으로 봇 커밋은 제외되며, 이 옵션을 주면 포함합니다. |
-| `--generate-pdf` | `True` | PDF 보고서 생성 여부. `--generate-pdf False`로 설정하면 마크다운만 생성합니다. |
-
 분석이 완료되면 다음 파일이 생성됩니다.
 
 - `reports/report.md` : 상세 분석 보고서 (마크다운)
-- `reports/report.pdf` : PDF 버전 보고서 (옵션)
 - `reports/metrics.json` : 계산된 지표의 원본 데이터
 
 #### 예시 시나리오
@@ -113,14 +110,10 @@ gf analyze --include-language py
 ### 3. 보고서 재생성 (`gf report`)
 
 ```bash
-gf report --formats md,pdf
+gf report
 ```
 
-`reports/metrics.json`이 존재할 때 사용할 수 있으며, `--formats` 옵션으로 생성할 포맷을 선택합니다.
-
-- `md` : 마크다운 보고서만 생성
-- `pdf` : PDF 보고서만 생성
-- `md,pdf` : 둘 다 생성 (기본값)
+`reports/metrics.json`이 존재할 때 사용할 수 있으며, 캐시된 지표로 마크다운 보고서를 다시 생성합니다.
 
 ### 4. 템플릿 생성 (`gf suggest-templates`)
 
