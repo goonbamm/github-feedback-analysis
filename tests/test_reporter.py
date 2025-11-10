@@ -79,3 +79,19 @@ def test_generate_markdown_includes_growth_sections(tmp_path):
     assert "핵심 기능을 대거 정비" in contents
     assert "## Awards Cabinet" in contents
     assert "코드 대장장이 상" in contents
+
+
+def test_generate_html_creates_charts_and_sections(tmp_path, sample_metrics):
+    """HTML report should include visual assets and structured sections."""
+
+    reporter = Reporter(output_dir=tmp_path)
+    html_path = reporter.generate_html(sample_metrics)
+
+    assert html_path.exists()
+    chart_path = tmp_path / "charts" / "quality.svg"
+    assert chart_path.exists()
+
+    contents = html_path.read_text(encoding="utf-8")
+    assert "<title>GitHub Feedback Report" in contents
+    assert "Visual Highlights" in contents
+    assert "<img" in contents
