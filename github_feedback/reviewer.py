@@ -11,19 +11,9 @@ from .collector import Collector
 from .console import Console
 from .llm import LLMClient
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from .utils import truncate_patch
 
 console = Console()
-
-
-def _truncate_patch(patch: str, max_lines: int = 12) -> str:
-    """Trim diff content to a manageable snippet."""
-
-    lines = patch.splitlines()
-    if len(lines) <= max_lines:
-        return patch
-    head = lines[: max_lines - 1]
-    head.append("...")
-    return "\n".join(head)
 
 
 @dataclass(slots=True)
@@ -85,7 +75,7 @@ class Reviewer:
             strengths.append(
                 ReviewPoint(
                     message=f"Includes focused changes in `{first_file.filename}`.",
-                    example=_truncate_patch(first_file.patch or ""),
+                    example=truncate_patch(first_file.patch or ""),
                 )
             )
 
@@ -185,7 +175,7 @@ class Reviewer:
                 if file.patch:
                     lines.append("")
                     lines.append("  ```diff")
-                    lines.append(_truncate_patch(file.patch))
+                    lines.append(truncate_patch(file.patch))
                     lines.append("  ```")
                     lines.append("")
                 else:

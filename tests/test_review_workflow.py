@@ -13,7 +13,11 @@ from github_feedback.collector import Collector
 from github_feedback.config import AuthConfig, Config
 from github_feedback.models import PullRequestFile, PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from github_feedback.reviewer import Reviewer
-from github_feedback.llm import LLMClient
+from github_feedback.llm import (
+    LLMClient,
+    MAX_FILES_WITH_PATCH_SNIPPETS,
+    MAX_PATCH_LINES_PER_FILE,
+)
 
 
 class DummyLLM:
@@ -326,3 +330,40 @@ def test_llm_client_retries_when_content_not_json(monkeypatch):
     assert len(responses) == 2
     assert "response_format" in responses[0]
     assert "response_format" not in responses[1]
+
+
+def test_llm_prompt_includes_truncated_diff_snippets():
+    bundle = _make_bundle()
+    long_patch_lines = ["@@ -1 +1 @@"] + [f"+line {idx}" for idx in range(1, 31)]
+    long_patch = "\n".join(long_patch_lines)
+
+    files = []
+    for idx in range(7):
+        files.append(
+            PullRequestFile(
+                filename=f"module{idx}.py",
+                status="modified",
+                additions=idx + 1,
+                deletions=0,
+                changes=idx + 1,
+                patch=long_patch if idx == 0 else "@@ -0,0 +1 @@\n+short",
+            )
+        )
+
+    bundle.files = files
+    bundle.changed_files = len(files)
+
+    client = LLMClient(endpoint="https://llm.example.com", model="dummy-model")
+    messages = client._build_messages(bundle)
+    prompt = messages[1]["content"]
+
+    assert prompt.count("```diff") == min(MAX_FILES_WITH_PATCH_SNIPPETS, len(files))
+
+    first_snippet = prompt.split("```diff", 1)[1].split("```", 1)[0]
+    last_visible_line = MAX_PATCH_LINES_PER_FILE - 2
+    assert f"line {last_visible_line}" in first_snippet
+    assert f"line {last_visible_line + 5}" not in first_snippet
+    assert "..." in first_snippet
+
+    trailing_section = prompt.split(f"- {files[MAX_FILES_WITH_PATCH_SNIPPETS].filename}", 1)[1]
+    assert "```diff" not in trailing_section

@@ -155,6 +155,10 @@ gf review --repo owner/name --assignee octocat --state open
 
 결과로 PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/<owner>_<repo>/pr-<번호>/` 경로 아래에 저장됩니다.
 
+> ℹ️ **LLM 프롬프트 구성**
+>
+> 리뷰 초안을 만들 때 LLM에는 PR 본문과 함께 상위 변경 파일 메타데이터, 그리고 각 파일의 diff 스니펫이 전달됩니다. 스니펫은 최대 5개 파일, 파일당 20줄로 잘라 보내 토큰 사용량을 안정적으로 유지합니다.
+
 ## 🔐 설정 파일 구조
 - 저장 경로: `~/.config/github_feedback/config.toml`
 - `gf init` 실행 시 자동으로 생성/갱신됩니다.

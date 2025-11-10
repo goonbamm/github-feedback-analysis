@@ -9,6 +9,12 @@ from typing import Any, Dict, Iterable, List
 import requests
 
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from .utils import limit_items, truncate_patch
+
+
+MAX_FILES_IN_PROMPT = 10
+MAX_FILES_WITH_PATCH_SNIPPETS = 5
+MAX_PATCH_LINES_PER_FILE = 20
 
 
 @dataclass(slots=True)
@@ -44,10 +50,18 @@ class LLMClient:
             summary_lines.append("")
 
         summary_lines.append("Changed Files:")
-        for file in bundle.files[:10]:
+        for index, file in enumerate(limit_items(bundle.files, MAX_FILES_IN_PROMPT)):
             summary_lines.append(
                 f"- {file.filename} ({file.status}, +{file.additions}/-{file.deletions}, changes={file.changes})"
             )
+            if (
+                index < MAX_FILES_WITH_PATCH_SNIPPETS
+                and file.patch
+                and (snippet := truncate_patch(file.patch, MAX_PATCH_LINES_PER_FILE))
+            ):
+                summary_lines.append("```diff")
+                summary_lines.append(snippet)
+                summary_lines.append("```")
         summary_lines.append("")
 
         prompt = "\n".join(summary_lines)
