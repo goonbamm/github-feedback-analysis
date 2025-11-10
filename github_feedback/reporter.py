@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
+from typing import Dict, Iterable, List, Tuple
 
 from .console import Console
 from .models import MetricSnapshot
@@ -89,5 +91,226 @@ class Reporter:
             summary_lines.append("")
 
         report_path.write_text("\n".join(summary_lines), encoding="utf-8")
+        return report_path
+
+    # ------------------------------------------------------------------
+    # Rich visual reporting
+    # ------------------------------------------------------------------
+
+    def _create_charts(self, metrics: MetricSnapshot) -> List[Tuple[str, Path]]:
+        """Render SVG bar charts for numeric metric domains."""
+
+        charts_dir = self.output_dir / "charts"
+        created: List[Tuple[str, Path]] = []
+
+        for domain, domain_stats in metrics.stats.items():
+            numeric_stats: Dict[str, float] = {}
+            for stat_name, stat_value in domain_stats.items():
+                if isinstance(stat_value, (int, float)):
+                    numeric_stats[stat_name] = float(stat_value)
+
+            if not numeric_stats:
+                continue
+
+            labels = [name.replace("_", " ").title() for name in numeric_stats]
+            values = list(numeric_stats.values())
+            max_value = max(values) if values else 1.0
+            safe_domain = domain.lower().replace(" ", "_")
+            chart_path = charts_dir / f"{safe_domain}.svg"
+
+            width = 720
+            chart_width = 520
+            bar_height = 28
+            spacing = 18
+            top_padding = 48
+            left_padding = 160
+            height = top_padding + spacing + (bar_height + spacing) * len(values)
+
+            svg_parts = [
+                f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'>",
+                "<defs>",
+                "<linearGradient id='barGradient' x1='0%' x2='100%' y1='0%' y2='0%'>",
+                "<stop offset='0%' stop-color='#60a5fa' />",
+                "<stop offset='100%' stop-color='#2563eb' />",
+                "</linearGradient>",
+                "</defs>",
+                "<rect width='100%' height='100%' fill='rgba(15,23,42,0.75)' rx='24' />",
+                f"<text x='{width/2}' y='32' text-anchor='middle' fill='#38bdf8' font-size='24' font-weight='600'>{escape(domain.title())} Metrics</text>",
+            ]
+
+            for index, (label, value) in enumerate(zip(labels, values)):
+                y = top_padding + index * (bar_height + spacing)
+                bar_width = 0 if max_value == 0 else (value / max_value) * chart_width
+                svg_parts.extend(
+                    [
+                        f"<text x='{left_padding - 12}' y='{y + bar_height / 1.5}' text-anchor='end' fill='#cbd5f5' font-size='14'>{escape(label)}</text>",
+                        f"<rect x='{left_padding}' y='{y}' width='{bar_width}' height='{bar_height}' rx='10' fill='url(#barGradient)' />",
+                        f"<text x='{left_padding + bar_width + 12}' y='{y + bar_height / 1.5}' fill='#f8fafc' font-size='14'>{value:.2f}</text>",
+                    ]
+                )
+
+            svg_parts.append("</svg>")
+
+            chart_path.write_text("".join(svg_parts), encoding="utf-8")
+            created.append((domain, chart_path))
+
+            console.log("Chart created", f"domain={domain}", f"path={chart_path}")
+
+        return created
+
+    def _render_list(self, title: str, items: Iterable[str]) -> str:
+        """Render an HTML list section when the content is available."""
+
+        escaped_items = [f"<li>{escape(item)}</li>" for item in items]
+        if not escaped_items:
+            return ""
+        return f"<section><h2>{escape(title)}</h2><ul>{''.join(escaped_items)}</ul></section>"
+
+    def generate_html(self, metrics: MetricSnapshot) -> Path:
+        """Create an HTML report complete with charts for numeric metrics."""
+
+        self.ensure_structure()
+        charts = self._create_charts(metrics)
+        report_path = self.output_dir / "report.html"
+
+        console.log("Writing HTML report", f"path={report_path}")
+
+        summary_items = "".join(
+            f"<li><strong>{escape(key.title())}</strong>: {escape(str(value))}</li>"
+            for key, value in metrics.summary.items()
+        )
+
+        metrics_sections: List[str] = []
+        for domain, stats in metrics.stats.items():
+            rows = []
+            for name, value in stats.items():
+                label = escape(name.replace("_", " ").title())
+                display_value = f"{value:.2f}" if isinstance(value, (int, float)) else str(value)
+                rows.append(f"<tr><th>{label}</th><td>{escape(display_value)}</td></tr>")
+            if rows:
+                metrics_sections.append(
+                    f"<section><h3>{escape(domain.title())}</h3><table>{''.join(rows)}</table></section>"
+                )
+
+        chart_sections = []
+        for domain, chart_path in charts:
+            relative_path = chart_path.relative_to(self.output_dir)
+            chart_sections.append(
+                """
+                <figure>
+                    <img src="{src}" alt="{alt}" loading="lazy" />
+                    <figcaption>{caption}</figcaption>
+                </figure>
+                """.format(
+                    src=escape(str(relative_path).replace("\\", "/")),
+                    alt=escape(f"{domain.title()} metrics"),
+                    caption=escape(domain.title()),
+                )
+            )
+
+        html_sections = [
+            "<section><h1>GitHub Feedback Report</h1>",
+            f"<p><strong>Repository:</strong> {escape(metrics.repo)}</p>",
+            f"<p><strong>Period:</strong> {escape(str(metrics.months))} months</p>",
+            "</section>",
+        ]
+
+        if summary_items:
+            html_sections.append(f"<section><h2>Summary</h2><ul>{summary_items}</ul></section>")
+        if metrics_sections:
+            html_sections.append("<section><h2>Metrics</h2>" + "".join(metrics_sections) + "</section>")
+        if chart_sections:
+            html_sections.append("<section><h2>Visual Highlights</h2>" + "".join(chart_sections) + "</section>")
+
+        if metrics.highlights:
+            html_sections.append(self._render_list("Growth Highlights", metrics.highlights))
+        if metrics.spotlight_examples:
+            for category, entries in metrics.spotlight_examples.items():
+                html_sections.append(
+                    self._render_list(f"Spotlight — {category.replace('_', ' ').title()}", entries)
+                )
+        if metrics.yearbook_story:
+            paragraphs = "".join(f"<p>{escape(paragraph)}</p>" for paragraph in metrics.yearbook_story)
+            html_sections.append(f"<section><h2>Year in Review</h2>{paragraphs}</section>")
+        if metrics.awards:
+            html_sections.append(self._render_list("Awards Cabinet", metrics.awards))
+
+        evidence_sections = []
+        for domain, links in metrics.evidence.items():
+            link_items = "".join(
+                f"<li><a href='{escape(link)}' target='_blank' rel='noopener'>{escape(link)}</a></li>"
+                for link in links
+            )
+            if link_items:
+                evidence_sections.append(
+                    f"<section><h3>{escape(domain.title())}</h3><ul>{link_items}</ul></section>"
+                )
+        if evidence_sections:
+            html_sections.append("<section><h2>Evidence</h2>" + "".join(evidence_sections) + "</section>")
+
+        html_report = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Feedback Report — {escape(metrics.repo)}</title>
+    <style>
+        :root {{
+            color-scheme: light dark;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }}
+        body {{
+            margin: 0 auto;
+            max-width: 960px;
+            padding: 2rem 1.5rem 4rem;
+            line-height: 1.6;
+        }}
+        section {{
+            margin-bottom: 2rem;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+        }}
+        h1, h2, h3 {{
+            margin-top: 0;
+            color: #38bdf8;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        th, td {{
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            text-align: left;
+        }}
+        figure {{
+            margin: 0;
+            display: grid;
+            gap: 0.5rem;
+            justify-items: center;
+        }}
+        figure img {{
+            max-width: 100%;
+            border-radius: 0.75rem;
+            background: rgba(148, 163, 184, 0.12);
+            padding: 0.5rem;
+        }}
+        a {{
+            color: #38bdf8;
+        }}
+    </style>
+</head>
+<body>
+    {''.join(html_sections)}
+</body>
+</html>
+"""
+
+        report_path.write_text(html_report, encoding="utf-8")
         return report_path
 
