@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import typer
 
@@ -277,11 +277,21 @@ def analyze(
         help="Repository in owner/name format",
     ),
     months: Optional[int] = typer.Option(None, help="Number of months to analyse"),
-    include_branch: Optional[str] = typer.Option(None, help="Branch to include"),
-    exclude_branch: Optional[str] = typer.Option(None, help="Branch to exclude"),
-    include_path: Optional[str] = typer.Option(None, help="Path prefix to include"),
-    exclude_path: Optional[str] = typer.Option(None, help="Path prefix to exclude"),
-    include_language: Optional[str] = typer.Option(None, help="File extension to include"),
+    include_branch: Optional[List[str]] = typer.Option(
+        None, help="Branch name to include (repeat for multiple branches)"
+    ),
+    exclude_branch: Optional[List[str]] = typer.Option(
+        None, help="Branch name to exclude (repeat for multiple branches)"
+    ),
+    include_path: Optional[List[str]] = typer.Option(
+        None, help="Path prefix to include (repeat for multiple paths)"
+    ),
+    exclude_path: Optional[List[str]] = typer.Option(
+        None, help="Path prefix to exclude (repeat for multiple paths)"
+    ),
+    include_language: Optional[List[str]] = typer.Option(
+        None, help="File extension to include (repeat for multiple extensions)"
+    ),
     include_bots: bool = typer.Option(False, help="Include bot commits in the analysis"),
 ) -> None:
     """Collect data, compute metrics, and generate reports."""
@@ -289,11 +299,11 @@ def analyze(
     config = _load_config()
     months = months or config.defaults.months
     filters = AnalysisFilters(
-        include_branches=[include_branch] if include_branch else [],
-        exclude_branches=[exclude_branch] if exclude_branch else [],
-        include_paths=[include_path] if include_path else [],
-        exclude_paths=[exclude_path] if exclude_path else [],
-        include_languages=[include_language] if include_language else [],
+        include_branches=list(include_branch or []),
+        exclude_branches=list(exclude_branch or []),
+        include_paths=list(include_path or []),
+        exclude_paths=list(exclude_path or []),
+        include_languages=list(include_language or []),
         exclude_bots=not include_bots,
     )
 
