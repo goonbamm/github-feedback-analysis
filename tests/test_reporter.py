@@ -44,6 +44,7 @@ def test_generate_markdown_creates_expected_file(tmp_path, sample_metrics):
     assert md_path.exists()
     contents = md_path.read_text(encoding="utf-8")
     assert "GitHub Feedback Report" in contents
+    assert "- Long Identifier: 100" in contents
 
 
 def test_generate_markdown_includes_growth_sections(tmp_path):
@@ -95,3 +96,7 @@ def test_generate_html_creates_charts_and_sections(tmp_path, sample_metrics):
     assert "<title>GitHub Feedback Report" in contents
     assert "Visual Highlights" in contents
     assert "<img" in contents
+    assert "<td>100</td>" in contents
+
+    chart_contents = chart_path.read_text(encoding="utf-8")
+    assert ">100<" in chart_contents
