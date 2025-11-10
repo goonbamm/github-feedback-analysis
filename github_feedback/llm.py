@@ -114,19 +114,35 @@ class LLMClient:
             "temperature": 0.2,
         }
 
-        payloads: List[Dict[str, Any]] = [base_payload | {"response_format": {"type": "json_object"}}]
-        payloads.append(base_payload)
+        request_payloads: List[Dict[str, Any]] = [
+            base_payload | {"response_format": {"type": "json_object"}}
+        ]
+        request_payloads.append(base_payload)
 
         last_error: Exception | None = None
-        for payload in payloads:
+        for request_payload in request_payloads:
             try:
                 response = requests.post(
                     self.endpoint,
-                    json=payload,
+                    json=request_payload,
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
-                return self._parse_response(response.json())
+                try:
+                    response_payload = response.json()
+                except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
+                    last_error = ValueError("LLM response was not valid JSON")
+                    if "response_format" in request_payload:
+                        continue
+                    raise last_error from exc
+
+                try:
+                    return self._parse_response(response_payload)
+                except ValueError as exc:
+                    last_error = exc
+                    if "response_format" in request_payload:
+                        continue
+                    raise
             except requests.HTTPError as exc:
                 error_text = ""
                 if exc.response is not None:
@@ -135,14 +151,17 @@ class LLMClient:
                     except Exception:  # pragma: no cover - defensive guard for rare encodings
                         error_text = ""
 
-                if (
-                    "response_format" in payload
-                    and exc.response is not None
-                    and exc.response.status_code in {400, 404, 422}
-                    and ("json_object" in error_text or "response_format" in error_text)
-                ):
-                    last_error = exc
-                    continue
+                last_error = exc
+                status_code = exc.response.status_code if exc.response is not None else None
+                error_text_lower = error_text.lower()
+
+                if "response_format" in request_payload:
+                    if status_code is not None and status_code >= 500:
+                        continue
+                    if status_code in {400, 404, 415, 422} and (
+                        "json_object" in error_text_lower or "response_format" in error_text_lower
+                    ):
+                        continue
                 raise
             except Exception as exc:  # pragma: no cover - network failures already handled elsewhere
                 last_error = exc
