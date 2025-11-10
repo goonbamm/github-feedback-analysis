@@ -100,3 +100,26 @@ def test_generate_html_creates_charts_and_sections(tmp_path, sample_metrics):
 
     chart_contents = chart_path.read_text(encoding="utf-8")
     assert ">100<" in chart_contents
+
+
+def test_generate_prompt_packets_builds_multi_angle_requests(
+    tmp_path, sample_metrics
+):
+    """Prompt packet generation should provide ready-to-send instructions."""
+
+    reporter = Reporter(output_dir=tmp_path)
+    packets = reporter.generate_prompt_packets(sample_metrics)
+
+    assert len(packets) == 5
+
+    titles = [request.title for request, _ in packets]
+    assert any("장점" in title for title in titles)
+    assert any("보완" in title or "목표" in title for title in titles)
+
+    for request, prompt_path in packets:
+        assert prompt_path.exists()
+        contents = prompt_path.read_text(encoding="utf-8")
+        assert request.instructions in contents
+        assert "## Prompt" in contents
+        assert "Repository: example/repo" in contents
+        assert "Summary:" in request.prompt

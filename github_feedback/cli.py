@@ -368,6 +368,10 @@ def analyze(
     markdown_path = reporter.generate_markdown(metrics)
     artifacts.append(("Markdown report", markdown_path))
 
+    prompt_artifacts = reporter.generate_prompt_packets(metrics)
+    for prompt_request, prompt_path in prompt_artifacts:
+        artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
+
     if html:
         artifacts.append(("HTML report", reporter.generate_html(metrics)))
     console.rule("Analysis Summary")

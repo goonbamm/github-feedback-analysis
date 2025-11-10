@@ -43,6 +43,26 @@ class ReviewSummary:
 
 
 @dataclass(slots=True)
+class PromptRequest:
+    """Reusable prompt instructions for LLM powered annual feedback."""
+
+    identifier: str
+    title: str
+    instructions: str
+    prompt: str
+
+    def to_dict(self) -> Dict[str, str]:
+        """Serialise the prompt request for persistence or inspection."""
+
+        return {
+            "identifier": self.identifier,
+            "title": self.title,
+            "instructions": self.instructions,
+            "prompt": self.prompt,
+        }
+
+
+@dataclass(slots=True)
 class PullRequestFile:
     """Individual file diff captured when reviewing a pull request."""
 
