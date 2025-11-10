@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 import pytest
 
 pytest.importorskip("requests")
+
+import requests
 
 from github_feedback.collector import Collector
 from github_feedback.config import AuthConfig, Config

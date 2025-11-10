@@ -598,6 +598,7 @@ class Collector:
         return numbers
 
     def collect_pull_request_details(
+
         self, repo: str, number: int
     ) -> PullRequestReviewBundle:
         """Gather detailed information for a single pull request."""
