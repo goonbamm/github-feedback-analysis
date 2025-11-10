@@ -579,3 +579,11 @@ def review(
     console.rule("Review Assets")
     for pr_number, artefact_path, summary_path, markdown_path in results:
         _render_result(pr_number, artefact_path, summary_path, markdown_path)
+
+    if results:
+        review_root_value = getattr(reviewer, "output_dir", Path("reviews"))
+        review_root = Path(review_root_value).expanduser().resolve()
+        console.print(
+            "[info]Review artefacts stored under:[/]",
+            f"[value]{review_root}[/]",
+        )

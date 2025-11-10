@@ -153,7 +153,7 @@ gf review --repo owner/name --assignee octocat --state open
 - `assignee`: 리뷰 초안을 생성할 담당자 GitHub 로그인
 - `state`: (선택) `open`, `closed`, `all` 중 하나. 기본값은 `all`
 
-결과로 PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/` 디렉터리에 저장됩니다.
+결과로 PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/<owner>_<repo>/pr-<번호>/` 경로 아래에 저장됩니다.
 
 ## 🔐 설정 파일 구조
 - 저장 경로: `~/.config/github_feedback/config.toml`
@@ -181,7 +181,7 @@ months = 12
 ## 📝 생성되는 산출물
 - `reports/metrics.json`: 분석 지표의 원본 데이터. `gf report`가 참조합니다.
 - `reports/report.md`: 주요 지표와 하이라이트가 담긴 마크다운 보고서.
-- `reviews/`: `gf review` 실행 시 PR 맥락(`artefact.json`), 요약(`summary.json`), 리뷰 초안(`review.md`)이 저장됩니다.
+- `reviews/`: `gf review` 실행 시 PR 맥락(`artefacts.json`), 요약(`review_summary.json`), 리뷰 초안(`review.md`)이 저장됩니다.
 
 ## 🧪 개발자 가이드
 ```bash

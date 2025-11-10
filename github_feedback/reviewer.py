@@ -32,7 +32,7 @@ class Reviewer:
 
     collector: Collector
     llm: LLMClient | None = None
-    output_dir: Path = Path("reports/reviews")
+    output_dir: Path = Path("reviews")
 
     def _target_dir(self, repo: str, number: int) -> Path:
         safe_repo = repo.replace("/", "__")
