@@ -133,7 +133,9 @@ gf show-config
 ```
 
 ### `gf review`
-특정 PR의 리뷰 맥락을 수집하고 LLM을 통해 요약/리뷰 초안을 생성합니다.
+특정 PR의 리뷰 맥락을 수집하고 LLM을 통해 요약/리뷰 초안을 생성합니다. 두 가지 방식으로 실행할 수 있습니다.
+
+**1. 단일 PR 바로 리뷰하기**
 
 ```bash
 gf review --repo owner/name --number 123
@@ -141,6 +143,15 @@ gf review --repo owner/name --number 123
 
 - `repo`: 저장소 식별자
 - `number`: 리뷰할 PR 번호
+
+**2. 담당자 기준으로 여러 PR 리뷰하기**
+
+```bash
+gf review --repo owner/name --assignee octocat --state open
+```
+
+- `assignee`: 리뷰 초안을 생성할 담당자 GitHub 로그인
+- `state`: (선택) `open`, `closed`, `all` 중 하나. 기본값은 `all`
 
 결과로 PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/` 디렉터리에 저장됩니다.
 

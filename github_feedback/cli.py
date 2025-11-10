@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
+from typer.models import OptionInfo
 
 try:  # pragma: no cover - optional rich dependency
     from rich import box
@@ -473,8 +474,11 @@ def review(
         prompt="Repository to review (owner/name)",
         help="Repository in owner/name format",
     ),
-    assignee: str = typer.Option(
-        ..., "--assignee", prompt="Assignee login", help="GitHub username to review for"
+    assignee: Optional[str] = typer.Option(
+        None, "--assignee", help="GitHub username to review assignments for"
+    ),
+    number: Optional[int] = typer.Option(
+        None, "--number", help="Pull request number to review directly"
     ),
     state: str = typer.Option(
         "all",
@@ -482,7 +486,7 @@ def review(
         help="Limit pull requests by state (open, closed, all)",
     ),
 ) -> None:
-    """Collect pull request context and generate LLM powered reviews for an assignee."""
+    """Collect pull request context and generate LLM powered reviews."""
 
     config = _load_config()
 
@@ -504,45 +508,20 @@ def review(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    assignee_input = assignee.strip()
-    if not assignee_input:
-        console.print("Assignee value cannot be empty.")
+    assignee_value = assignee.default if isinstance(assignee, OptionInfo) else assignee
+    number_value = number.default if isinstance(number, OptionInfo) else number
+    state_value = state.default if isinstance(state, OptionInfo) else state
+
+    assignee_input = (assignee_value or "").strip()
+    if number_value is not None and assignee_input:
+        console.print("Specify either --number or --assignee, but not both.")
         raise typer.Exit(code=1)
 
-    state_normalised = state.lower().strip() or "all"
-    if state_normalised not in {"open", "closed", "all"}:
-        console.print("State must be one of: open, closed, all.")
+    if number_value is None and not assignee_input:
+        console.print("Provide either --number for a single PR or --assignee to review assignments.")
         raise typer.Exit(code=1)
 
-    with console.status(
-        "[accent]Discovering assigned pull requests...", spinner="dots"
-    ):
-        numbers = collector.list_assigned_pull_requests(
-            repo=repo_input,
-            assignee=assignee_input,
-            state=state_normalised,
-        )
-
-    if not numbers:
-        console.print(
-            f"[warning]No pull requests found for assignee '{assignee_input}' in {repo_input}.[/]"
-        )
-        return
-
-    numbers = sorted(set(numbers))
-    results = []
-    for pr_number in numbers:
-        with console.status(
-            f"[accent]Curating context for PR #{pr_number}...", spinner="line"
-        ):
-            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
-                repo=repo_input,
-                number=pr_number,
-            )
-        results.append((pr_number, artefact_path, summary_path, markdown_path))
-
-    console.rule("Review Assets")
-    for pr_number, artefact_path, summary_path, markdown_path in results:
+    def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
         console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
         console.print(
             "[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]"
@@ -554,3 +533,49 @@ def review(
             "[success]Markdown review generated:[/]", f"[value]{markdown_path}[/]"
         )
         console.print("")
+
+    results = []
+
+    if number_value is not None:
+        with console.status(
+            f"[accent]Curating context for PR #{number_value}...", spinner="line"
+        ):
+            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+                repo=repo_input,
+                number=number_value,
+            )
+        results.append((number_value, artefact_path, summary_path, markdown_path))
+    else:
+        state_normalised = (state_value or "").lower().strip() or "all"
+        if state_normalised not in {"open", "closed", "all"}:
+            console.print("State must be one of: open, closed, all.")
+            raise typer.Exit(code=1)
+
+        with console.status(
+            "[accent]Discovering assigned pull requests...", spinner="dots"
+        ):
+            numbers = collector.list_assigned_pull_requests(
+                repo=repo_input,
+                assignee=assignee_input,
+                state=state_normalised,
+            )
+
+        if not numbers:
+            console.print(
+                f"[warning]No pull requests found for assignee '{assignee_input}' in {repo_input}.[/]"
+            )
+            return
+
+        for pr_number in sorted(set(numbers)):
+            with console.status(
+                f"[accent]Curating context for PR #{pr_number}...", spinner="line"
+            ):
+                artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+                    repo=repo_input,
+                    number=pr_number,
+                )
+            results.append((pr_number, artefact_path, summary_path, markdown_path))
+
+    console.rule("Review Assets")
+    for pr_number, artefact_path, summary_path, markdown_path in results:
+        _render_result(pr_number, artefact_path, summary_path, markdown_path)
