@@ -213,3 +213,116 @@ def test_llm_client_falls_back_when_json_object_not_supported(monkeypatch):
     assert len(responses) == 2
     assert "response_format" in responses[0]
     assert "response_format" not in responses[1]
+
+
+def test_llm_client_retries_after_server_error(monkeypatch):
+    bundle = _make_bundle()
+    client = LLMClient(endpoint="https://llm.example.com", model="dummy-model")
+
+    responses = []
+
+    class DummyResponse:
+        def __init__(self, status_code: int, payload: dict, text: str = "") -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.text = text
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise requests.HTTPError(response=self)
+
+        def json(self) -> dict:
+            return self._payload
+
+    def fake_post(url, json=None, timeout=None):  # type: ignore[override]
+        responses.append(json)
+        if len(responses) == 1:
+            return DummyResponse(
+                500,
+                payload={"error": {"message": "failed to advance FSM for request"}},
+                text="failed to advance FSM for request",
+            )
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": jsonlib.dumps(
+                            {
+                                "overview": "Looks good.",
+                                "strengths": [],
+                                "improvements": [],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+        return DummyResponse(200, payload)
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    summary = client.generate_review(bundle)
+
+    assert summary.overview == "Looks good."
+    assert len(responses) == 2
+    assert "response_format" in responses[0]
+    assert "response_format" not in responses[1]
+
+
+def test_llm_client_retries_when_content_not_json(monkeypatch):
+    bundle = _make_bundle()
+    client = LLMClient(endpoint="https://llm.example.com", model="dummy-model")
+
+    responses = []
+
+    class DummyResponse:
+        def __init__(self, status_code: int, payload: dict) -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.text = ""
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise requests.HTTPError(response=self)
+
+        def json(self) -> dict:
+            return self._payload
+
+    def fake_post(url, json=None, timeout=None):  # type: ignore[override]
+        responses.append(json)
+        if len(responses) == 1:
+            payload = {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "not valid json"
+                        }
+                    }
+                ]
+            }
+            return DummyResponse(200, payload)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": jsonlib.dumps(
+                            {
+                                "overview": "Looks good.",
+                                "strengths": [],
+                                "improvements": [],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+        return DummyResponse(200, payload)
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    summary = client.generate_review(bundle)
+
+    assert summary.overview == "Looks good."
+    assert len(responses) == 2
+    assert "response_format" in responses[0]
+    assert "response_format" not in responses[1]
