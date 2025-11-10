@@ -128,6 +128,28 @@ class Collector:
             raise ValueError(f"Unexpected payload type for {path}: {type(payload)!r}")
         return payload
 
+    def _request_all(
+        self, path: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Retrieve all pages for a list-based GitHub API endpoint."""
+
+        results: List[Dict[str, Any]] = []
+        base_params: Dict[str, Any] = dict(params or {})
+        per_page = int(base_params.get("per_page") or 100)
+        page = 1
+
+        while True:
+            page_params = base_params | {"page": page, "per_page": per_page}
+            data = self._request(path, page_params)
+            if not data:
+                break
+            results.extend(data)
+            if len(data) < per_page:
+                break
+            page += 1
+
+        return results
+
     @staticmethod
     def _parse_timestamp(value: str) -> datetime:
         if value.endswith("Z"):
@@ -305,11 +327,18 @@ class Collector:
         )
 
         pr_payload = self._request_json(f"repos/{repo}/pulls/{number}")
-        review_payload = self._request(f"repos/{repo}/pulls/{number}/reviews")
-        review_comment_payload = self._request(
-            f"repos/{repo}/pulls/{number}/comments"
+        review_payload = self._request_all(
+            f"repos/{repo}/pulls/{number}/reviews",
+            {"per_page": 100},
         )
-        files_payload = self._request(f"repos/{repo}/pulls/{number}/files")
+        review_comment_payload = self._request_all(
+            f"repos/{repo}/pulls/{number}/comments",
+            {"per_page": 100},
+        )
+        files_payload = self._request_all(
+            f"repos/{repo}/pulls/{number}/files",
+            {"per_page": 100},
+        )
 
         created_at_raw = pr_payload.get("created_at", datetime.utcnow().isoformat())
         updated_at_raw = pr_payload.get("updated_at", created_at_raw)
