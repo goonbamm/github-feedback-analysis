@@ -559,6 +559,44 @@ class Collector:
 
     # Pull request review helpers --------------------------------------
 
+    def list_assigned_pull_requests(
+        self, repo: str, assignee: str, state: str = "all"
+    ) -> List[int]:
+        """Return pull request numbers where the user is an assignee."""
+
+        state_normalised = state.lower().strip() or "all"
+        if state_normalised not in {"open", "closed", "all"}:
+            raise ValueError(
+                "state must be one of 'open', 'closed', or 'all'"
+            )
+
+        console.log(
+            "Listing assigned pull requests",
+            f"repo={repo}",
+            f"assignee={assignee}",
+            f"state={state_normalised}",
+        )
+
+        params = {
+            "assignee": assignee,
+            "state": state_normalised,
+            "per_page": 100,
+        }
+
+        issues = self._request_all(f"repos/{repo}/issues", params)
+        numbers: List[int] = []
+        seen: Set[int] = set()
+        for issue in issues:
+            if "pull_request" not in issue:
+                continue
+            number = int(issue.get("number", 0) or 0)
+            if not number or number in seen:
+                continue
+            seen.add(number)
+            numbers.append(number)
+
+        return numbers
+
     def collect_pull_request_details(
         self, repo: str, number: int
     ) -> PullRequestReviewBundle:

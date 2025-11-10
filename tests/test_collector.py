@@ -306,3 +306,36 @@ def test_collector_applies_branch_path_and_language_filters(monkeypatch):
     assert collection.pull_requests == 1
     assert collection.reviews == 1
     assert collection.issues == 1
+
+
+def test_list_assigned_pull_requests_filters_prs(monkeypatch):
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    issues_payload = [
+        {"number": 1, "pull_request": {}},
+        {"number": 2},
+        {"number": 3, "pull_request": {}},
+        {"number": 1, "pull_request": {}},
+    ]
+
+    def fake_request_all(self, path, params=None):  # type: ignore[override]
+        assert path == "repos/example/repo/issues"
+        assert params == {"assignee": "octocat", "state": "closed", "per_page": 100}
+        return issues_payload
+
+    monkeypatch.setattr(Collector, "_request_all", fake_request_all)
+
+    numbers = collector.list_assigned_pull_requests(
+        repo="example/repo",
+        assignee="octocat",
+        state="CLOSED",
+    )
+
+    assert numbers == [1, 3]
+
+
+def test_list_assigned_pull_requests_validates_state():
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    with pytest.raises(ValueError):
+        collector.list_assigned_pull_requests("example/repo", "octocat", state="invalid")
