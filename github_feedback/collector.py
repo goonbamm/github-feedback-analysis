@@ -15,6 +15,7 @@ from .models import (
     CollectionResult,
     PullRequestFile,
     PullRequestReviewBundle,
+    PullRequestSummary,
 )
 
 console = Console()
@@ -65,6 +66,7 @@ class Collector:
 
         commits = self._count_commits(repo, since, filters)
         pull_requests, pr_metadata = self._list_pull_requests(repo, since, filters)
+        pull_request_examples = self._build_pull_request_examples(pr_metadata)
         reviews = self._count_reviews(repo, pr_metadata, since, filters)
         issues = self._count_issues(repo, since, filters)
 
@@ -77,6 +79,7 @@ class Collector:
             reviews=reviews,
             issues=issues,
             filters=filters,
+            pull_request_examples=pull_request_examples,
         )
 
     # Internal helpers -------------------------------------------------
@@ -198,6 +201,35 @@ class Collector:
                 break
             page += 1
         return total, metadata
+
+    def _build_pull_request_examples(
+        self, pr_metadata: List[Dict[str, Any]]
+    ) -> List[PullRequestSummary]:
+        """Transform raw pull request metadata into reporting friendly examples."""
+
+        examples: List[PullRequestSummary] = []
+        for pr in pr_metadata[:5]:
+            author = pr.get("user") or {}
+            merged_at_raw = pr.get("merged_at")
+            merged_at = (
+                self._parse_timestamp(merged_at_raw).astimezone(timezone.utc)
+                if merged_at_raw
+                else None
+            )
+            created_at = self._parse_timestamp(pr["created_at"]).astimezone(timezone.utc)
+            examples.append(
+                PullRequestSummary(
+                    number=int(pr.get("number", 0)),
+                    title=(pr.get("title") or "(no title)").strip(),
+                    author=author.get("login", "unknown"),
+                    html_url=pr.get("html_url", ""),
+                    created_at=created_at,
+                    merged_at=merged_at,
+                    additions=int(pr.get("additions") or 0),
+                    deletions=int(pr.get("deletions") or 0),
+                )
+            )
+        return examples
 
     def _count_reviews(
         self,

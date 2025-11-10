@@ -171,6 +171,10 @@ def analyze(
         "summary": metrics.summary,
         "stats": metrics.stats,
         "evidence": metrics.evidence,
+        "highlights": metrics.highlights,
+        "spotlight_examples": metrics.spotlight_examples,
+        "yearbook_story": metrics.yearbook_story,
+        "awards": metrics.awards,
     }
 
     persist_metrics(Path("reports") / "metrics.json", metrics_payload)
@@ -201,6 +205,10 @@ def report() -> None:
         summary=payload.get("summary", {}),
         stats=payload.get("stats", {}),
         evidence=payload.get("evidence", {}),
+        highlights=payload.get("highlights", []),
+        spotlight_examples=payload.get("spotlight_examples", {}),
+        yearbook_story=payload.get("yearbook_story", []),
+        awards=payload.get("awards", []),
     )
 
     reporter = Reporter()

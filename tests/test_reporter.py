@@ -44,3 +44,38 @@ def test_generate_markdown_creates_expected_file(tmp_path, sample_metrics):
     assert md_path.exists()
     contents = md_path.read_text(encoding="utf-8")
     assert "GitHub Feedback Report" in contents
+
+
+def test_generate_markdown_includes_growth_sections(tmp_path):
+    """Growth highlights and examples should render when provided."""
+
+    metrics = MetricSnapshot(
+        repo="example/repo",
+        months=12,
+        generated_at=datetime.utcnow(),
+        status=AnalysisStatus.ANALYSED,
+        summary={"overall": "Busy year"},
+        stats={},
+        evidence={},
+        highlights=["올해에 120회의 커밋으로 코드 품질을 끌어올렸습니다."],
+        spotlight_examples={
+            "pull_requests": [
+                "PR #42 · Add analytics API — dev1 (2024-02-01, 2024-02-03 병합, 변경 200줄) · https://example.com"
+            ]
+        },
+        yearbook_story=["올해는 핵심 기능을 대거 정비하며 팀의 속도를 끌어올렸습니다."],
+        awards=["🏆 코드 대장장이 상 — 100회 이상의 커밋"]
+    )
+
+    reporter = Reporter(output_dir=tmp_path)
+    md_path = reporter.generate_markdown(metrics)
+
+    contents = md_path.read_text(encoding="utf-8")
+    assert "## Growth Highlights" in contents
+    assert "올해에 120회의 커밋" in contents
+    assert "## Spotlight Examples" in contents
+    assert "PR #42" in contents
+    assert "## Year in Review" in contents
+    assert "핵심 기능을 대거 정비" in contents
+    assert "## Awards Cabinet" in contents
+    assert "코드 대장장이 상" in contents

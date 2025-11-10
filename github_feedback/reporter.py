@@ -54,6 +54,33 @@ class Reporter:
                     )
             summary_lines.append("")
 
+        if metrics.highlights:
+            summary_lines.append("## Growth Highlights")
+            for highlight in metrics.highlights:
+                summary_lines.append(f"- {highlight}")
+            summary_lines.append("")
+
+        if metrics.spotlight_examples:
+            summary_lines.append("## Spotlight Examples")
+            for category, entries in metrics.spotlight_examples.items():
+                summary_lines.append(f"### {category.replace('_', ' ').title()}")
+                for entry in entries:
+                    summary_lines.append(f"- {entry}")
+                summary_lines.append("")
+
+        if metrics.yearbook_story:
+            summary_lines.append("## Year in Review")
+            summary_lines.append("")
+            for paragraph in metrics.yearbook_story:
+                summary_lines.append(paragraph)
+                summary_lines.append("")
+
+        if metrics.awards:
+            summary_lines.append("## Awards Cabinet")
+            for award in metrics.awards:
+                summary_lines.append(f"- {award}")
+            summary_lines.append("")
+
         summary_lines.append("## Evidence")
         for domain, links in metrics.evidence.items():
             summary_lines.append(f"### {domain.title()}")

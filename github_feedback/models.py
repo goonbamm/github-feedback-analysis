@@ -108,6 +108,36 @@ class PullRequestReviewBundle:
         }
 
 
+@dataclass(slots=True)
+class PullRequestSummary:
+    """Lightweight snapshot of a pull request for reporting."""
+
+    number: int
+    title: str
+    author: str
+    html_url: str
+    created_at: datetime
+    merged_at: Optional[datetime]
+    additions: int = 0
+    deletions: int = 0
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise the summary for JSON persistence."""
+
+        payload: Dict[str, object] = {
+            "number": self.number,
+            "title": self.title,
+            "author": self.author,
+            "html_url": self.html_url,
+            "created_at": self.created_at.isoformat(),
+            "additions": self.additions,
+            "deletions": self.deletions,
+        }
+        if self.merged_at is not None:
+            payload["merged_at"] = self.merged_at.isoformat()
+        return payload
+
+
 class AnalysisStatus(str, Enum):
     """Lifecycle marker for analysis runs."""
 
@@ -141,6 +171,7 @@ class CollectionResult:
     reviews: int
     issues: int
     filters: AnalysisFilters
+    pull_request_examples: List[PullRequestSummary] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -154,3 +185,7 @@ class MetricSnapshot:
     summary: Dict[str, str]
     stats: Dict[str, Dict[str, float]]
     evidence: Dict[str, List[str]]
+    highlights: List[str] = field(default_factory=list)
+    spotlight_examples: Dict[str, List[str]] = field(default_factory=dict)
+    yearbook_story: List[str] = field(default_factory=list)
+    awards: List[str] = field(default_factory=list)
