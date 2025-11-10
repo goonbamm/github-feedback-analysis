@@ -174,9 +174,9 @@ class Reviewer:
                 )
                 if file.patch:
                     lines.append("")
-                    lines.append("  ```diff")
+                    lines.append("```diff")
                     lines.append(truncate_patch(file.patch))
-                    lines.append("  ```")
+                    lines.append("```")
                     lines.append("")
                 else:
                     lines.append("")
