@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pytest
 
@@ -76,6 +76,67 @@ def test_collector_filters_bots_and_counts_resources(monkeypatch):
     assert collection.pull_requests == 1
     assert collection.reviews == 1
     assert collection.issues == 1
+
+
+def test_collector_excludes_commits_from_excluded_branches(monkeypatch):
+    config = Config(auth=AuthConfig(pat="dummy-token"))
+    collector = Collector(config)
+
+    branches_payload = [{"name": "main"}, {"name": "feature"}]
+    commit_payloads = {
+        "main": [
+            {"sha": "sha-main-1", "author": {"type": "User"}},
+            {"sha": "sha-shared", "author": {"type": "User"}},
+        ],
+        "feature": [
+            {"sha": "sha-feature", "author": {"type": "User"}},
+        ],
+    }
+
+    requested_branches: List[Optional[str]] = []
+
+    def fake_request(path, params=None):  # type: ignore[override]
+        params = params or {}
+        if path.endswith("/commits"):
+            sha = params.get("sha")
+            requested_branches.append(sha)
+            if sha == "feature":
+                pytest.fail("Commits for excluded branches should not be requested")
+            return commit_payloads.get(sha, [])
+        if path.endswith("/pulls"):
+            return []
+        if path.endswith("/issues"):
+            return []
+        raise AssertionError(f"Unhandled path {path}")
+
+    def fake_request_all(self, path, params=None):  # type: ignore[override]
+        assert path == "repos/example/repo/branches"
+        assert params == {"per_page": 100}
+        return branches_payload
+
+    monkeypatch.setattr(collector, "_request", fake_request)
+    monkeypatch.setattr(Collector, "_request_all", fake_request_all)
+
+    filters = AnalysisFilters(exclude_branches=["feature"])
+    collection = collector.collect(
+        repo="example/repo",
+        months=1,
+        filters=filters,
+    )
+
+    assert collection.commits == 2
+    assert requested_branches == ["main"]
+
+    requested_branches.clear()
+    zero_filters = AnalysisFilters(exclude_branches=["main", "feature"])
+    commits = collector._count_commits(
+        repo="example/repo",
+        since=datetime.now(timezone.utc),
+        filters=zero_filters,
+    )
+
+    assert commits == 0
+    assert requested_branches == []
 
 
 def test_collect_pull_request_details_paginates(monkeypatch):
