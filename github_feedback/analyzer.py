@@ -23,14 +23,76 @@ class Analyzer:
 
         console.log("Analyzing repository trends", f"repo={collection.repo}")
 
+        (
+            month_span,
+            velocity_score,
+            collaboration_score,
+            stability_score,
+            total_activity,
+            period_label,
+        ) = self._calculate_scores(collection)
+
+        highlights = self._build_highlights(
+            collection,
+            period_label,
+            month_span,
+            velocity_score,
+            total_activity,
+        )
+        spotlight_examples = self._build_spotlight_examples(collection)
+        summary = self._build_summary(
+            period_label,
+            total_activity,
+            velocity_score,
+            collaboration_score,
+            stability_score,
+        )
+        story_beats = self._build_story_beats(collection, period_label, total_activity)
+        awards = self._determine_awards(collection)
+        stats = self._build_stats(collection, velocity_score)
+        evidence = self._build_evidence(collection)
+
+        return MetricSnapshot(
+            repo=collection.repo,
+            months=collection.months,
+            generated_at=datetime.utcnow(),
+            status=AnalysisStatus.ANALYSED,
+            summary=summary,
+            stats=stats,
+            evidence=evidence,
+            highlights=highlights,
+            spotlight_examples=spotlight_examples,
+            yearbook_story=story_beats,
+            awards=awards,
+        )
+
+    def _calculate_scores(
+        self, collection: CollectionResult
+    ) -> tuple[int, float, float, int, int, str]:
         month_span = max(collection.months, 1)
         velocity_score = collection.commits / month_span
         collaboration_score = (collection.pull_requests + collection.reviews) / month_span
         stability_score = max(collection.commits - collection.issues, 0)
-
-        period_label = "올해" if collection.months >= 12 else f"지난 {collection.months}개월"
         total_activity = collection.commits + collection.pull_requests + collection.reviews
+        period_label = "올해" if collection.months >= 12 else f"지난 {collection.months}개월"
 
+        return (
+            month_span,
+            velocity_score,
+            collaboration_score,
+            stability_score,
+            total_activity,
+            period_label,
+        )
+
+    def _build_highlights(
+        self,
+        collection: CollectionResult,
+        period_label: str,
+        month_span: int,
+        velocity_score: float,
+        total_activity: int,
+    ) -> List[str]:
         highlights: List[str] = []
         if collection.commits:
             highlights.append(
@@ -51,35 +113,49 @@ class Analyzer:
         if not highlights and total_activity == 0:
             highlights.append("분석 기간 동안 뚜렷한 활동이 감지되지 않았습니다.")
 
-        spotlight_examples: Dict[str, List[str]] = {}
-        if collection.pull_request_examples:
-            pr_lines = []
-            for pr in collection.pull_request_examples[:3]:
-                change_volume = pr.additions + pr.deletions
-                scale_phrase = (
-                    f"변경 {change_volume}줄"
-                    if change_volume
-                    else "경량 변경"
-                )
-                merged_phrase = (
-                    f"{pr.merged_at.date().isoformat()} 병합"
-                    if pr.merged_at
-                    else "미병합"
-                )
-                pr_lines.append(
-                    f"PR #{pr.number} · {pr.title} — {pr.author} ({pr.created_at.date().isoformat()}, {merged_phrase}, {scale_phrase}) · {pr.html_url}"
-                )
-            spotlight_examples["pull_requests"] = pr_lines
+        return highlights
 
-        summary = {
+    def _build_spotlight_examples(self, collection: CollectionResult) -> Dict[str, List[str]]:
+        spotlight_examples: Dict[str, List[str]] = {}
+        if not collection.pull_request_examples:
+            return spotlight_examples
+
+        pr_lines = []
+        for pr in collection.pull_request_examples[:3]:
+            change_volume = pr.additions + pr.deletions
+            scale_phrase = f"변경 {change_volume}줄" if change_volume else "경량 변경"
+            merged_phrase = (
+                f"{pr.merged_at.date().isoformat()} 병합"
+                if pr.merged_at
+                else "미병합"
+            )
+            pr_lines.append(
+                f"PR #{pr.number} · {pr.title} — {pr.author} ({pr.created_at.date().isoformat()}, {merged_phrase}, {scale_phrase}) · {pr.html_url}"
+            )
+        spotlight_examples["pull_requests"] = pr_lines
+        return spotlight_examples
+
+    def _build_summary(
+        self,
+        period_label: str,
+        total_activity: int,
+        velocity_score: float,
+        collaboration_score: float,
+        stability_score: int,
+    ) -> Dict[str, str]:
+        return {
             "velocity": f"Average {velocity_score:.1f} commits per month",
-            "collaboration": (
-                "{:.1f} combined PRs and reviews per month".format(collaboration_score)
-            ),
+            "collaboration": "{:.1f} combined PRs and reviews per month".format(collaboration_score),
             "stability": f"Net stability score of {stability_score}",
             "growth": f"{period_label} 동안 {total_activity}건의 활동을 기록했습니다.",
         }
 
+    def _build_story_beats(
+        self,
+        collection: CollectionResult,
+        period_label: str,
+        total_activity: int,
+    ) -> List[str]:
         story_beats: List[str] = []
         if total_activity:
             story_beats.append(
@@ -121,6 +197,9 @@ class Analyzer:
                 )
             )
 
+        return story_beats
+
+    def _determine_awards(self, collection: CollectionResult) -> List[str]:
         awards: List[str] = []
         if collection.commits >= 100:
             awards.append(
@@ -144,7 +223,10 @@ class Analyzer:
                 "🌟 만능 성장상 — 한 해의 작은 발걸음들이 내년의 큰 도약을 예고합니다."
             )
 
-        stats: Dict[str, Dict[str, float]] = {
+        return awards
+
+    def _build_stats(self, collection: CollectionResult, velocity_score: float) -> Dict[str, Dict[str, float]]:
+        return {
             "commits": {
                 "total": float(collection.commits),
                 "per_month": velocity_score,
@@ -160,8 +242,9 @@ class Analyzer:
             },
         }
 
+    def _build_evidence(self, collection: CollectionResult) -> Dict[str, List[str]]:
         repo_root = f"{self.web_base_url.rstrip('/')}/{collection.repo}"
-        evidence = {
+        return {
             "commits": [
                 f"{repo_root}/commits",
             ],
@@ -169,17 +252,3 @@ class Analyzer:
                 f"{repo_root}/pulls",
             ],
         }
-
-        return MetricSnapshot(
-            repo=collection.repo,
-            months=collection.months,
-            generated_at=datetime.utcnow(),
-            status=AnalysisStatus.ANALYSED,
-            summary=summary,
-            stats=stats,
-            evidence=evidence,
-            highlights=highlights,
-            spotlight_examples=spotlight_examples,
-            yearbook_story=story_beats,
-            awards=awards,
-        )
