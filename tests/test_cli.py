@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
@@ -60,8 +61,17 @@ class DummyMetrics:
 
 
 class DummyReporter:
+    def __init__(self) -> None:
+        self.markdown_calls: list[DummyMetrics] = []
+        self.html_calls: list[DummyMetrics] = []
+
     def generate_markdown(self, metrics: DummyMetrics) -> Path:
+        self.markdown_calls.append(metrics)
         return Path("reports") / f"{metrics.repo.replace('/', '_')}.md"
+
+    def generate_html(self, metrics: DummyMetrics) -> Path:
+        self.html_calls.append(metrics)
+        return Path("reports") / f"{metrics.repo.replace('/', '_')}.html"
 
 
 def _silent_console(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -76,8 +86,8 @@ def _stub_config(monkeypatch: pytest.MonkeyPatch) -> Config:
     return config
 
 
-def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, DummyCollector]:
-    created: Dict[str, DummyCollector] = {}
+def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
+    created: Dict[str, Any] = {}
 
     def collector_factory(config: Config) -> DummyCollector:
         instance = DummyCollector(config)
@@ -86,8 +96,14 @@ def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, DummyCollec
 
     monkeypatch.setattr(cli, "Collector", collector_factory)
     monkeypatch.setattr(cli, "Analyzer", lambda web_base_url: DummyAnalyzer(web_base_url))
-    monkeypatch.setattr(cli, "Reporter", lambda: DummyReporter())
-    monkeypatch.setattr(cli, "persist_metrics", lambda *args, **kwargs: None)
+
+    def reporter_factory() -> DummyReporter:
+        instance = DummyReporter()
+        created.setdefault("reporters", []).append(instance)
+        return instance
+
+    monkeypatch.setattr(cli, "Reporter", reporter_factory)
+    monkeypatch.setattr(cli, "persist_metrics", lambda *args, **kwargs: Path("reports/metrics.json"))
     monkeypatch.setattr(cli, "_render_metrics", lambda *args, **kwargs: None)
     return created
 
@@ -126,3 +142,63 @@ def test_analyze_supports_multiple_filter_options(monkeypatch: pytest.MonkeyPatc
 
     # Ensure analyzer received the collection and config defaults were respected
     assert config.defaults.months == 12
+
+
+def test_analyze_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch) -> None:
+    _silent_console(monkeypatch)
+    _stub_config(monkeypatch)
+    created = _stub_dependencies(monkeypatch)
+
+    cli.analyze(
+        repo="example/repo",
+        months=3,
+        include_branch=None,
+        exclude_branch=None,
+        include_path=None,
+        exclude_path=None,
+        include_language=None,
+        include_bots=False,
+        html=True,
+    )
+
+    reporters = created.get("reporters", [])
+    assert reporters, "Reporter should be instantiated"
+    reporter = reporters[-1]
+    assert reporter.markdown_calls, "Markdown report should be generated"
+    assert reporter.html_calls, "HTML report should be generated when --html is provided"
+
+
+def test_report_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _silent_console(monkeypatch)
+    _stub_config(monkeypatch)
+    created = _stub_dependencies(monkeypatch)
+
+    metrics_payload = {
+        "repo": "example/repo",
+        "months": 6,
+        "generated_at": "2024-01-01T00:00:00",
+        "status": "analysed",
+        "summary": {},
+        "stats": {},
+        "evidence": {},
+        "highlights": [],
+        "spotlight_examples": {},
+        "yearbook_story": [],
+        "awards": [],
+    }
+
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    metrics_file = reports_dir / "metrics.json"
+    metrics_file.write_text(json.dumps(metrics_payload), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+
+    cli.report(html=True)
+
+    reporters = created.get("reporters", [])
+    assert reporters, "Reporter should be instantiated"
+    reporter = reporters[-1]
+    assert reporter.markdown_calls, "Markdown report should be regenerated"
+    assert reporter.html_calls, "HTML report should be generated when --html is provided"
+
