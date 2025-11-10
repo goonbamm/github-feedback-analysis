@@ -20,8 +20,8 @@ def test_collector_filters_bots_and_counts_resources(monkeypatch):
         if path.endswith("/commits"):
             if page == 1:
                 return [
-                    {"author": {"type": "User"}},
-                    {"author": {"type": "Bot"}},
+                    {"sha": "sha-1", "author": {"type": "User"}},
+                    {"sha": "sha-2", "author": {"type": "Bot"}},
                 ]
             return []
         if path.endswith("/pulls"):
@@ -148,3 +148,161 @@ def test_collect_pull_request_details_paginates(monkeypatch):
     assert bundle.review_comments[0] == "comment-0"
     assert bundle.review_comments[-1] == "overflow"
     assert bundle.files[-1].patch == "@@"
+
+
+def test_collector_applies_branch_path_and_language_filters(monkeypatch):
+    now = datetime.now(timezone.utc)
+    config = Config(auth=AuthConfig(pat="dummy-token"))
+    collector = Collector(config)
+
+    commit_pages = {
+        ("main", "src/app.py"): [
+            {"sha": "c-main", "author": {"type": "User"}},
+        ],
+        ("main", "docs/readme.md"): [
+            {"sha": "c-main-docs", "author": {"type": "User"}},
+        ],
+        ("feature", "src/app.py"): [
+            {"sha": "c-feature", "author": {"type": "User"}},
+            {"sha": "c-main", "author": {"type": "User"}},
+        ],
+        ("feature", "docs/readme.md"): [],
+    }
+
+    commit_details = {
+        "c-main": {"files": [{"filename": "src/app.py"}]},
+        "c-main-docs": {
+            "files": [{"filename": "docs/old/guide.md"}],
+        },
+        "c-feature": {"files": [{"filename": "src/app.py"}]},
+    }
+
+    pr_pages = [
+        {
+            "number": 1,
+            "created_at": now.isoformat(),
+            "user": {"type": "User"},
+            "base": {"ref": "main"},
+            "head": {"ref": "feature"},
+        },
+        {
+            "number": 2,
+            "created_at": now.isoformat(),
+            "user": {"type": "User"},
+            "base": {"ref": "deprecated"},
+            "head": {"ref": "feature"},
+        },
+        {
+            "number": 3,
+            "created_at": now.isoformat(),
+            "user": {"type": "User"},
+            "base": {"ref": "main"},
+            "head": {"ref": "docs-update"},
+        },
+    ]
+
+    pr_files = {
+        1: [
+            {"filename": "src/app.py"},
+            {"filename": "docs/guide.md"},
+        ],
+        2: [
+            {"filename": "src/legacy.py"},
+        ],
+        3: [
+            {"filename": "docs/old/manual.md"},
+        ],
+    }
+
+    review_pages = {
+        1: [
+            {
+                "submitted_at": now.isoformat(),
+                "user": {"type": "User"},
+            }
+        ],
+        2: [
+            {
+                "submitted_at": now.isoformat(),
+                "user": {"type": "User"},
+            }
+        ],
+        3: [
+            {
+                "submitted_at": now.isoformat(),
+                "user": {"type": "User"},
+            }
+        ],
+    }
+
+    issues_page = [
+        {"user": {"type": "User"}, "files": ["src/app.py"]},
+        {"user": {"type": "User"}, "files": ["docs/old/guide.md"]},
+        {"user": {"type": "User"}, "files": ["tests/test_app.py"]},
+        {"user": {"type": "User"}, "pull_request": {}},
+    ]
+
+    def fake_request(path, params=None):  # type: ignore[override]
+        params = params or {}
+        page = params.get("page", 1)
+        if path.endswith("/commits") and "pulls" not in path:
+            if page > 1:
+                return []
+            sha = params.get("sha")
+            path_filter = params.get("path")
+            if sha is None:
+                return []
+            if path_filter == "src/":
+                key = (sha, "src/app.py")
+            elif path_filter == "docs/":
+                key = (sha, "docs/readme.md")
+            else:
+                key = (sha, path_filter)
+            return commit_pages.get(key, [])
+        if path.endswith("/pulls"):
+            if page > 1:
+                return []
+            return pr_pages
+        if path.endswith("/reviews"):
+            number = int(path.rstrip("/").split("/")[-2])
+            if page > 1:
+                return []
+            return review_pages[number]
+        if path.endswith("/files"):
+            number = int(path.rstrip("/").split("/")[-2])
+            if page > 1:
+                return []
+            return pr_files[number]
+        if path.endswith("/issues"):
+            if page > 1:
+                return []
+            return issues_page
+        raise AssertionError(f"Unhandled path {path}")
+
+    def fake_request_json(path, params=None):  # type: ignore[override]
+        if "/commits/" in path:
+            sha = path.rsplit("/", 1)[-1]
+            return commit_details[sha]
+        raise AssertionError(f"Unhandled json path {path}")
+
+    monkeypatch.setattr(collector, "_request", fake_request)
+    monkeypatch.setattr(collector, "_request_json", fake_request_json)
+
+    filters = AnalysisFilters(
+        include_branches=["main", "feature"],
+        exclude_branches=["deprecated"],
+        include_paths=["src/", "docs/"],
+        exclude_paths=["docs/old"],
+        include_languages=["Python"],
+    )
+
+    collection = collector.collect(
+        repo="example/repo",
+        months=1,
+        filters=filters,
+    )
+
+    assert collection.commits == 2
+    assert collection.pull_requests == 1
+    assert collection.reviews == 1
+    assert collection.issues == 1
