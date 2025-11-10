@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set
 
 import requests
 
@@ -167,27 +167,54 @@ class Collector:
         self, repo: str, since: datetime, filters: AnalysisFilters
     ) -> int:
         total = 0
-        page = 1
-        params: Dict[str, Any] = {
-            "since": since.isoformat(),
-            "per_page": 100,
-        }
+        seen_shas: Set[str] = set()
+        include_branches: Sequence[Optional[str]]
+        exclude_branches = set(filters.exclude_branches)
         if filters.include_branches:
-            params["sha"] = filters.include_branches[0]
+            include_branches = [
+                branch
+                for branch in filters.include_branches
+                if branch not in exclude_branches
+            ]
+        else:
+            include_branches = [None]
 
-        while True:
-            page_params = params | {"page": page}
-            data = self._request(f"repos/{repo}/commits", page_params)
-            if not data:
-                break
-            for commit in data:
-                author = commit.get("author")
-                if self._filter_bot(author, filters):
-                    continue
-                total += 1
-            if len(data) < 100:
-                break
-            page += 1
+        path_filters = filters.include_paths or [None]
+        commit_file_cache: Dict[str, List[str]] = {}
+
+        for branch in include_branches:
+            for path_filter in path_filters:
+                page = 1
+                base_params: Dict[str, Any] = {
+                    "since": since.isoformat(),
+                    "per_page": 100,
+                }
+                if branch:
+                    base_params["sha"] = branch
+                if path_filter:
+                    base_params["path"] = path_filter
+
+                while True:
+                    page_params = base_params | {"page": page}
+                    data = self._request(f"repos/{repo}/commits", page_params)
+                    if not data:
+                        break
+                    for commit in data:
+                        author = commit.get("author")
+                        if self._filter_bot(author, filters):
+                            continue
+                        sha = commit.get("sha")
+                        if not sha or sha in seen_shas:
+                            continue
+                        if not self._commit_matches_path_filters(
+                            repo, sha, filters, commit_file_cache
+                        ):
+                            continue
+                        seen_shas.add(sha)
+                        total += 1
+                    if len(data) < 100:
+                        break
+                    page += 1
         return total
 
     def _list_pull_requests(
@@ -204,6 +231,7 @@ class Collector:
         }
 
         stop_pagination = False
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
         while not stop_pagination:
             page_params = params | {"page": page}
             data = self._request(f"repos/{repo}/pulls", page_params)
@@ -216,6 +244,12 @@ class Collector:
                     break
                 author = pr.get("user")
                 if self._filter_bot(author, filters):
+                    continue
+                if not self._pr_matches_branch_filters(pr, filters):
+                    continue
+                if not self._pr_matches_file_filters(
+                    repo, pr, filters, pr_file_cache
+                ):
                     continue
                 total += 1
                 metadata.append(pr)
@@ -261,8 +295,13 @@ class Collector:
         filters: AnalysisFilters,
     ) -> int:
         total = 0
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
         for pr in pull_requests:
             number = pr["number"]
+            if not self._pr_matches_branch_filters(pr, filters):
+                continue
+            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+                continue
             page = 1
             while True:
                 data = self._request(
@@ -307,11 +346,218 @@ class Collector:
                 author = issue.get("user")
                 if self._filter_bot(author, filters):
                     continue
+                if not self._issue_matches_filters(issue, filters):
+                    continue
                 total += 1
             if len(data) < 100:
                 break
             page += 1
         return total
+
+    # Filtering helpers -------------------------------------------------
+
+    def _commit_matches_path_filters(
+        self,
+        repo: str,
+        sha: str,
+        filters: AnalysisFilters,
+        cache: Dict[str, List[str]],
+    ) -> bool:
+        if not filters.include_paths and not filters.exclude_paths:
+            return True
+        files = cache.get(sha)
+        if files is None:
+            payload = self._request_json(f"repos/{repo}/commits/{sha}")
+            file_entries = payload.get("files") or []
+            files = [entry.get("filename", "") for entry in file_entries]
+            cache[sha] = files
+
+        if filters.include_paths:
+            if not any(
+                self._path_matches(path, include_path)
+                for path in files
+                for include_path in filters.include_paths
+            ):
+                return False
+        if filters.exclude_paths:
+            if any(
+                self._path_matches(path, exclude_path)
+                for path in files
+                for exclude_path in filters.exclude_paths
+            ):
+                return False
+        return True
+
+    @staticmethod
+    def _path_matches(path: str, prefix: str) -> bool:
+        if not prefix:
+            return True
+        return path.startswith(prefix)
+
+    def _pr_matches_branch_filters(
+        self, pr: Dict[str, Any], filters: AnalysisFilters
+    ) -> bool:
+        include = filters.include_branches
+        exclude = set(filters.exclude_branches)
+        base_ref = ((pr.get("base") or {}).get("ref") or "")
+        head_ref = ((pr.get("head") or {}).get("ref") or "")
+
+        if base_ref in exclude or head_ref in exclude:
+            return False
+        if include:
+            return base_ref in include or head_ref in include
+        return True
+
+    def _pr_matches_file_filters(
+        self,
+        repo: str,
+        pr: Dict[str, Any],
+        filters: AnalysisFilters,
+        cache: Dict[int, List[Dict[str, Any]]],
+    ) -> bool:
+        if (
+            not filters.include_paths
+            and not filters.exclude_paths
+            and not filters.include_languages
+        ):
+            return True
+
+        number = int(pr.get("number", 0))
+        files = cache.get(number)
+        if files is None:
+            files = self._request_all(
+                f"repos/{repo}/pulls/{number}/files", {"per_page": 100}
+            )
+            cache[number] = files
+
+        filenames = [entry.get("filename", "") for entry in files]
+
+        if filters.include_paths:
+            if not any(
+                self._path_matches(filename, include_path)
+                for filename in filenames
+                for include_path in filters.include_paths
+            ):
+                return False
+        if filters.exclude_paths:
+            if any(
+                self._path_matches(filename, exclude_path)
+                for filename in filenames
+                for exclude_path in filters.exclude_paths
+            ):
+                return False
+
+        if filters.include_languages:
+            languages = {
+                self._filename_to_language(filename)
+                for filename in filenames
+                if filename
+            }
+            include_languages_normalised = {
+                language.lower() for language in filters.include_languages
+            }
+            if not any(
+                language and language.lower() in include_languages_normalised
+                for language in languages
+            ):
+                return False
+
+        return True
+
+    @staticmethod
+    def _filename_to_language(filename: str) -> Optional[str]:
+        if "." not in filename:
+            return None
+        extension = filename.rsplit(".", 1)[-1].lower()
+        mapping = {
+            "py": "Python",
+            "js": "JavaScript",
+            "ts": "TypeScript",
+            "tsx": "TypeScript",
+            "jsx": "JavaScript",
+            "rb": "Ruby",
+            "go": "Go",
+            "rs": "Rust",
+            "java": "Java",
+            "cs": "C#",
+            "cpp": "C++",
+            "cxx": "C++",
+            "cc": "C++",
+            "c": "C",
+            "kt": "Kotlin",
+            "swift": "Swift",
+            "php": "PHP",
+            "scala": "Scala",
+            "m": "Objective-C",
+            "mm": "Objective-C++",
+            "hs": "Haskell",
+            "r": "R",
+            "pl": "Perl",
+            "sh": "Shell",
+            "ps1": "PowerShell",
+            "dart": "Dart",
+            "md": "Markdown",
+            "yml": "YAML",
+            "yaml": "YAML",
+            "json": "JSON",
+        }
+        return mapping.get(extension)
+
+    def _issue_matches_filters(
+        self, issue: Dict[str, Any], filters: AnalysisFilters
+    ) -> bool:
+        if (
+            not filters.include_paths
+            and not filters.exclude_paths
+            and not filters.include_languages
+        ):
+            return True
+
+        filenames = self._extract_issue_files(issue)
+        if filters.include_paths:
+            if not any(
+                self._path_matches(filename, include_path)
+                for filename in filenames
+                for include_path in filters.include_paths
+            ):
+                return False
+        if filters.exclude_paths:
+            if any(
+                self._path_matches(filename, exclude_path)
+                for filename in filenames
+                for exclude_path in filters.exclude_paths
+            ):
+                return False
+        if filters.include_languages:
+            include_languages_normalised = {
+                language.lower() for language in filters.include_languages
+            }
+            languages = {
+                self._filename_to_language(filename)
+                for filename in filenames
+                if filename
+            }
+            if not any(
+                language and language.lower() in include_languages_normalised
+                for language in languages
+            ):
+                return False
+        return True
+
+    @staticmethod
+    def _extract_issue_files(issue: Dict[str, Any]) -> List[str]:
+        files: List[str] = []
+        issue_files = issue.get("files")
+        if isinstance(issue_files, list):
+            files.extend(str(filename) for filename in issue_files)
+        labels = issue.get("labels") or []
+        for label in labels:
+            name = str((label or {}).get("name") or "")
+            if name.startswith("path:"):
+                files.append(name.split("path:", 1)[1])
+            if name.startswith("file:"):
+                files.append(name.split("file:", 1)[1])
+        return files
 
     # Pull request review helpers --------------------------------------
 
