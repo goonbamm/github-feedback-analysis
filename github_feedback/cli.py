@@ -10,9 +10,21 @@ import typer
 
 try:  # pragma: no cover - optional rich dependency
     from rich import box
+    from rich.align import Align
+    from rich.columns import Columns
+    from rich.console import Group
+    from rich.panel import Panel
+    from rich.rule import Rule
     from rich.table import Table
+    from rich.text import Text
 except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
+    Align = None
+    Columns = None
+    Group = None
+    Panel = None
+    Rule = None
     Table = None
+    Text = None
     box = None
 
 from .analyzer import Analyzer
@@ -88,7 +100,7 @@ def init(
     config.llm.model = llm_model
     config.defaults.months = months
     config.dump()
-    console.print("Configuration saved successfully.")
+    console.print("[success]Configuration saved successfully.[/]")
 
 
 @app.command()
@@ -107,14 +119,153 @@ def show_config() -> None:
             console.print("")
         return
 
-    table = Table(title="GitHub Feedback Configuration", box=box.SIMPLE_HEAVY)
-    table.add_column("Section")
-    table.add_column("Values")
+    table = Table(
+        title="GitHub Feedback Configuration",
+        box=box.ROUNDED,
+        title_style="title",
+        border_style="frame",
+        expand=True,
+        show_lines=True,
+    )
+    table.add_column("Section", style="label", no_wrap=True)
+    table.add_column("Values", style="value")
 
     for section, values in data.items():
-        table.add_row(section, "\n".join(f"{k}: {v}" for k, v in values.items()))
+        rendered_values = "\n".join(f"[label]{k}[/]: [value]{v}[/]" for k, v in values.items())
+        table.add_row(f"[accent]{section}[/]", rendered_values)
 
     console.print(table)
+
+
+def _render_metrics(metrics: MetricSnapshot) -> None:
+    """Render metrics with a visually rich presentation."""
+
+    if (
+        Table is None
+        or Panel is None
+        or Columns is None
+        or Text is None
+        or Group is None
+        or Align is None
+    ):
+        console.print(f"Analysis complete for {metrics.repo}")
+        console.print(f"Timeframe: {metrics.months} months")
+        console.print(f"Status: {metrics.status.value}")
+        for key, value in metrics.summary.items():
+            console.print(f"- {key.title()}: {value}")
+        if metrics.highlights:
+            console.print("Highlights:")
+            for highlight in metrics.highlights:
+                console.print(f"  • {highlight}")
+        return
+
+    status_styles = {
+        AnalysisStatus.CREATED: "warning",
+        AnalysisStatus.COLLECTED: "accent",
+        AnalysisStatus.ANALYSED: "success",
+        AnalysisStatus.REPORTED: "accent",
+    }
+    status_style = status_styles.get(metrics.status, "accent")
+
+    header = Panel(
+        Group(
+            Align.center(Text("Insights Ready", style="title")),
+            Align.center(Text(metrics.repo, style="repo")),
+            Align.center(Text(f"{metrics.months} month retrospection", style="muted")),
+        ),
+        border_style="accent",
+        padding=(1, 4),
+    )
+
+    console.print(header)
+    console.print(
+        Rule(
+            title=f"Status • {metrics.status.value.upper()}",
+            style="divider",
+            characters="━",
+            align="center",
+            title_style=status_style,
+        )
+    )
+
+    if metrics.summary:
+        summary_grid = Table.grid(padding=(0, 2))
+        summary_grid.add_column(justify="right", style="label")
+        summary_grid.add_column(style="value")
+        for key, value in metrics.summary.items():
+            summary_grid.add_row(key.title(), str(value))
+
+        summary_panel = Panel(summary_grid, border_style="frame", title="Pulse Check", title_align="left")
+    else:
+        summary_panel = Panel(Text("No summary metrics available", style="muted"), border_style="frame")
+
+    stat_panels = []
+    for domain, domain_stats in metrics.stats.items():
+        stat_table = Table(
+            box=box.MINIMAL,
+            show_edge=False,
+            pad_edge=False,
+            expand=True,
+        )
+        stat_table.add_column("Metric", style="label")
+        stat_table.add_column("Value", style="value")
+        for stat_name, stat_value in domain_stats.items():
+            if isinstance(stat_value, (int, float)):
+                formatted = f"{stat_value:.2f}" if not isinstance(stat_value, int) else f"{stat_value:,}"
+            else:
+                formatted = str(stat_value)
+            stat_table.add_row(stat_name.replace("_", " ").title(), formatted)
+
+        stat_panel = Panel(
+            stat_table,
+            title=domain.replace("_", " ").title(),
+            border_style="accent",
+            padding=(0, 1),
+        )
+        stat_panels.append(stat_panel)
+
+    sections = [summary_panel]
+    if stat_panels:
+        sections.append(Columns(stat_panels, equal=True, expand=True))
+
+    console.print(*sections)
+
+    if metrics.highlights:
+        highlights_text = Text("\n".join(f"• {item}" for item in metrics.highlights), style="value")
+        highlights_panel = Panel(highlights_text, title="Momentum Highlights", border_style="frame")
+        console.print(highlights_panel)
+
+    if metrics.spotlight_examples:
+        spotlight_panels = []
+        for category, entries in metrics.spotlight_examples.items():
+            spotlight_text = Text("\n".join(f"• {entry}" for entry in entries), style="value")
+            spotlight_panels.append(
+                Panel(
+                    spotlight_text,
+                    title=category.replace("_", " ").title(),
+                    border_style="accent",
+                    padding=(1, 2),
+                )
+            )
+        console.print(Columns(spotlight_panels, expand=True))
+
+    if metrics.awards:
+        awards_text = Text("\n".join(f"🏆 {award}" for award in metrics.awards), style="value")
+        console.print(Panel(awards_text, title="Awards Cabinet", border_style="accent"))
+
+    if metrics.evidence:
+        evidence_panels = []
+        for domain, links in metrics.evidence.items():
+            evidence_text = Text("\n".join(f"🔗 {link}" for link in links), style="value")
+            evidence_panels.append(
+                Panel(
+                    evidence_text,
+                    title=domain.replace("_", " ").title(),
+                    border_style="frame",
+                    padding=(1, 2),
+                )
+            )
+        console.print(Columns(evidence_panels, expand=True))
 
 
 @app.command()
@@ -160,8 +311,11 @@ def analyze(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    collection = collector.collect(repo=repo_input, months=months, filters=filters)
-    metrics = analyzer.compute_metrics(collection)
+    with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
+        collection = collector.collect(repo=repo_input, months=months, filters=filters)
+
+    with console.status("[accent]Synthesizing insights...", spinner="dots"):
+        metrics = analyzer.compute_metrics(collection)
 
     metrics_payload = {
         "repo": metrics.repo,
@@ -180,7 +334,10 @@ def analyze(
     persist_metrics(Path("reports") / "metrics.json", metrics_payload)
 
     markdown_path = reporter.generate_markdown(metrics)
-    console.print("Markdown report generated:", markdown_path)
+    console.rule("Analysis Summary")
+    _render_metrics(metrics)
+    console.rule("Artifacts")
+    console.print("[success]Markdown report generated:[/]", f"[value]{markdown_path}[/]")
 
 
 @app.command()
@@ -189,7 +346,7 @@ def report() -> None:
 
     metrics_file = Path("reports") / "metrics.json"
     if not metrics_file.exists():
-        console.print("No cached metrics available. Run `gf analyze` first.")
+        console.print("[warning]No cached metrics available.[/] Run `gf analyze` first.")
         raise typer.Exit(code=1)
 
     import json
@@ -212,9 +369,12 @@ def report() -> None:
     )
 
     reporter = Reporter()
-    reporter.generate_markdown(metrics)
+    markdown_path = reporter.generate_markdown(metrics)
 
-    console.print("Report regeneration complete.")
+    console.rule("Cached Insights")
+    _render_metrics(metrics)
+    console.rule("Artifacts")
+    console.print("[success]Markdown report refreshed:[/]", f"[value]{markdown_path}[/]")
 
 
 def persist_metrics(metrics_path: Path, metrics_data: dict) -> None:
@@ -268,11 +428,13 @@ def review(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
-        repo=repo_input,
-        number=number,
-    )
+    with console.status("[accent]Curating pull request context...", spinner="line"):
+        artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+            repo=repo_input,
+            number=number,
+        )
 
-    console.print("Pull request artefacts cached:", artefact_path)
-    console.print("Structured summary stored:", summary_path)
-    console.print("Markdown review generated:", markdown_path)
+    console.rule("Review Assets")
+    console.print("[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]")
+    console.print("[success]Structured summary stored:[/]", f"[value]{summary_path}[/]")
+    console.print("[success]Markdown review generated:[/]", f"[value]{markdown_path}[/]")
