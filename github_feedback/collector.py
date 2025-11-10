@@ -10,7 +10,12 @@ import requests
 
 from .config import Config
 from .console import Console
-from .models import AnalysisFilters, CollectionResult
+from .models import (
+    AnalysisFilters,
+    CollectionResult,
+    PullRequestFile,
+    PullRequestReviewBundle,
+)
 
 console = Console()
 
@@ -25,6 +30,9 @@ class Collector:
     _request: Callable[[str, Optional[Dict[str, Any]]], List[Dict[str, Any]]] = field(
         init=False, repr=False
     )
+    _request_json: Callable[[str, Optional[Dict[str, Any]]], Dict[str, Any]] = field(
+        init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.config.auth is None or not self.config.auth.pat:
@@ -35,6 +43,7 @@ class Collector:
             "Accept": "application/vnd.github+json",
         }
         object.__setattr__(self, "_request", self._request_impl)
+        object.__setattr__(self, "_request_json", self._request_json_impl)
 
     def collect(
         self,
@@ -96,6 +105,23 @@ class Collector:
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
+            raise ValueError(f"Unexpected payload type for {path}: {type(payload)!r}")
+        return payload
+
+    def _request_json_impl(
+        self, path: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        response = self._get_session().get(
+            self._build_api_url(path),
+            params=params,
+            timeout=30,
+            verify=self.config.server.verify_ssl,
+        )
+        if response.status_code == 401:
+            raise PermissionError("GitHub API rejected the provided PAT.")
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
             raise ValueError(f"Unexpected payload type for {path}: {type(payload)!r}")
         return payload
 
@@ -232,3 +258,73 @@ class Collector:
                 break
             page += 1
         return total
+
+    # Pull request review helpers --------------------------------------
+
+    def collect_pull_request_details(
+        self, repo: str, number: int
+    ) -> PullRequestReviewBundle:
+        """Gather detailed information for a single pull request."""
+
+        console.log(
+            "Collecting pull request artefacts",
+            f"repo={repo}",
+            f"number={number}",
+        )
+
+        pr_payload = self._request_json(f"repos/{repo}/pulls/{number}")
+        review_payload = self._request(f"repos/{repo}/pulls/{number}/reviews")
+        review_comment_payload = self._request(
+            f"repos/{repo}/pulls/{number}/comments"
+        )
+        files_payload = self._request(f"repos/{repo}/pulls/{number}/files")
+
+        created_at_raw = pr_payload.get("created_at", datetime.utcnow().isoformat())
+        updated_at_raw = pr_payload.get("updated_at", created_at_raw)
+
+        repo_root = self.config.server.web_url.rstrip("/")
+        html_url = pr_payload.get(
+            "html_url",
+            f"{repo_root}/{repo}/pull/{number}",
+        )
+
+        files: List[PullRequestFile] = []
+        for entry in files_payload:
+            files.append(
+                PullRequestFile(
+                    filename=entry.get("filename", ""),
+                    status=entry.get("status", "modified"),
+                    additions=int(entry.get("additions", 0) or 0),
+                    deletions=int(entry.get("deletions", 0) or 0),
+                    changes=int(entry.get("changes", 0) or 0),
+                    patch=entry.get("patch"),
+                )
+            )
+
+        review_bodies = [
+            review.get("body", "").strip()
+            for review in review_payload
+            if review.get("body")
+        ]
+        review_comments = [
+            comment.get("body", "").strip()
+            for comment in review_comment_payload
+            if comment.get("body")
+        ]
+
+        return PullRequestReviewBundle(
+            repo=repo,
+            number=number,
+            title=pr_payload.get("title", ""),
+            body=pr_payload.get("body", ""),
+            author=(pr_payload.get("user") or {}).get("login", ""),
+            html_url=html_url,
+            created_at=self._parse_timestamp(created_at_raw).astimezone(timezone.utc),
+            updated_at=self._parse_timestamp(updated_at_raw).astimezone(timezone.utc),
+            additions=int(pr_payload.get("additions", 0) or 0),
+            deletions=int(pr_payload.get("deletions", 0) or 0),
+            changed_files=int(pr_payload.get("changed_files", 0) or len(files)),
+            review_bodies=review_bodies,
+            review_comments=review_comments,
+            files=files,
+        )
