@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 import pytest
 
 pytest.importorskip("requests")
+
+import requests
 
 from github_feedback.collector import Collector
 from github_feedback.config import AuthConfig, Config
@@ -306,3 +309,80 @@ def test_collector_applies_branch_path_and_language_filters(monkeypatch):
     assert collection.pull_requests == 1
     assert collection.reviews == 1
     assert collection.issues == 1
+
+
+def test_list_assigned_pull_requests_filters_prs(monkeypatch):
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    issues_payload = [
+        {"number": 1, "pull_request": {}},
+        {"number": 2},
+        {"number": 3, "pull_request": {}},
+        {"number": 1, "pull_request": {}},
+    ]
+
+    def fake_request_all(self, path, params=None):  # type: ignore[override]
+        assert path == "repos/example/repo/issues"
+        assert params == {"assignee": "octocat", "state": "closed", "per_page": 100}
+        return issues_payload
+
+    monkeypatch.setattr(Collector, "_request_all", fake_request_all)
+
+    numbers = collector.list_assigned_pull_requests(
+        repo="example/repo",
+        assignee="octocat",
+        state="CLOSED",
+    )
+
+    assert numbers == [1, 3]
+
+
+def test_list_assigned_pull_requests_validates_state():
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    with pytest.raises(ValueError):
+        collector.list_assigned_pull_requests("example/repo", "octocat", state="invalid")
+
+
+def test_list_assigned_pull_requests_falls_back_to_search(monkeypatch):
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    response = requests.Response()
+    response.status_code = 422
+
+    def fail_request_all(self, path, params=None):  # type: ignore[override]
+        raise requests.HTTPError(response=response)
+
+    search_calls: List[Dict[str, Any]] = []
+    payloads = [
+        {"items": [{"number": 5, "pull_request": {}}]},
+        {"items": [{"number": 6, "pull_request": {}}]},
+    ]
+
+    def fake_request_json(self, path, params=None):  # type: ignore[override]
+        assert path == "search/issues"
+        search_calls.append(params or {})
+        return payloads.pop(0)
+
+    monkeypatch.setattr(Collector, "_request_all", fail_request_all)
+    monkeypatch.setattr(Collector, "_request_json", fake_request_json)
+
+    numbers = collector.list_assigned_pull_requests(
+        repo="example/repo",
+        assignee="octocat",
+        state="all",
+    )
+
+    assert numbers == [5, 6]
+    assert search_calls == [
+        {
+            "q": "repo:example/repo is:pr assignee:octocat state:open",
+            "per_page": 100,
+            "page": 1,
+        },
+        {
+            "q": "repo:example/repo is:pr assignee:octocat state:closed",
+            "per_page": 100,
+            "page": 1,
+        },
+    ]

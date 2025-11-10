@@ -462,11 +462,16 @@ def review(
         prompt="Repository to review (owner/name)",
         help="Repository in owner/name format",
     ),
-    number: int = typer.Option(
-        ..., "--number", prompt="Pull request number", help="Pull request number"
+    assignee: str = typer.Option(
+        ..., "--assignee", prompt="Assignee login", help="GitHub username to review for"
+    ),
+    state: str = typer.Option(
+        "all",
+        "--state",
+        help="Limit pull requests by state (open, closed, all)",
     ),
 ) -> None:
-    """Collect pull request context and generate an LLM powered review."""
+    """Collect pull request context and generate LLM powered reviews for an assignee."""
 
     config = _load_config()
 
@@ -488,13 +493,53 @@ def review(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    with console.status("[accent]Curating pull request context...", spinner="line"):
-        artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+    assignee_input = assignee.strip()
+    if not assignee_input:
+        console.print("Assignee value cannot be empty.")
+        raise typer.Exit(code=1)
+
+    state_normalised = state.lower().strip() or "all"
+    if state_normalised not in {"open", "closed", "all"}:
+        console.print("State must be one of: open, closed, all.")
+        raise typer.Exit(code=1)
+
+    with console.status(
+        "[accent]Discovering assigned pull requests...", spinner="dots"
+    ):
+        numbers = collector.list_assigned_pull_requests(
             repo=repo_input,
-            number=number,
+            assignee=assignee_input,
+            state=state_normalised,
         )
 
+    if not numbers:
+        console.print(
+            f"[warning]No pull requests found for assignee '{assignee_input}' in {repo_input}.[/]"
+        )
+        return
+
+    numbers = sorted(set(numbers))
+    results = []
+    for pr_number in numbers:
+        with console.status(
+            f"[accent]Curating context for PR #{pr_number}...", spinner="line"
+        ):
+            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+                repo=repo_input,
+                number=pr_number,
+            )
+        results.append((pr_number, artefact_path, summary_path, markdown_path))
+
     console.rule("Review Assets")
-    console.print("[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]")
-    console.print("[success]Structured summary stored:[/]", f"[value]{summary_path}[/]")
-    console.print("[success]Markdown review generated:[/]", f"[value]{markdown_path}[/]")
+    for pr_number, artefact_path, summary_path, markdown_path in results:
+        console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
+        console.print(
+            "[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]"
+        )
+        console.print(
+            "[success]Structured summary stored:[/]", f"[value]{summary_path}[/]"
+        )
+        console.print(
+            "[success]Markdown review generated:[/]", f"[value]{markdown_path}[/]"
+        )
+        console.print("")

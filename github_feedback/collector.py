@@ -559,7 +559,102 @@ class Collector:
 
     # Pull request review helpers --------------------------------------
 
+    def list_assigned_pull_requests(
+        self, repo: str, assignee: str, state: str = "all"
+    ) -> List[int]:
+        """Return pull request numbers where the user is an assignee."""
+
+        state_normalised = state.lower().strip() or "all"
+        if state_normalised not in {"open", "closed", "all"}:
+            raise ValueError(
+                "state must be one of 'open', 'closed', or 'all'"
+            )
+
+        console.log(
+            "Listing assigned pull requests",
+            f"repo={repo}",
+            f"assignee={assignee}",
+            f"state={state_normalised}",
+        )
+
+        params = {
+            "assignee": assignee,
+            "state": state_normalised,
+            "per_page": 100,
+        }
+
+        try:
+            issues = self._request_all(f"repos/{repo}/issues", params)
+        except requests.HTTPError as exc:
+            response = getattr(exc, "response", None)
+            status_code = getattr(response, "status_code", None)
+            if status_code != 422:
+                raise
+
+            console.log(
+                "Primary issues listing failed with 422; falling back to search API",
+                f"repo={repo}",
+                f"assignee={assignee}",
+                f"state={state_normalised}",
+            )
+            issues = self._search_assigned_pull_requests(repo, assignee, state_normalised)
+
+        numbers: List[int] = []
+        seen: Set[int] = set()
+        for issue in issues:
+            if "pull_request" not in issue:
+                continue
+            number = int(issue.get("number", 0) or 0)
+            if not number or number in seen:
+                continue
+            seen.add(number)
+            numbers.append(number)
+
+        return numbers
+
+    def _search_assigned_pull_requests(
+        self, repo: str, assignee: str, state: str
+    ) -> List[Dict[str, Any]]:
+        """Fallback helper that queries the search API for assigned pull requests."""
+
+        states: List[str]
+        if state == "all":
+            states = ["open", "closed"]
+        else:
+            states = [state]
+
+        results: List[Dict[str, Any]] = []
+        seen_numbers: Set[int] = set()
+        for state_value in states:
+            page = 1
+            per_page = 100
+            while True:
+                query_parts = [f"repo:{repo}", "is:pr", f"assignee:{assignee}"]
+                if state_value:
+                    query_parts.append(f"state:{state_value}")
+                params = {
+                    "q": " ".join(query_parts),
+                    "per_page": per_page,
+                    "page": page,
+                }
+                payload = self._request_json("search/issues", params)
+                items = payload.get("items") or []
+                filtered_items: List[Dict[str, Any]] = []
+                for item in items:
+                    number = int(item.get("number", 0) or 0)
+                    if not number or number in seen_numbers:
+                        continue
+                    seen_numbers.add(number)
+                    filtered_items.append(item)
+                results.extend(filtered_items)
+                if len(items) < per_page:
+                    break
+                page += 1
+
+        return results
+
     def collect_pull_request_details(
+
         self, repo: str, number: int
     ) -> PullRequestReviewBundle:
         """Gather detailed information for a single pull request."""
