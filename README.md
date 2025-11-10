@@ -62,15 +62,23 @@ GitHub 접속 정보와 기본 분석 옵션을 설정합니다. 처음 실행�
 gf init
 ```
 
-주요 옵션:
-- `--pat TEXT`: GitHub Personal Access Token. 인자가 없으면 안전하게 입력하도록 프롬프트가 뜹니다.
-- `--months INTEGER`: 기본 분석 기간(개월). 분석 시 별도 입력이 없으면 이 값이 사용됩니다.
-- `--enterprise-host TEXT`: GitHub Enterprise 호스트 주소. 입력하면 REST/GraphQL/Web URL이 자동으로 채워집니다.
-- `--api-url`, `--graphql-url`, `--web-url`: Enterprise 환경에서 직접 URL을 지정하고 싶을 때 사용합니다.
-- `--verify-ssl / --no-verify-ssl`: 사설 인증서를 사용하는 환경에서 검증을 끄고 싶을 때 `--no-verify-ssl`을 지정합니다.
-- `--llm-endpoint`, `--llm-model`: 리뷰 생성에 사용할 LLM 엔드포인트와 모델 ID를 지정합니다.
+| 옵션 | 기본값 | 설명 |
+| --- | --- | --- |
+| `--pat TEXT` | (필수) | GitHub Personal Access Token. 인자가 없으면 안전하게 입력하도록 프롬프트가 뜹니다. |
+| `--months INTEGER` | `12` | 기본 분석 기간(개월). 분석 시 별도 입력이 없으면 이 값이 사용됩니다. |
+| `--enterprise-host TEXT` | `github.com` | GitHub Enterprise 호스트 주소. 입력하면 REST/GraphQL/Web URL이 자동으로 채워집니다. |
+| `--llm-endpoint TEXT` | (필수) | 리뷰 생성에 사용할 LLM API 엔드포인트. |
+| `--llm-model TEXT` | (필수) | 사용할 LLM 모델 식별자. |
 
-CI나 자동화 스크립트에서 사용하고 싶다면 모든 옵션을 명시적으로 전달하면 프롬프트 없이 실행됩니다.
+CI나 자동화 스크립트에서 사용하고 싶다면 모든 옵션을 명시적으로 전달하면 프롬프트 없이 실행됩니다. 예시는 다음과 같습니다.
+
+```bash
+gf init \
+  --pat ghp_xxxxxxxxxxxxxxxxxxxx \
+  --enterprise-host https://github.example.com \
+  --llm-endpoint https://llm.internal/api/v1/chat/completions \
+  --llm-model gpt-5-codex
+```
 
 ### `gf analyze`
 지정한 저장소의 최근 활동을 수집하고 보고서를 생성하는 핵심 명령입니다.
@@ -148,8 +156,12 @@ pat = "<set>"
 
 [server]
 api_url = "https://api.github.com"
+graphql_url = "https://api.github.com/graphql"
 web_url = "https://github.com"
-verify_ssl = true
+
+[llm]
+endpoint = "http://localhost:8000/v1/chat/completions"
+model = "gpt-5-codex"
 
 [defaults]
 months = 12

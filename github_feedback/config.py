@@ -29,7 +29,6 @@ class ServerConfig(BaseModel):
     api_url: str = "https://api.github.com"
     graphql_url: str = "https://api.github.com/graphql"
     web_url: str = "https://github.com"
-    verify_ssl: bool = True
 
 
 class LLMConfig(BaseModel):
