@@ -401,22 +401,29 @@ def report(
 
     import json
 
-    with metrics_file.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    try:
+        with metrics_file.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
 
-    metrics = MetricSnapshot(
-        repo=payload["repo"],
-        months=payload["months"],
-        generated_at=datetime.fromisoformat(payload["generated_at"]),
-        status=AnalysisStatus(payload.get("status", AnalysisStatus.ANALYSED.value)),
-        summary=payload.get("summary", {}),
-        stats=payload.get("stats", {}),
-        evidence=payload.get("evidence", {}),
-        highlights=payload.get("highlights", []),
-        spotlight_examples=payload.get("spotlight_examples", {}),
-        yearbook_story=payload.get("yearbook_story", []),
-        awards=payload.get("awards", []),
-    )
+        metrics = MetricSnapshot(
+            repo=payload["repo"],
+            months=payload["months"],
+            generated_at=datetime.fromisoformat(payload["generated_at"]),
+            status=AnalysisStatus(payload.get("status", AnalysisStatus.ANALYSED.value)),
+            summary=payload.get("summary", {}),
+            stats=payload.get("stats", {}),
+            evidence=payload.get("evidence", {}),
+            highlights=payload.get("highlights", []),
+            spotlight_examples=payload.get("spotlight_examples", {}),
+            yearbook_story=payload.get("yearbook_story", []),
+            awards=payload.get("awards", []),
+        )
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        console.print(
+            "[error]Cached metrics file is corrupted.[/] "
+            f"Delete [value]{metrics_file}[/] and rerun `gf analyze`."
+        )
+        raise typer.Exit(code=1) from exc
 
     reporter = Reporter(output_dir=output_dir)
     markdown_path = reporter.generate_markdown(metrics)

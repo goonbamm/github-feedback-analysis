@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pytest
+import typer
 
 from github_feedback import cli
 from github_feedback.config import AuthConfig, Config
@@ -81,6 +82,20 @@ def _silent_console(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli.console, "status", lambda *args, **kwargs: DummyStatus())
     monkeypatch.setattr(cli.console, "rule", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli.console, "print", lambda *args, **kwargs: None)
+
+
+def _capturing_console(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    messages: list[str] = []
+
+    def capture(*args, **kwargs) -> None:
+        rendered = " ".join(str(arg) for arg in args)
+        messages.append(rendered)
+
+    monkeypatch.setattr(cli.console, "status", lambda *args, **kwargs: DummyStatus())
+    monkeypatch.setattr(cli.console, "rule", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli.console, "print", capture)
+
+    return messages
 
 
 def _stub_config(monkeypatch: pytest.MonkeyPatch) -> Config:
@@ -289,4 +304,20 @@ def test_report_respects_custom_output_dir(
     assert reporters, "Reporter should be instantiated"
     reporter = reporters[-1]
     assert reporter.output_dir == custom_dir
+
+
+def test_report_exits_on_corrupted_metrics_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    messages = _capturing_console(monkeypatch)
+
+    metrics_file = tmp_path / "metrics.json"
+    metrics_file.write_text("{ invalid json", encoding="utf-8")
+
+    with pytest.raises(typer.Exit) as excinfo:
+        cli.report(output_dir=tmp_path)
+
+    assert excinfo.value.exit_code == 1
+    assert any("corrupted" in message.lower() for message in messages)
+    assert any(str(metrics_file) in message for message in messages)
 
