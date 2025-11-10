@@ -293,6 +293,11 @@ def analyze(
         None, help="File extension to include (repeat for multiple extensions)"
     ),
     include_bots: bool = typer.Option(False, help="Include bot commits in the analysis"),
+    html: bool = typer.Option(
+        False,
+        "--html",
+        help="Generate an HTML report alongside the default markdown output.",
+    ),
 ) -> None:
     """Collect data, compute metrics, and generate reports."""
 
@@ -341,17 +346,30 @@ def analyze(
         "awards": metrics.awards,
     }
 
-    persist_metrics(Path("reports") / "metrics.json", metrics_payload)
+    metrics_path = persist_metrics(Path("reports") / "metrics.json", metrics_payload)
+
+    artifacts = [("Metrics snapshot", metrics_path)]
 
     markdown_path = reporter.generate_markdown(metrics)
+    artifacts.append(("Markdown report", markdown_path))
+
+    if html:
+        artifacts.append(("HTML report", reporter.generate_html(metrics)))
     console.rule("Analysis Summary")
     _render_metrics(metrics)
     console.rule("Artifacts")
-    console.print("[success]Markdown report generated:[/]", f"[value]{markdown_path}[/]")
+    for label, path in artifacts:
+        console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
 
 
 @app.command()
-def report() -> None:
+def report(
+    html: bool = typer.Option(
+        False,
+        "--html",
+        help="Generate an HTML report alongside the cached markdown output.",
+    ),
+) -> None:
     """Generate reports from the latest cached metrics."""
 
     metrics_file = Path("reports") / "metrics.json"
@@ -380,21 +398,30 @@ def report() -> None:
 
     reporter = Reporter()
     markdown_path = reporter.generate_markdown(metrics)
+    artifacts = [("Markdown report", markdown_path)]
+
+    if html:
+        html_path = reporter.generate_html(metrics)
+        artifacts.append(("HTML report", html_path))
 
     console.rule("Cached Insights")
     _render_metrics(metrics)
     console.rule("Artifacts")
-    console.print("[success]Markdown report refreshed:[/]", f"[value]{markdown_path}[/]")
+    for label, path in artifacts:
+        console.print(f"[success]{label} refreshed:[/]", f"[value]{path}[/]")
 
 
-def persist_metrics(metrics_path: Path, metrics_data: dict) -> None:
+def persist_metrics(metrics_path: Path, metrics_data: dict) -> Path:
     """Persist raw metrics to disk for later reporting."""
 
+    metrics_path = metrics_path.expanduser()
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     import json
 
     with metrics_path.open("w", encoding="utf-8") as handle:
         json.dump(metrics_data, handle, indent=2)
+
+    return metrics_path
 
 
 @app.callback()
