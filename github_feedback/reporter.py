@@ -5,12 +5,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Iterable, List, Tuple
 
 from .console import Console
 from .models import MetricSnapshot
 
 console = Console()
+
+
+def _format_metric_value(value: object) -> str:
+    """Format numeric values with separators while keeping strings intact."""
+
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    if isinstance(value, float):
+        return f"{value:,.2f}"
+    return str(value)
 
 
 @dataclass(slots=True)
@@ -38,7 +50,10 @@ class Reporter:
         summary_lines.append("## Summary")
 
         for key, value in metrics.summary.items():
-            summary_lines.append(f"- **{key.title()}**: {value}")
+            display_value = (
+                _format_metric_value(value) if isinstance(value, (int, float)) else str(value)
+            )
+            summary_lines.append(f"- **{key.title()}**: {display_value}")
 
         summary_lines.append("")
         summary_lines.append("## Metrics")
@@ -47,13 +62,12 @@ class Reporter:
             summary_lines.append(f"### {domain.title()}")
             for stat_name, stat_value in domain_stats.items():
                 if isinstance(stat_value, (int, float)):
-                    summary_lines.append(
-                        f"- {stat_name.replace('_', ' ').title()}: {stat_value:.2f}"
-                    )
+                    formatted_value = _format_metric_value(stat_value)
                 else:
-                    summary_lines.append(
-                        f"- {stat_name.replace('_', ' ').title()}: {stat_value}"
-                    )
+                    formatted_value = str(stat_value)
+                summary_lines.append(
+                    f"- {stat_name.replace('_', ' ').title()}: {formatted_value}"
+                )
             summary_lines.append("")
 
         if metrics.highlights:
@@ -104,16 +118,15 @@ class Reporter:
         created: List[Tuple[str, Path]] = []
 
         for domain, domain_stats in metrics.stats.items():
-            numeric_stats: Dict[str, float] = {}
+            numeric_stats: List[Tuple[str, float, object]] = []
             for stat_name, stat_value in domain_stats.items():
                 if isinstance(stat_value, (int, float)):
-                    numeric_stats[stat_name] = float(stat_value)
+                    numeric_stats.append((stat_name, float(stat_value), stat_value))
 
             if not numeric_stats:
                 continue
 
-            labels = [name.replace("_", " ").title() for name in numeric_stats]
-            values = list(numeric_stats.values())
+            values = [value for _, value, _ in numeric_stats]
             max_value = max(values) if values else 1.0
             safe_domain = domain.lower().replace(" ", "_")
             chart_path = charts_dir / f"{safe_domain}.svg"
@@ -138,14 +151,15 @@ class Reporter:
                 f"<text x='{width/2}' y='32' text-anchor='middle' fill='#38bdf8' font-size='24' font-weight='600'>{escape(domain.title())} Metrics</text>",
             ]
 
-            for index, (label, value) in enumerate(zip(labels, values)):
+            for index, (stat_name, value, original) in enumerate(numeric_stats):
+                label = stat_name.replace("_", " ").title()
                 y = top_padding + index * (bar_height + spacing)
                 bar_width = 0 if max_value == 0 else (value / max_value) * chart_width
                 svg_parts.extend(
                     [
                         f"<text x='{left_padding - 12}' y='{y + bar_height / 1.5}' text-anchor='end' fill='#cbd5f5' font-size='14'>{escape(label)}</text>",
                         f"<rect x='{left_padding}' y='{y}' width='{bar_width}' height='{bar_height}' rx='10' fill='url(#barGradient)' />",
-                        f"<text x='{left_padding + bar_width + 12}' y='{y + bar_height / 1.5}' fill='#f8fafc' font-size='14'>{value:.2f}</text>",
+                        f"<text x='{left_padding + bar_width + 12}' y='{y + bar_height / 1.5}' fill='#f8fafc' font-size='14'>{_format_metric_value(original)}</text>",
                     ]
                 )
 
@@ -176,7 +190,7 @@ class Reporter:
         console.log("Writing HTML report", f"path={report_path}")
 
         summary_items = "".join(
-            f"<li><strong>{escape(key.title())}</strong>: {escape(str(value))}</li>"
+            f"<li><strong>{escape(key.title())}</strong>: {escape(_format_metric_value(value) if isinstance(value, (int, float)) else str(value))}</li>"
             for key, value in metrics.summary.items()
         )
 
@@ -185,7 +199,9 @@ class Reporter:
             rows = []
             for name, value in stats.items():
                 label = escape(name.replace("_", " ").title())
-                display_value = f"{value:.2f}" if isinstance(value, (int, float)) else str(value)
+                display_value = (
+                    _format_metric_value(value) if isinstance(value, (int, float)) else str(value)
+                )
                 rows.append(f"<tr><th>{label}</th><td>{escape(display_value)}</td></tr>")
             if rows:
                 metrics_sections.append(
