@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -61,17 +63,18 @@ class DummyMetrics:
 
 
 class DummyReporter:
-    def __init__(self) -> None:
+    def __init__(self, output_dir: Path = Path("reports")) -> None:
+        self.output_dir = output_dir
         self.markdown_calls: list[DummyMetrics] = []
         self.html_calls: list[DummyMetrics] = []
 
     def generate_markdown(self, metrics: DummyMetrics) -> Path:
         self.markdown_calls.append(metrics)
-        return Path("reports") / f"{metrics.repo.replace('/', '_')}.md"
+        return self.output_dir / f"{metrics.repo.replace('/', '_')}.md"
 
     def generate_html(self, metrics: DummyMetrics) -> Path:
         self.html_calls.append(metrics)
-        return Path("reports") / f"{metrics.repo.replace('/', '_')}.html"
+        return self.output_dir / f"{metrics.repo.replace('/', '_')}.html"
 
 
 def _silent_console(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,13 +100,35 @@ def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
     monkeypatch.setattr(cli, "Collector", collector_factory)
     monkeypatch.setattr(cli, "Analyzer", lambda web_base_url: DummyAnalyzer(web_base_url))
 
-    def reporter_factory() -> DummyReporter:
-        instance = DummyReporter()
+    def reporter_factory(*args, **kwargs) -> DummyReporter:
+        output_dir = kwargs.get("output_dir")
+        if args:
+            output_dir = args[0]
+        if output_dir is None:
+            output_dir = Path("reports")
+        instance = DummyReporter(output_dir=output_dir)
         created.setdefault("reporters", []).append(instance)
         return instance
 
     monkeypatch.setattr(cli, "Reporter", reporter_factory)
-    monkeypatch.setattr(cli, "persist_metrics", lambda *args, **kwargs: Path("reports/metrics.json"))
+    
+    def persist_stub(*args, **kwargs) -> Path:
+        if args and not kwargs:
+            # Backwards compatibility if positional args sneak in
+            output_dir, metrics_data = args[:2]
+            filename = args[2] if len(args) > 2 else "metrics.json"
+        else:
+            output_dir = kwargs.get("output_dir", args[0] if args else Path("reports"))
+            metrics_data = kwargs["metrics_data"]
+            filename = kwargs.get("filename", "metrics.json")
+
+        output_dir = Path(output_dir)
+        created.setdefault("persist_calls", []).append(
+            {"output_dir": output_dir, "metrics_data": metrics_data, "filename": filename}
+        )
+        return output_dir / filename
+
+    monkeypatch.setattr(cli, "persist_metrics", persist_stub)
     monkeypatch.setattr(cli, "_render_metrics", lambda *args, **kwargs: None)
     return created
 
@@ -168,6 +193,35 @@ def test_analyze_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch) 
     assert reporter.html_calls, "HTML report should be generated when --html is provided"
 
 
+def test_analyze_uses_custom_output_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _silent_console(monkeypatch)
+    _stub_config(monkeypatch)
+    created = _stub_dependencies(monkeypatch)
+
+    cli.analyze(
+        repo="example/repo",
+        months=3,
+        include_branch=None,
+        exclude_branch=None,
+        include_path=None,
+        exclude_path=None,
+        include_language=None,
+        include_bots=False,
+        html=False,
+        output_dir=tmp_path,
+    )
+
+    reporters = created.get("reporters", [])
+    assert reporters, "Reporter should be instantiated"
+    reporter = reporters[-1]
+    assert reporter.output_dir == tmp_path
+
+    persist_calls = created.get("persist_calls", [])
+    assert persist_calls, "persist_metrics should be invoked"
+    assert persist_calls[-1]["output_dir"] == tmp_path
+    assert persist_calls[-1]["filename"] == "metrics.json"
+
+
 def test_report_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _silent_console(monkeypatch)
     _stub_config(monkeypatch)
@@ -201,4 +255,38 @@ def test_report_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch, t
     reporter = reporters[-1]
     assert reporter.markdown_calls, "Markdown report should be regenerated"
     assert reporter.html_calls, "HTML report should be generated when --html is provided"
+
+
+def test_report_respects_custom_output_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _silent_console(monkeypatch)
+    _stub_config(monkeypatch)
+    created = _stub_dependencies(monkeypatch)
+
+    metrics_payload = {
+        "repo": "example/repo",
+        "months": 6,
+        "generated_at": "2024-01-01T00:00:00",
+        "status": "analysed",
+        "summary": {},
+        "stats": {},
+        "evidence": {},
+        "highlights": [],
+        "spotlight_examples": {},
+        "yearbook_story": [],
+        "awards": [],
+    }
+
+    custom_dir = tmp_path / "artifacts"
+    custom_dir.mkdir()
+    metrics_file = custom_dir / "metrics.json"
+    metrics_file.write_text(json.dumps(metrics_payload), encoding="utf-8")
+
+    cli.report(html=False, output_dir=custom_dir)
+
+    reporters = created.get("reporters", [])
+    assert reporters, "Reporter should be instantiated"
+    reporter = reporters[-1]
+    assert reporter.output_dir == custom_dir
 

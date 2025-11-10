@@ -40,6 +40,19 @@ app = typer.Typer(help="Analyze GitHub repositories and generate feedback report
 console = Console()
 
 
+def _resolve_output_dir(value: Path | str | object) -> Path:
+    """Normalise CLI path inputs for both Typer and direct function calls."""
+
+    if isinstance(value, Path):
+        return value.expanduser()
+
+    default_candidate = getattr(value, "default", value)
+    if isinstance(default_candidate, Path):
+        return default_candidate.expanduser()
+
+    return Path(str(default_candidate)).expanduser()
+
+
 def _load_config() -> Config:
     try:
         return Config.load()
@@ -298,6 +311,12 @@ def analyze(
         "--html",
         help="Generate an HTML report alongside the default markdown output.",
     ),
+    output_dir: Path = typer.Option(
+        Path("reports"),
+        "--output-dir",
+        path_type=Path,
+        help="Directory to store metrics snapshots and generated reports.",
+    ),
 ) -> None:
     """Collect data, compute metrics, and generate reports."""
 
@@ -319,7 +338,8 @@ def analyze(
         raise typer.Exit(code=1) from exc
 
     analyzer = Analyzer(web_base_url=config.server.web_url)
-    reporter = Reporter()
+    output_dir = _resolve_output_dir(output_dir)
+    reporter = Reporter(output_dir=output_dir)
 
     repo_input = repo.strip()
     if not repo_input:
@@ -346,7 +366,7 @@ def analyze(
         "awards": metrics.awards,
     }
 
-    metrics_path = persist_metrics(Path("reports") / "metrics.json", metrics_payload)
+    metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
 
     artifacts = [("Metrics snapshot", metrics_path)]
 
@@ -369,10 +389,17 @@ def report(
         "--html",
         help="Generate an HTML report alongside the cached markdown output.",
     ),
+    output_dir: Path = typer.Option(
+        Path("reports"),
+        "--output-dir",
+        path_type=Path,
+        help="Directory containing cached metrics and where refreshed reports will be written.",
+    ),
 ) -> None:
     """Generate reports from the latest cached metrics."""
 
-    metrics_file = Path("reports") / "metrics.json"
+    output_dir = _resolve_output_dir(output_dir)
+    metrics_file = output_dir / "metrics.json"
     if not metrics_file.exists():
         console.print("[warning]No cached metrics available.[/] Run `gf analyze` first.")
         raise typer.Exit(code=1)
@@ -396,7 +423,7 @@ def report(
         awards=payload.get("awards", []),
     )
 
-    reporter = Reporter()
+    reporter = Reporter(output_dir=output_dir)
     markdown_path = reporter.generate_markdown(metrics)
     artifacts = [("Markdown report", markdown_path)]
 
@@ -411,11 +438,12 @@ def report(
         console.print(f"[success]{label} refreshed:[/]", f"[value]{path}[/]")
 
 
-def persist_metrics(metrics_path: Path, metrics_data: dict) -> Path:
+def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
     """Persist raw metrics to disk for later reporting."""
 
-    metrics_path = metrics_path.expanduser()
-    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    output_dir = output_dir.expanduser()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = output_dir / filename
     import json
 
     with metrics_path.open("w", encoding="utf-8") as handle:

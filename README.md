@@ -91,6 +91,7 @@ gf analyze --repo owner/name
 | `--exclude-path PATH/` | 없음 | 제외할 경로 접두사. 여러 개 반복 입력 가능. |
 | `--include-language EXT` | 전체 | 포함할 파일 확장자(예: `py`). 여러 개 반복 입력 가능. |
 | `--include-bots` | 봇 제외 | 옵션을 지정하면 봇 활동도 포함합니다. 기본은 봇 제외입니다. |
+| `--output-dir PATH` | `reports` | 지표와 보고서를 저장할 디렉터리. 경로가 없으면 자동으로 생성됩니다. |
 
 #### 자주 쓰는 예시
 ```bash
@@ -100,26 +101,21 @@ gf analyze --repo owner/name --months 6 --include-language py
 # 특정 브랜치와 경로에 한정하여 분석
 gf analyze --repo owner/name --include-branch develop --include-path src/ --include-path docs/
 
-# 여러 저장소를 순차적으로 분석하고 결과를 개별 파일로 보관
-gf analyze --repo owner/name
-mv reports/report.md reports/owner-name.md
-mv reports/metrics.json reports/owner-name-metrics.json
-
-gf analyze --repo another/name
-mv reports/report.md reports/another-name.md
-mv reports/metrics.json reports/another-name-metrics.json
+# 여러 저장소를 순차적으로 분석하고 결과를 개별 폴더로 보관
+gf analyze --repo owner/name --output-dir reports/owner-name
+gf analyze --repo another/name --output-dir reports/another-name
 ```
 
-분석이 완료되면 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다.
+분석이 완료되면 기본적으로 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다. `--output-dir`를 사용하면 해당 경로 아래에 동일한 파일 구조가 만들어집니다.
 
 ### `gf report`
 이전에 저장한 지표로 기본 보고서를 다시 생성합니다.
 
 ```bash
-gf report
+gf report --output-dir reports/owner-name
 ```
 
-기본 템플릿으로 `reports/report.md`를 다시 생성합니다. 템플릿을 변경하고 싶다면 `github_feedback/reporter.py`를 수정하거나 별도의 스크립트에서 `MetricSnapshot`을 활용하세요.
+지정한 디렉터리(기본값은 `reports`)에서 `metrics.json`을 찾아 `report.md`/`report.html`을 다시 생성합니다. 템플릿을 변경하고 싶다면 `github_feedback/reporter.py`를 수정하거나 별도의 스크립트에서 `MetricSnapshot`을 활용하세요.
 
 ### `gf show-config`
 현재 저장된 설정을 확인합니다. PAT 등 민감한 값은 `<set>` 형태로 마스킹됩니다.

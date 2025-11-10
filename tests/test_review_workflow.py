@@ -144,6 +144,10 @@ def test_reviewer_persists_outputs(tmp_path, monkeypatch):
     assert summary_path.exists()
     assert markdown_path.exists()
 
+    assert artefact_path.is_relative_to(tmp_path)
+    assert summary_path.is_relative_to(tmp_path)
+    assert markdown_path.is_relative_to(tmp_path)
+
     artefacts = artefact_path.read_text(encoding="utf-8")
     summary = summary_path.read_text(encoding="utf-8")
     markdown = markdown_path.read_text(encoding="utf-8")
