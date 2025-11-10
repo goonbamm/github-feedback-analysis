@@ -1,0 +1,154 @@
+"""Integration style tests for the pull request review helpers."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+
+pytest.importorskip("requests")
+
+from github_feedback.collector import Collector
+from github_feedback.config import AuthConfig, Config
+from github_feedback.models import PullRequestFile, PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from github_feedback.reviewer import Reviewer
+
+
+class DummyLLM:
+    """Deterministic LLM stand-in used for tests."""
+
+    def generate_review(self, bundle: PullRequestReviewBundle) -> ReviewSummary:  # noqa: D401 - simple stub
+        return ReviewSummary(
+            overview=(
+                f"Pull request #{bundle.number} touches {bundle.changed_files} files "
+                f"with {bundle.additions} additions and {bundle.deletions} deletions."
+            ),
+            strengths=[
+                ReviewPoint(
+                    message="Well structured change set.",
+                    example=bundle.files[0].filename if bundle.files else None,
+                )
+            ],
+            improvements=[
+                ReviewPoint(
+                    message="Consider adding regression tests.",
+                    example=bundle.review_comments[0] if bundle.review_comments else None,
+                )
+            ],
+        )
+
+
+def _make_bundle() -> PullRequestReviewBundle:
+    now = datetime.now(timezone.utc)
+    return PullRequestReviewBundle(
+        repo="example/repo",
+        number=7,
+        title="Improve data caching",
+        body="Adds persistent caching for review data.",
+        author="octocat",
+        html_url="https://github.com/example/repo/pull/7",
+        created_at=now,
+        updated_at=now,
+        additions=120,
+        deletions=30,
+        changed_files=2,
+        review_bodies=["LGTM"],
+        review_comments=["Nit: adjust variable naming."],
+        files=[
+            PullRequestFile(
+                filename="cache.py",
+                status="modified",
+                additions=100,
+                deletions=10,
+                changes=110,
+                patch="@@ -1,3 +1,3 @@\n-print('old')\n+print('new')",
+            ),
+            PullRequestFile(
+                filename="tests/test_cache.py",
+                status="added",
+                additions=20,
+                deletions=0,
+                changes=20,
+                patch="@@ -0,0 +1,2 @@\n+assert True",
+            ),
+        ],
+    )
+
+
+def test_collect_pull_request_details_gathers_expected_fields(monkeypatch):
+    config = Config(auth=AuthConfig(pat="dummy"))
+    collector = Collector(config)
+
+    pr_payload = {
+        "title": "Improve data caching",
+        "body": "Adds persistent caching for review data.",
+        "user": {"login": "octocat"},
+        "html_url": "https://github.com/example/repo/pull/7",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T01:00:00Z",
+        "additions": 120,
+        "deletions": 30,
+        "changed_files": 2,
+    }
+
+    def fake_request(path: str, params=None):  # type: ignore[override]
+        if path.endswith("/reviews"):
+            return [{"body": "Looks good"}]
+        if path.endswith("/comments"):
+            return [{"body": "Nit: adjust variable naming."}]
+        if path.endswith("/files"):
+            return [
+                {
+                    "filename": "cache.py",
+                    "status": "modified",
+                    "additions": 100,
+                    "deletions": 10,
+                    "changes": 110,
+                    "patch": "@@ -1 +1 @@",
+                }
+            ]
+        raise AssertionError(f"Unhandled path: {path}")
+
+    def fake_request_json(path: str, params=None):  # type: ignore[override]
+        assert path.endswith("/pulls/7")
+        return pr_payload
+
+    monkeypatch.setattr(collector, "_request", fake_request)
+    monkeypatch.setattr(collector, "_request_json", fake_request_json)
+
+    bundle = collector.collect_pull_request_details("example/repo", 7)
+
+    assert bundle.title == "Improve data caching"
+    assert bundle.review_comments == ["Nit: adjust variable naming."]
+    assert bundle.review_bodies == ["Looks good"]
+    assert bundle.files[0].filename == "cache.py"
+
+
+def test_reviewer_persists_outputs(tmp_path, monkeypatch):
+    bundle = _make_bundle()
+
+    class DummyCollector:
+        def collect_pull_request_details(self, repo: str, number: int) -> PullRequestReviewBundle:  # noqa: D401 - simple stub
+            assert repo == bundle.repo
+            assert number == bundle.number
+            return bundle
+
+    reviewer = Reviewer(collector=DummyCollector(), llm=DummyLLM(), output_dir=tmp_path)
+
+    artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+        repo=bundle.repo,
+        number=bundle.number,
+    )
+
+    assert artefact_path.exists()
+    assert summary_path.exists()
+    assert markdown_path.exists()
+
+    artefacts = artefact_path.read_text(encoding="utf-8")
+    summary = summary_path.read_text(encoding="utf-8")
+    markdown = markdown_path.read_text(encoding="utf-8")
+
+    assert "cache.py" in artefacts
+    assert "Pull request #7" in summary
+    assert "## Strengths" in markdown
+    assert "## Areas To Improve" in markdown

@@ -19,8 +19,10 @@ from .analyzer import Analyzer
 from .collector import Collector
 from .config import Config
 from .console import Console
+from .llm import LLMClient
 from .models import AnalysisFilters, AnalysisStatus, MetricSnapshot
 from .reporter import Reporter
+from .reviewer import Reviewer
 
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")
 console = Console()
@@ -222,3 +224,47 @@ def main_callback() -> None:
     """CLI entry-point callback for shared initialisation."""
 
     pass
+
+
+@app.command()
+def review(
+    repo: str = typer.Option(
+        "",
+        "--repo",
+        prompt="Repository to review (owner/name)",
+        help="Repository in owner/name format",
+    ),
+    number: int = typer.Option(
+        ..., "--number", prompt="Pull request number", help="Pull request number"
+    ),
+) -> None:
+    """Collect pull request context and generate an LLM powered review."""
+
+    config = _load_config()
+
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    llm_client = LLMClient(
+        endpoint=config.llm.endpoint,
+        model=config.llm.model,
+    )
+
+    reviewer = Reviewer(collector=collector, llm=llm_client)
+
+    repo_input = repo.strip()
+    if not repo_input:
+        console.print("Repository value cannot be empty.")
+        raise typer.Exit(code=1)
+
+    artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+        repo=repo_input,
+        number=number,
+    )
+
+    console.print("Pull request artefacts cached:", artefact_path)
+    console.print("Structured summary stored:", summary_path)
+    console.print("Markdown review generated:", markdown_path)
