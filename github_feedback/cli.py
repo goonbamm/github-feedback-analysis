@@ -73,23 +73,16 @@ def init(
             "When provided, API, GraphQL, and web URLs are derived automatically."
         ),
     ),
-    api_url: str = typer.Option(
-        "https://api.github.com", help="Base REST API URL (set to your Enterprise host if needed)"
-    ),
-    graphql_url: str = typer.Option(
-        "https://api.github.com/graphql",
-        help="GraphQL endpoint URL (Enterprise: https://<host>/api/graphql)",
-    ),
-    web_url: str = typer.Option(
-        "https://github.com", help="Web URL used when generating evidence links"
-    ),
-    verify_ssl: bool = typer.Option(
-        True, help="Verify HTTPS certificates when calling the GitHub API"
-    ),
     llm_endpoint: str = typer.Option(
-        "http://localhost:8000/v1/chat/completions", help="Default LLM endpoint"
+        ...,
+        prompt="LLM endpoint (e.g. http://localhost:8000/v1/chat/completions)",
+        help="Default LLM endpoint",
     ),
-    llm_model: str = typer.Option("", help="Preferred model identifier for the LLM"),
+    llm_model: str = typer.Option(
+        ...,
+        prompt="LLM model identifier",
+        help="Preferred model identifier for the LLM",
+    ),
 ) -> None:
     """Initialise local configuration and store credentials securely."""
 
@@ -102,13 +95,16 @@ def init(
         api_url = f"{host}/api/v3"
         graphql_url = f"{host}/api/graphql"
         web_url = host
+    else:
+        api_url = "https://api.github.com"
+        graphql_url = "https://api.github.com/graphql"
+        web_url = "https://github.com"
 
     config = Config.load()
     config.update_auth(pat)
     config.server.api_url = api_url
     config.server.graphql_url = graphql_url
     config.server.web_url = web_url
-    config.server.verify_ssl = verify_ssl
     config.llm.endpoint = llm_endpoint
     config.llm.model = llm_model
     config.defaults.months = months

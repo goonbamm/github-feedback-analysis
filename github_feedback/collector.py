@@ -101,7 +101,6 @@ class Collector:
             self._build_api_url(path),
             params=params,
             timeout=30,
-            verify=self.config.server.verify_ssl,
         )
         if response.status_code == 401:
             raise PermissionError("GitHub API rejected the provided PAT.")
@@ -118,7 +117,6 @@ class Collector:
             self._build_api_url(path),
             params=params,
             timeout=30,
-            verify=self.config.server.verify_ssl,
         )
         if response.status_code == 401:
             raise PermissionError("GitHub API rejected the provided PAT.")
