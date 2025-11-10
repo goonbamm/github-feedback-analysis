@@ -189,11 +189,10 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
     console.print(header)
     console.print(
         Rule(
-            title=f"Status • {metrics.status.value.upper()}",
+            title=f"[{status_style}]Status • {metrics.status.value.upper()}[/]",
             style="divider",
             characters="━",
             align="center",
-            title_style=status_style,
         )
     )
 
