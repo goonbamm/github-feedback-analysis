@@ -153,6 +153,61 @@ def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
     return created
 
 
+class DummyReviewCollector(DummyCollector):
+    def __init__(self, config: Config, assigned_numbers: list[int]) -> None:
+        super().__init__(config)
+        self.assigned_numbers = assigned_numbers
+        self.assigned_calls: list[Dict[str, Any]] = []
+
+    def list_assigned_pull_requests(
+        self, repo: str, assignee: str, state: str
+    ) -> list[int]:
+        self.assigned_calls.append({
+            "repo": repo,
+            "assignee": assignee,
+            "state": state,
+        })
+        return list(self.assigned_numbers)
+
+
+class DummyReviewer:
+    def __init__(self, collector: DummyReviewCollector, llm: Any) -> None:
+        self.collector = collector
+        self.llm = llm
+        self.calls: list[Dict[str, Any]] = []
+
+    def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
+        self.calls.append({"repo": repo, "number": number})
+        base = Path(f"reviews/{repo.replace('/', '_')}/pr-{number}")
+        return (
+            base / "artefacts.json",
+            base / "review_summary.json",
+            base / "review.md",
+        )
+
+
+def _stub_review_dependencies(
+    monkeypatch: pytest.MonkeyPatch, assigned_numbers: list[int]
+) -> Dict[str, Any]:
+    created: Dict[str, Any] = {}
+
+    def collector_factory(config: Config) -> DummyReviewCollector:
+        collector = DummyReviewCollector(config, assigned_numbers)
+        created["collector"] = collector
+        return collector
+
+    def reviewer_factory(collector: DummyReviewCollector, llm: Any) -> DummyReviewer:
+        reviewer = DummyReviewer(collector, llm)
+        created.setdefault("reviewers", []).append(reviewer)
+        return reviewer
+
+    monkeypatch.setattr(cli, "Collector", collector_factory)
+    monkeypatch.setattr(cli, "Reviewer", reviewer_factory)
+    monkeypatch.setattr(cli, "LLMClient", lambda endpoint, model: object())
+
+    return created
+
+
 def test_analyze_supports_multiple_filter_options(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     config = _stub_config(monkeypatch)
@@ -325,4 +380,43 @@ def test_report_exits_on_corrupted_metrics_cache(
     assert excinfo.value.exit_code == 1
     assert any("corrupted" in message.lower() for message in messages)
     assert any(str(metrics_file) in message for message in messages)
+
+
+def test_review_supports_direct_number_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
+    _silent_console(monkeypatch)
+    config = _stub_config(monkeypatch)
+    created = _stub_review_dependencies(monkeypatch, assigned_numbers=[])
+
+    cli.review(repo="example/repo", number=42)
+
+    collector = created["collector"]
+    assert collector.config is config
+    assert not collector.assigned_calls, "list_assigned_pull_requests should not be called"
+
+    reviewers = created.get("reviewers", [])
+    assert reviewers, "Reviewer should be instantiated"
+    reviewer = reviewers[-1]
+    assert reviewer.calls == [{"repo": "example/repo", "number": 42}]
+
+
+def test_review_lists_assignments_for_assignee(monkeypatch: pytest.MonkeyPatch) -> None:
+    _silent_console(monkeypatch)
+    config = _stub_config(monkeypatch)
+    created = _stub_review_dependencies(monkeypatch, assigned_numbers=[5, 3, 5])
+
+    cli.review(repo="example/repo", assignee="octocat", state="open")
+
+    collector = created["collector"]
+    assert collector.config is config
+    assert collector.assigned_calls == [
+        {"repo": "example/repo", "assignee": "octocat", "state": "open"}
+    ]
+
+    reviewers = created.get("reviewers", [])
+    assert reviewers, "Reviewer should be instantiated"
+    reviewer = reviewers[-1]
+    assert reviewer.calls == [
+        {"repo": "example/repo", "number": 3},
+        {"repo": "example/repo", "number": 5},
+    ]
 
