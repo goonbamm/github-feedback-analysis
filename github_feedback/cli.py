@@ -207,16 +207,6 @@ def report() -> None:
     console.print("Report regeneration complete.")
 
 
-@app.command()
-def suggest_templates() -> None:
-    """Create recommended repository templates in the local directory."""
-
-    reporter = Reporter()
-    paths = reporter.generate_templates()
-    for path in paths:
-        console.print("Template created:", path)
-
-
 def persist_metrics(metrics_path: Path, metrics_data: dict) -> None:
     """Persist raw metrics to disk for later reporting."""
 
