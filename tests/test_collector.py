@@ -153,7 +153,13 @@ def test_collect_pull_request_details_paginates(monkeypatch):
     assert bundle.files[-1].patch == "@@"
 
 
-def test_collector_applies_branch_path_and_language_filters(monkeypatch):
+@pytest.mark.parametrize(
+    "include_languages",
+    [["Python"], ["py"]],
+)
+def test_collector_applies_branch_path_and_language_filters(
+    monkeypatch: pytest.MonkeyPatch, include_languages: List[str]
+):
     now = datetime.now(timezone.utc)
     config = Config(auth=AuthConfig(pat="dummy-token"))
     collector = Collector(config)
@@ -296,7 +302,7 @@ def test_collector_applies_branch_path_and_language_filters(monkeypatch):
         exclude_branches=["deprecated"],
         include_paths=["src/", "docs/"],
         exclude_paths=["docs/old"],
-        include_languages=["Python"],
+        include_languages=include_languages,
     )
 
     collection = collector.collect(

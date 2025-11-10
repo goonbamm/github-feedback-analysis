@@ -18,6 +18,40 @@ from .models import (
     PullRequestSummary,
 )
 
+
+LANGUAGE_EXTENSION_MAP: Dict[str, str] = {
+    "py": "Python",
+    "js": "JavaScript",
+    "ts": "TypeScript",
+    "tsx": "TypeScript",
+    "jsx": "JavaScript",
+    "rb": "Ruby",
+    "go": "Go",
+    "rs": "Rust",
+    "java": "Java",
+    "cs": "C#",
+    "cpp": "C++",
+    "cxx": "C++",
+    "cc": "C++",
+    "c": "C",
+    "kt": "Kotlin",
+    "swift": "Swift",
+    "php": "PHP",
+    "scala": "Scala",
+    "m": "Objective-C",
+    "mm": "Objective-C++",
+    "hs": "Haskell",
+    "r": "R",
+    "pl": "Perl",
+    "sh": "Shell",
+    "ps1": "PowerShell",
+    "dart": "Dart",
+    "md": "Markdown",
+    "yml": "YAML",
+    "yaml": "YAML",
+    "json": "JSON",
+}
+
 console = Console()
 
 
@@ -361,7 +395,11 @@ class Collector:
         filters: AnalysisFilters,
         cache: Dict[str, List[str]],
     ) -> bool:
-        if not filters.include_paths and not filters.exclude_paths:
+        if (
+            not filters.include_paths
+            and not filters.exclude_paths
+            and not filters.include_languages
+        ):
             return True
         files = cache.get(sha)
         if files is None:
@@ -384,6 +422,18 @@ class Collector:
                 for exclude_path in filters.exclude_paths
             ):
                 return False
+        if filters.include_languages:
+            include_languages_normalised = self._normalise_language_filters(
+                filters.include_languages
+            )
+            if include_languages_normalised:
+                file_language_tokens = {
+                    token
+                    for path in files
+                    for token in self._filename_language_tokens(path)
+                }
+                if not file_language_tokens.intersection(include_languages_normalised):
+                    return False
         return True
 
     @staticmethod
@@ -446,60 +496,54 @@ class Collector:
                 return False
 
         if filters.include_languages:
-            languages = {
-                self._filename_to_language(filename)
-                for filename in filenames
-                if filename
-            }
-            include_languages_normalised = {
-                language.lower() for language in filters.include_languages
-            }
-            if not any(
-                language and language.lower() in include_languages_normalised
-                for language in languages
-            ):
-                return False
+            include_languages_normalised = self._normalise_language_filters(
+                filters.include_languages
+            )
+            if include_languages_normalised:
+                file_language_tokens = {
+                    token
+                    for filename in filenames
+                    for token in self._filename_language_tokens(filename)
+                }
+                if not file_language_tokens.intersection(include_languages_normalised):
+                    return False
 
         return True
+
+    @staticmethod
+    def _normalise_language_filters(include_languages: Sequence[str]) -> Set[str]:
+        normalised: Set[str] = set()
+        for value in include_languages:
+            token = str(value or "").strip().lower()
+            if not token:
+                continue
+            token = token.lstrip(".")
+            if token:
+                normalised.add(token)
+        return normalised
+
+    @staticmethod
+    def _filename_language_tokens(filename: str) -> Set[str]:
+        tokens: Set[str] = set()
+        if "." not in filename:
+            return tokens
+        extension = filename.rsplit(".", 1)[-1].lower()
+        if not extension:
+            return tokens
+        tokens.add(extension)
+        language = LANGUAGE_EXTENSION_MAP.get(extension)
+        if language:
+            tokens.add(language.lower())
+        return tokens
 
     @staticmethod
     def _filename_to_language(filename: str) -> Optional[str]:
         if "." not in filename:
             return None
         extension = filename.rsplit(".", 1)[-1].lower()
-        mapping = {
-            "py": "Python",
-            "js": "JavaScript",
-            "ts": "TypeScript",
-            "tsx": "TypeScript",
-            "jsx": "JavaScript",
-            "rb": "Ruby",
-            "go": "Go",
-            "rs": "Rust",
-            "java": "Java",
-            "cs": "C#",
-            "cpp": "C++",
-            "cxx": "C++",
-            "cc": "C++",
-            "c": "C",
-            "kt": "Kotlin",
-            "swift": "Swift",
-            "php": "PHP",
-            "scala": "Scala",
-            "m": "Objective-C",
-            "mm": "Objective-C++",
-            "hs": "Haskell",
-            "r": "R",
-            "pl": "Perl",
-            "sh": "Shell",
-            "ps1": "PowerShell",
-            "dart": "Dart",
-            "md": "Markdown",
-            "yml": "YAML",
-            "yaml": "YAML",
-            "json": "JSON",
-        }
-        return mapping.get(extension)
+        if not extension:
+            return None
+        return LANGUAGE_EXTENSION_MAP.get(extension)
 
     def _issue_matches_filters(
         self, issue: Dict[str, Any], filters: AnalysisFilters
@@ -527,19 +571,17 @@ class Collector:
             ):
                 return False
         if filters.include_languages:
-            include_languages_normalised = {
-                language.lower() for language in filters.include_languages
-            }
-            languages = {
-                self._filename_to_language(filename)
-                for filename in filenames
-                if filename
-            }
-            if not any(
-                language and language.lower() in include_languages_normalised
-                for language in languages
-            ):
-                return False
+            include_languages_normalised = self._normalise_language_filters(
+                filters.include_languages
+            )
+            if include_languages_normalised:
+                file_language_tokens = {
+                    token
+                    for filename in filenames
+                    for token in self._filename_language_tokens(filename)
+                }
+                if not file_language_tokens.intersection(include_languages_normalised):
+                    return False
         return True
 
     @staticmethod
