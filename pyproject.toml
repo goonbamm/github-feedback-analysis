@@ -27,8 +27,5 @@ test = ["pytest>=7.4"]
 [project.scripts]
 gf = "github_feedback.cli:app"
 
-[tool.setuptools.package-data]
-"github_feedback" = ["templates/*.md"]
-
 [tool.pytest.ini_options]
 addopts = "-ra"
