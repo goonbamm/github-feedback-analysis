@@ -208,8 +208,21 @@ class Collector:
                 for branch in filters.include_branches
                 if branch not in exclude_branches
             ]
+        elif exclude_branches:
+            branches = self._request_all(
+                f"repos/{repo}/branches",
+                {"per_page": 100},
+            )
+            include_branches = [
+                branch.get("name")
+                for branch in branches
+                if branch.get("name") and branch.get("name") not in exclude_branches
+            ]
         else:
             include_branches = [None]
+
+        if not include_branches:
+            return 0
 
         path_filters = filters.include_paths or [None]
         commit_file_cache: Dict[str, List[str]] = {}
