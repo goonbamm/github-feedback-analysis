@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable, List, Tuple
 
 from .console import Console
-from .models import MetricSnapshot
+from .models import MetricSnapshot, PromptRequest
 
 console = Console()
 
@@ -34,6 +34,75 @@ class Reporter:
     def ensure_structure(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         (self.output_dir / "charts").mkdir(parents=True, exist_ok=True)
+
+    def _build_prompt_context(self, metrics: MetricSnapshot) -> str:
+        """Create a reusable context block describing the metrics."""
+
+        lines: List[str] = []
+        period_label = (
+            f"지난 {metrics.months}개월"
+            if metrics.months and metrics.months < 12
+            else "올해"
+        )
+
+        lines.append(f"Repository: {metrics.repo}")
+        lines.append(f"Period: {period_label}")
+        lines.append("")
+
+        if metrics.summary:
+            lines.append("Summary:")
+            for key, value in metrics.summary.items():
+                lines.append(f"- {key.title()}: {value}")
+            lines.append("")
+
+        if metrics.stats:
+            lines.append("Metrics:")
+            for domain, domain_stats in metrics.stats.items():
+                lines.append(f"- {domain.title()}:")
+                for stat_name, stat_value in domain_stats.items():
+                    lines.append(
+                        "  • {}: {}".format(
+                            stat_name.replace("_", " ").title(),
+                            _format_metric_value(stat_value)
+                            if isinstance(stat_value, (int, float))
+                            else stat_value,
+                        )
+                    )
+            lines.append("")
+
+        if metrics.highlights:
+            lines.append("Growth Highlights:")
+            for highlight in metrics.highlights:
+                lines.append(f"- {highlight}")
+            lines.append("")
+
+        if metrics.spotlight_examples:
+            lines.append("Spotlight Examples:")
+            for category, entries in metrics.spotlight_examples.items():
+                lines.append(f"- {category.replace('_', ' ').title()}")
+                for entry in entries:
+                    lines.append(f"  • {entry}")
+            lines.append("")
+
+        if metrics.yearbook_story:
+            lines.append("Year In Review:")
+            for paragraph in metrics.yearbook_story:
+                lines.append(f"- {paragraph}")
+            lines.append("")
+
+        if metrics.awards:
+            lines.append("Awards:")
+            for award in metrics.awards:
+                lines.append(f"- {award}")
+            lines.append("")
+
+        if metrics.evidence:
+            lines.append("Evidence Links:")
+            for domain, links in metrics.evidence.items():
+                for link in links:
+                    lines.append(f"- {domain.title()}: {link}")
+
+        return "\n".join(lines).strip()
 
     def generate_markdown(self, metrics: MetricSnapshot) -> Path:
         """Create a markdown report for the provided metrics."""
@@ -110,6 +179,99 @@ class Reporter:
     # ------------------------------------------------------------------
     # Rich visual reporting
     # ------------------------------------------------------------------
+
+    def generate_prompt_packets(
+        self, metrics: MetricSnapshot
+    ) -> List[Tuple[PromptRequest, Path]]:
+        """Create multi-angle LLM prompts for annual feedback synthesis."""
+
+        self.ensure_structure()
+        prompts_dir = self.output_dir / "prompts"
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+
+        context = self._build_prompt_context(metrics)
+        if context:
+            context_block = context
+        else:
+            context_block = (
+                f"Repository: {metrics.repo}\nPeriod: 지난 {metrics.months}개월"
+            )
+
+        definitions: List[Tuple[str, str, str]] = [
+            (
+                "strengths_overview",
+                "연간 활동 총평 (장점 중심)",
+                (
+                    "아래는 최근 활동 요약입니다. 위 데이터를 바탕으로 팀/조직 관점에서 바라본 "
+                    "성과의 장점 5가지를 bullet로 정리해 주세요. 각 bullet에는 (1) 어떤 활동이나 "
+                    "지표가 근거인지, (2) 조직에 준 영향이 무엇인지 포함해 주세요."
+                ),
+            ),
+            (
+                "collaboration_improvements",
+                "협업 및 리뷰 문화 보완점",
+                (
+                    "Collaborations 관련 수치와 Spotlight Examples, Year in Review 내용을 참고하여 "
+                    "리뷰 문화/협업 측면에서 개선이 필요한 점 5가지를 제안해 주세요. 각 항목에는 "
+                    "(1) 현재 활동 패턴, (2) 위험 또는 기회, (3) 다음 분기 액션 아이디어를 포함해 주세요."
+                ),
+            ),
+            (
+                "quality_balance",
+                "코드 품질 및 안정성 평가",
+                (
+                    "Stability 관련 요약, Issues 통계, Spotlight 사례를 근거로 코드 품질과 안정성 유지 "
+                    "측면의 장점과 보완점을 각각 3개씩 작성해 주세요. 가능하다면 Spotlight PR의 구체적 "
+                    "예시를 인용해 주세요."
+                ),
+            ),
+            (
+                "growth_story",
+                "연간 성장 스토리와 핵심 기여",
+                (
+                    "Year in Review, Growth Highlights, Awards 정보를 기반으로 세 단락으로 구성된 서사를 작성해 주세요. "
+                    "1단락: 올해 어떤 역량이 가장 성장했는지, 2단락: 저장소에 어떤 영역에 중점적으로 기여했는지, "
+                    "3단락: 그 결과 팀이나 비즈니스에 기대되는 파급효과가 무엇인지 설명해 주세요."
+                ),
+            ),
+            (
+                "next_half_goals",
+                "차기 목표 및 실행 계획",
+                (
+                    "Summary와 위에서 도출한 개선점들을 참고하여 다음 기간(6개월)을 위한 상위 3개 목표와 "
+                    "각 목표별 실행 계획을 작성해 주세요. 실행 계획에는 측정 가능한 지표를 포함해 주세요."
+                ),
+            ),
+        ]
+
+        generated: List[Tuple[PromptRequest, Path]] = []
+        for identifier, title, instructions in definitions:
+            prompt_text = f"{instructions}\n\n{context_block}".strip()
+            request = PromptRequest(
+                identifier=identifier,
+                title=title,
+                instructions=instructions,
+                prompt=prompt_text,
+            )
+
+            prompt_path = prompts_dir / f"{identifier}.txt"
+            prompt_lines = [
+                f"# {title}",
+                "",
+                "## Instructions",
+                instructions,
+                "",
+                "## Context",
+                context_block,
+                "",
+                "## Prompt (ready to send)",
+                prompt_text,
+                "",
+            ]
+            prompt_path.write_text("\n".join(prompt_lines), encoding="utf-8")
+            generated.append((request, prompt_path))
+
+        return generated
 
     def _create_charts(self, metrics: MetricSnapshot) -> List[Tuple[str, Path]]:
         """Render SVG bar charts for numeric metric domains."""

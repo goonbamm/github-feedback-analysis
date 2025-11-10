@@ -68,6 +68,7 @@ class DummyReporter:
         self.output_dir = output_dir
         self.markdown_calls: list[DummyMetrics] = []
         self.html_calls: list[DummyMetrics] = []
+        self.prompt_calls: list[DummyMetrics] = []
 
     def generate_markdown(self, metrics: DummyMetrics) -> Path:
         self.markdown_calls.append(metrics)
@@ -76,6 +77,10 @@ class DummyReporter:
     def generate_html(self, metrics: DummyMetrics) -> Path:
         self.html_calls.append(metrics)
         return self.output_dir / f"{metrics.repo.replace('/', '_')}.html"
+
+    def generate_prompt_packets(self, metrics: DummyMetrics) -> list:
+        self.prompt_calls.append(metrics)
+        return []
 
 
 def _silent_console(monkeypatch: pytest.MonkeyPatch) -> None:
