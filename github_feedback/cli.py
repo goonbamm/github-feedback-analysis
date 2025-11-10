@@ -112,6 +112,9 @@ def init(
     config.dump()
     console.print("[success]Configuration saved successfully.[/]")
 
+    console.print()
+    show_config()
+
 
 @app.command()
 def show_config() -> None:
