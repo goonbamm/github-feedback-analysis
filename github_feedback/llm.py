@@ -108,20 +108,50 @@ class LLMClient:
     def generate_review(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
         """Invoke the configured LLM endpoint and parse the structured feedback."""
 
-        payload = {
+        base_payload = {
             "model": self.model or "default-model",
             "messages": self._build_messages(bundle),
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
         }
 
-        response = requests.post(
-            self.endpoint,
-            json=payload,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return self._parse_response(response.json())
+        payloads: List[Dict[str, Any]] = [base_payload | {"response_format": {"type": "json_object"}}]
+        payloads.append(base_payload)
+
+        last_error: Exception | None = None
+        for payload in payloads:
+            try:
+                response = requests.post(
+                    self.endpoint,
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                return self._parse_response(response.json())
+            except requests.HTTPError as exc:
+                error_text = ""
+                if exc.response is not None:
+                    try:
+                        error_text = exc.response.text
+                    except Exception:  # pragma: no cover - defensive guard for rare encodings
+                        error_text = ""
+
+                if (
+                    "response_format" in payload
+                    and exc.response is not None
+                    and exc.response.status_code in {400, 404, 422}
+                    and ("json_object" in error_text or "response_format" in error_text)
+                ):
+                    last_error = exc
+                    continue
+                raise
+            except Exception as exc:  # pragma: no cover - network failures already handled elsewhere
+                last_error = exc
+                break
+
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError("LLM request failed without raising an explicit error")
 
 
 __all__ = ["LLMClient"]
