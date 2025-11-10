@@ -175,6 +175,7 @@ class DummyReviewer:
         self.collector = collector
         self.llm = llm
         self.calls: list[Dict[str, Any]] = []
+        self.output_dir = Path("reviews")
 
     def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
         self.calls.append({"repo": repo, "number": number})
@@ -397,6 +398,18 @@ def test_review_supports_direct_number_invocation(monkeypatch: pytest.MonkeyPatc
     assert reviewers, "Reviewer should be instantiated"
     reviewer = reviewers[-1]
     assert reviewer.calls == [{"repo": "example/repo", "number": 42}]
+
+
+def test_review_announces_output_directory(monkeypatch: pytest.MonkeyPatch) -> None:
+    messages = _capturing_console(monkeypatch)
+    _stub_config(monkeypatch)
+    _stub_review_dependencies(monkeypatch, assigned_numbers=[])
+
+    cli.review(repo="example/repo", number=7)
+
+    expected_dir = Path("reviews").resolve()
+    assert any("Review artefacts stored under" in message for message in messages)
+    assert any(str(expected_dir) in message for message in messages)
 
 
 def test_review_lists_assignments_for_assignee(monkeypatch: pytest.MonkeyPatch) -> None:
