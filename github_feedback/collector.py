@@ -614,10 +614,18 @@ class Collector:
 
     # Pull request review helpers --------------------------------------
 
-    def list_assigned_pull_requests(
-        self, repo: str, assignee: str, state: str = "all"
+    def get_authenticated_user(self) -> str:
+        """Return the username of the authenticated user (PAT owner)."""
+        user_data = self._request_json("user")
+        username = user_data.get("login", "")
+        if not username:
+            raise ValueError("Failed to retrieve authenticated user from PAT")
+        return username
+
+    def list_authored_pull_requests(
+        self, repo: str, author: str, state: str = "all"
     ) -> List[int]:
-        """Return pull request numbers where the user is an assignee."""
+        """Return pull request numbers where the user is the author."""
 
         state_normalised = state.lower().strip() or "all"
         if state_normalised not in {"open", "closed", "all"}:
@@ -626,14 +634,14 @@ class Collector:
             )
 
         console.log(
-            "Listing assigned pull requests",
+            "Listing authored pull requests",
             f"repo={repo}",
-            f"assignee={assignee}",
+            f"author={author}",
             f"state={state_normalised}",
         )
 
         params = {
-            "assignee": assignee,
+            "creator": author,
             "state": state_normalised,
             "per_page": 100,
         }

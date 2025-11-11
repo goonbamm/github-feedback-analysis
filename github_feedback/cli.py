@@ -417,9 +417,6 @@ def review(
         prompt="Repository to review (owner/name)",
         help="Repository in owner/name format",
     ),
-    assignee: Optional[str] = typer.Option(
-        None, "--assignee", help="GitHub username to review assignments for"
-    ),
     number: Optional[int] = typer.Option(
         None, "--number", help="Pull request number to review directly"
     ),
@@ -451,18 +448,8 @@ def review(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    assignee_value = assignee.default if isinstance(assignee, OptionInfo) else assignee
     number_value = number.default if isinstance(number, OptionInfo) else number
     state_value = state.default if isinstance(state, OptionInfo) else state
-
-    assignee_input = (assignee_value or "").strip()
-    if number_value is not None and assignee_input:
-        console.print("Specify either --number or --assignee, but not both.")
-        raise typer.Exit(code=1)
-
-    if number_value is None and not assignee_input:
-        console.print("Provide either --number for a single PR or --assignee to review assignments.")
-        raise typer.Exit(code=1)
 
     def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
         console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
@@ -495,17 +482,26 @@ def review(
             raise typer.Exit(code=1)
 
         with console.status(
-            "[accent]Discovering assigned pull requests...", spinner="dots"
+            "[accent]Retrieving authenticated user from PAT...", spinner="dots"
         ):
-            numbers = collector.list_assigned_pull_requests(
+            try:
+                author = collector.get_authenticated_user()
+            except (ValueError, PermissionError) as exc:
+                console.print(f"[error]Failed to get authenticated user: {exc}[/]")
+                raise typer.Exit(code=1) from exc
+
+        with console.status(
+            "[accent]Discovering authored pull requests...", spinner="dots"
+        ):
+            numbers = collector.list_authored_pull_requests(
                 repo=repo_input,
-                assignee=assignee_input,
+                author=author,
                 state=state_normalised,
             )
 
         if not numbers:
             console.print(
-                f"[warning]No pull requests found for assignee '{assignee_input}' in {repo_input}.[/]"
+                f"[warning]No pull requests found authored by '{author}' in {repo_input}.[/]"
             )
             return
 
