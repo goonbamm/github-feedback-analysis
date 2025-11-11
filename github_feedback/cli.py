@@ -282,58 +282,25 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
 
 
 @app.command()
-def analyze(
+def brief(
     repo: str = typer.Option(
         "",
         "--repo",
         prompt="Repository to analyse (owner/name)",
         help="Repository in owner/name format",
     ),
-    months: Optional[int] = typer.Option(None, help="Number of months to analyse"),
-    include_branch: Optional[List[str]] = typer.Option(
-        None, help="Branch name to include (repeat for multiple branches)"
-    ),
-    exclude_branch: Optional[List[str]] = typer.Option(
-        None, help="Branch name to exclude (repeat for multiple branches)"
-    ),
-    include_path: Optional[List[str]] = typer.Option(
-        None, help="Path prefix to include (repeat for multiple paths)"
-    ),
-    exclude_path: Optional[List[str]] = typer.Option(
-        None, help="Path prefix to exclude (repeat for multiple paths)"
-    ),
-    include_language: Optional[List[str]] = typer.Option(
-        None, help="File extension to include (repeat for multiple extensions)"
-    ),
-    include_bots: bool = typer.Option(False, help="Include bot commits in the analysis"),
-    detailed_feedback: bool = typer.Option(
-        False,
-        "--detailed-feedback",
-        help="Analyze commit messages, PR titles, review tone, and issue quality using LLM.",
-    ),
-    html: bool = typer.Option(
-        False,
-        "--html",
-        help="Generate an HTML report alongside the default markdown output.",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reports"),
-        "--output-dir",
-        path_type=Path,
-        help="Directory to store metrics snapshots and generated reports.",
-    ),
 ) -> None:
     """Collect data, compute metrics, and generate reports."""
 
     config = _load_config()
-    months = months or config.defaults.months
+    months = config.defaults.months
     filters = AnalysisFilters(
-        include_branches=list(include_branch or []),
-        exclude_branches=list(exclude_branch or []),
-        include_paths=list(include_path or []),
-        exclude_paths=list(exclude_path or []),
-        include_languages=list(include_language or []),
-        exclude_bots=not include_bots,
+        include_branches=[],
+        exclude_branches=[],
+        include_paths=[],
+        exclude_paths=[],
+        include_languages=[],
+        exclude_bots=True,
     )
 
     try:
@@ -343,7 +310,7 @@ def analyze(
         raise typer.Exit(code=1) from exc
 
     analyzer = Analyzer(web_base_url=config.server.web_url)
-    output_dir = _resolve_output_dir(output_dir)
+    output_dir = _resolve_output_dir(Path("reports"))
     reporter = Reporter(output_dir=output_dir)
 
     repo_input = repo.strip()
@@ -354,57 +321,56 @@ def analyze(
     with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
         collection = collector.collect(repo=repo_input, months=months, filters=filters)
 
-    # Collect detailed feedback data if requested
+    # Collect detailed feedback data (always enabled)
     detailed_feedback_snapshot = None
-    if detailed_feedback:
-        from datetime import datetime, timedelta, timezone
-        from .llm import LLMClient
+    from datetime import datetime, timedelta, timezone
+    from .llm import LLMClient
 
-        console.print("[accent]Collecting detailed feedback data...", style="accent")
+    console.print("[accent]Collecting detailed feedback data...", style="accent")
 
-        since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+    since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
 
-        try:
-            # Collect detailed data
-            commits_data = collector.collect_commit_messages(repo_input, since, filters, limit=100)
-            pr_titles_data = collector.collect_pr_titles(repo_input, since, filters, limit=100)
-            review_comments_data = collector.collect_review_comments_detailed(
-                repo_input, since, filters, limit=100
-            )
-            issues_data = collector.collect_issue_details(repo_input, since, filters, limit=100)
+    try:
+        # Collect detailed data
+        commits_data = collector.collect_commit_messages(repo_input, since, filters, limit=100)
+        pr_titles_data = collector.collect_pr_titles(repo_input, since, filters, limit=100)
+        review_comments_data = collector.collect_review_comments_detailed(
+            repo_input, since, filters, limit=100
+        )
+        issues_data = collector.collect_issue_details(repo_input, since, filters, limit=100)
 
-            # Analyze using LLM
-            llm_client = LLMClient(
-                endpoint=config.llm.endpoint,
-                model=config.llm.model,
-            )
+        # Analyze using LLM
+        llm_client = LLMClient(
+            endpoint=config.llm.endpoint,
+            model=config.llm.model,
+        )
 
-            with console.status("[accent]Analyzing commit messages...", spinner="dots"):
-                commit_analysis = llm_client.analyze_commit_messages(commits_data)
+        with console.status("[accent]Analyzing commit messages...", spinner="dots"):
+            commit_analysis = llm_client.analyze_commit_messages(commits_data)
 
-            with console.status("[accent]Analyzing PR titles...", spinner="dots"):
-                pr_title_analysis = llm_client.analyze_pr_titles(pr_titles_data)
+        with console.status("[accent]Analyzing PR titles...", spinner="dots"):
+            pr_title_analysis = llm_client.analyze_pr_titles(pr_titles_data)
 
-            with console.status("[accent]Analyzing review tone...", spinner="dots"):
-                review_tone_analysis = llm_client.analyze_review_tone(review_comments_data)
+        with console.status("[accent]Analyzing review tone...", spinner="dots"):
+            review_tone_analysis = llm_client.analyze_review_tone(review_comments_data)
 
-            with console.status("[accent]Analyzing issue quality...", spinner="dots"):
-                issue_analysis = llm_client.analyze_issue_quality(issues_data)
+        with console.status("[accent]Analyzing issue quality...", spinner="dots"):
+            issue_analysis = llm_client.analyze_issue_quality(issues_data)
 
-            # Build detailed feedback snapshot
-            detailed_feedback_snapshot = analyzer.build_detailed_feedback(
-                commit_analysis=commit_analysis,
-                pr_title_analysis=pr_title_analysis,
-                review_tone_analysis=review_tone_analysis,
-                issue_analysis=issue_analysis,
-            )
+        # Build detailed feedback snapshot
+        detailed_feedback_snapshot = analyzer.build_detailed_feedback(
+            commit_analysis=commit_analysis,
+            pr_title_analysis=pr_title_analysis,
+            review_tone_analysis=review_tone_analysis,
+            issue_analysis=issue_analysis,
+        )
 
-            console.print("[success]✓ Detailed feedback analysis complete", style="success")
-        except Exception as exc:
-            console.print(
-                f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
-            )
-            console.print("[info]Continuing with standard analysis...", style="info")
+        console.print("[success]✓ Detailed feedback analysis complete", style="success")
+    except Exception as exc:
+        console.print(
+            f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
+        )
+        console.print("[info]Continuing with standard analysis...", style="info")
 
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
         metrics = analyzer.compute_metrics(collection, detailed_feedback=detailed_feedback_snapshot)
@@ -437,8 +403,6 @@ def analyze(
     for prompt_request, prompt_path in prompt_artifacts:
         artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
 
-    if html:
-        artifacts.append(("HTML report", reporter.generate_html(metrics)))
     console.rule("Analysis Summary")
     _render_metrics(metrics)
     console.rule("Artifacts")
