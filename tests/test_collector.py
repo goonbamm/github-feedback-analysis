@@ -378,7 +378,7 @@ def test_collector_applies_branch_path_and_language_filters(
     assert collection.issues == 1
 
 
-def test_list_assigned_pull_requests_filters_prs(monkeypatch):
+def test_list_authored_pull_requests_filters_prs(monkeypatch):
     collector = Collector(Config(auth=AuthConfig(pat="token")))
 
     issues_payload = [
@@ -390,22 +390,52 @@ def test_list_assigned_pull_requests_filters_prs(monkeypatch):
 
     def fake_request_all(self, path, params=None):  # type: ignore[override]
         assert path == "repos/example/repo/issues"
-        assert params == {"assignee": "octocat", "state": "closed", "per_page": 100}
+        assert params == {"creator": "octocat", "state": "closed", "per_page": 100}
         return issues_payload
 
     monkeypatch.setattr(Collector, "_request_all", fake_request_all)
 
-    numbers = collector.list_assigned_pull_requests(
+    numbers = collector.list_authored_pull_requests(
         repo="example/repo",
-        assignee="octocat",
+        author="octocat",
         state="CLOSED",
     )
 
     assert numbers == [1, 3]
 
 
-def test_list_assigned_pull_requests_validates_state():
+def test_list_authored_pull_requests_validates_state():
     collector = Collector(Config(auth=AuthConfig(pat="token")))
 
     with pytest.raises(ValueError):
-        collector.list_assigned_pull_requests("example/repo", "octocat", state="invalid")
+        collector.list_authored_pull_requests("example/repo", "octocat", state="invalid")
+
+
+def test_get_authenticated_user(monkeypatch):
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    user_payload = {"login": "octocat", "id": 1}
+
+    def fake_request_json(self, path, params=None):  # type: ignore[override]
+        assert path == "user"
+        return user_payload
+
+    monkeypatch.setattr(Collector, "_request_json", fake_request_json)
+
+    username = collector.get_authenticated_user()
+
+    assert username == "octocat"
+
+
+def test_get_authenticated_user_raises_on_missing_login(monkeypatch):
+    collector = Collector(Config(auth=AuthConfig(pat="token")))
+
+    user_payload = {"id": 1}
+
+    def fake_request_json(self, path, params=None):  # type: ignore[override]
+        return user_payload
+
+    monkeypatch.setattr(Collector, "_request_json", fake_request_json)
+
+    with pytest.raises(ValueError, match="Failed to retrieve authenticated user"):
+        collector.get_authenticated_user()

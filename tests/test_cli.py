@@ -154,20 +154,26 @@ def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
 
 
 class DummyReviewCollector(DummyCollector):
-    def __init__(self, config: Config, assigned_numbers: list[int]) -> None:
+    def __init__(self, config: Config, authored_numbers: list[int], auth_user: str = "testuser") -> None:
         super().__init__(config)
-        self.assigned_numbers = assigned_numbers
-        self.assigned_calls: list[Dict[str, Any]] = []
+        self.authored_numbers = authored_numbers
+        self.auth_user = auth_user
+        self.authored_calls: list[Dict[str, Any]] = []
+        self.auth_calls: int = 0
 
-    def list_assigned_pull_requests(
-        self, repo: str, assignee: str, state: str
+    def get_authenticated_user(self) -> str:
+        self.auth_calls += 1
+        return self.auth_user
+
+    def list_authored_pull_requests(
+        self, repo: str, author: str, state: str
     ) -> list[int]:
-        self.assigned_calls.append({
+        self.authored_calls.append({
             "repo": repo,
-            "assignee": assignee,
+            "author": author,
             "state": state,
         })
-        return list(self.assigned_numbers)
+        return list(self.authored_numbers)
 
 
 class DummyReviewer:
@@ -188,12 +194,12 @@ class DummyReviewer:
 
 
 def _stub_review_dependencies(
-    monkeypatch: pytest.MonkeyPatch, assigned_numbers: list[int]
+    monkeypatch: pytest.MonkeyPatch, authored_numbers: list[int], auth_user: str = "testuser"
 ) -> Dict[str, Any]:
     created: Dict[str, Any] = {}
 
     def collector_factory(config: Config) -> DummyReviewCollector:
-        collector = DummyReviewCollector(config, assigned_numbers)
+        collector = DummyReviewCollector(config, authored_numbers, auth_user)
         created["collector"] = collector
         return collector
 
@@ -301,13 +307,14 @@ def test_analyze_uses_custom_output_dir(monkeypatch: pytest.MonkeyPatch, tmp_pat
 def test_review_supports_direct_number_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     config = _stub_config(monkeypatch)
-    created = _stub_review_dependencies(monkeypatch, assigned_numbers=[])
+    created = _stub_review_dependencies(monkeypatch, authored_numbers=[])
 
     cli.review(repo="example/repo", number=42)
 
     collector = created["collector"]
     assert collector.config is config
-    assert not collector.assigned_calls, "list_assigned_pull_requests should not be called"
+    assert not collector.authored_calls, "list_authored_pull_requests should not be called"
+    assert collector.auth_calls == 0, "get_authenticated_user should not be called"
 
     reviewers = created.get("reviewers", [])
     assert reviewers, "Reviewer should be instantiated"
@@ -318,7 +325,7 @@ def test_review_supports_direct_number_invocation(monkeypatch: pytest.MonkeyPatc
 def test_review_announces_output_directory(monkeypatch: pytest.MonkeyPatch) -> None:
     messages = _capturing_console(monkeypatch)
     _stub_config(monkeypatch)
-    _stub_review_dependencies(monkeypatch, assigned_numbers=[])
+    _stub_review_dependencies(monkeypatch, authored_numbers=[])
 
     cli.review(repo="example/repo", number=7)
 
@@ -327,17 +334,18 @@ def test_review_announces_output_directory(monkeypatch: pytest.MonkeyPatch) -> N
     assert any(str(expected_dir) in message for message in messages)
 
 
-def test_review_lists_assignments_for_assignee(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_review_lists_authored_prs_for_authenticated_user(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     config = _stub_config(monkeypatch)
-    created = _stub_review_dependencies(monkeypatch, assigned_numbers=[5, 3, 5])
+    created = _stub_review_dependencies(monkeypatch, authored_numbers=[5, 3, 5], auth_user="octocat")
 
-    cli.review(repo="example/repo", assignee="octocat", state="open")
+    cli.review(repo="example/repo", state="open")
 
     collector = created["collector"]
     assert collector.config is config
-    assert collector.assigned_calls == [
-        {"repo": "example/repo", "assignee": "octocat", "state": "open"}
+    assert collector.auth_calls == 1, "get_authenticated_user should be called once"
+    assert collector.authored_calls == [
+        {"repo": "example/repo", "author": "octocat", "state": "open"}
     ]
 
     reviewers = created.get("reviewers", [])
