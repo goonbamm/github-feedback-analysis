@@ -78,7 +78,7 @@ def test_generate_markdown_includes_growth_sections(tmp_path):
     assert "PR #42" in contents
     assert "## Year in Review" in contents
     assert "핵심 기능을 대거 정비" in contents
-    assert "## Awards Cabinet" in contents
+    assert "🏆 Awards Cabinet" in contents
     assert "코드 대장장이 상" in contents
 
 
