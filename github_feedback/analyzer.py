@@ -17,6 +17,7 @@ from .models import (
     ReviewToneFeedback,
     IssueFeedback,
     MonthlyTrend,
+    MonthlyTrendInsights,
     TechStackAnalysis,
     CollaborationNetwork,
     ReflectionPrompts,
@@ -129,6 +130,7 @@ class Analyzer:
 
         # Build year-end specific insights
         monthly_trends = self._build_monthly_trends(monthly_trends_data)
+        monthly_insights = self._build_monthly_insights(monthly_trends)
         tech_stack = self._build_tech_stack_analysis(tech_stack_data)
         collaboration = self._build_collaboration_network(collaboration_data)
         reflection_prompts = self._build_reflection_prompts(collection)
@@ -148,10 +150,13 @@ class Analyzer:
             awards=awards,
             detailed_feedback=detailed_feedback,
             monthly_trends=monthly_trends,
+            monthly_insights=monthly_insights,
             tech_stack=tech_stack,
             collaboration=collaboration,
             reflection_prompts=reflection_prompts,
             year_end_review=year_end_review,
+            since_date=collection.since_date,
+            until_date=collection.until_date,
         )
 
     def _calculate_scores(
@@ -162,7 +167,23 @@ class Analyzer:
         collaboration_score = (collection.pull_requests + collection.reviews) / month_span
         stability_score = max(collection.commits - collection.issues, 0)
         total_activity = collection.commits + collection.pull_requests + collection.reviews
-        period_label = "올해" if collection.months >= 12 else f"지난 {collection.months}개월"
+
+        # More accurate period label
+        if collection.months == 12:
+            period_label = "최근 1년"
+        elif collection.months == 6:
+            period_label = "최근 6개월"
+        elif collection.months == 3:
+            period_label = "최근 3개월"
+        elif collection.months >= 24:
+            years = collection.months // 12
+            remaining_months = collection.months % 12
+            if remaining_months == 0:
+                period_label = f"최근 {years}년"
+            else:
+                period_label = f"최근 {years}년 {remaining_months}개월"
+        else:
+            period_label = f"최근 {collection.months}개월"
 
         return (
             month_span,
@@ -633,6 +654,130 @@ class Analyzer:
             )
         return trends
 
+    def _build_monthly_insights(
+        self, monthly_trends: List[MonthlyTrend]
+    ) -> Optional[MonthlyTrendInsights]:
+        """Analyze monthly trends and generate insights."""
+        if not monthly_trends or len(monthly_trends) < 2:
+            return None
+
+        # Calculate total activity per month
+        monthly_activities = [
+            (trend.month, trend.commits + trend.pull_requests + trend.reviews + trend.issues)
+            for trend in monthly_trends
+        ]
+
+        # Find peak and quiet months
+        peak_month_data = max(monthly_activities, key=lambda x: x[1])
+        peak_month = peak_month_data[0] if peak_month_data[1] > 0 else None
+
+        non_zero_activities = [(month, activity) for month, activity in monthly_activities if activity > 0]
+        quiet_month = None
+        if non_zero_activities:
+            quiet_month_data = min(non_zero_activities, key=lambda x: x[1])
+            quiet_month = quiet_month_data[0]
+
+        # Calculate active months
+        total_active_months = sum(1 for _, activity in monthly_activities if activity > 0)
+
+        # Calculate trend direction (simple linear regression approach)
+        if len(monthly_trends) >= 3:
+            recent_half = monthly_activities[len(monthly_activities)//2:]
+            early_half = monthly_activities[:len(monthly_activities)//2]
+
+            recent_avg = sum(act for _, act in recent_half) / len(recent_half) if recent_half else 0
+            early_avg = sum(act for _, act in early_half) / len(early_half) if early_half else 0
+
+            if recent_avg > early_avg * 1.2:
+                trend_direction = "increasing"
+            elif recent_avg < early_avg * 0.8:
+                trend_direction = "decreasing"
+            else:
+                trend_direction = "stable"
+        else:
+            trend_direction = "stable"
+
+        # Calculate consistency score (coefficient of variation)
+        activities = [act for _, act in monthly_activities if act > 0]
+        if activities and len(activities) >= 2:
+            import math
+            mean_activity = sum(activities) / len(activities)
+            variance = sum((act - mean_activity) ** 2 for act in activities) / len(activities)
+            std_dev = math.sqrt(variance)
+
+            # Coefficient of variation (lower is more consistent)
+            cv = std_dev / mean_activity if mean_activity > 0 else 1.0
+            # Convert to 0-1 score (1 = perfect consistency, 0 = highly variable)
+            # Cap cv at 1.0 for scoring purposes
+            consistency_score = max(0.0, 1.0 - min(cv, 1.0))
+        else:
+            consistency_score = 0.0
+
+        # Generate human-readable insights
+        insights = []
+
+        if peak_month:
+            peak_activity = peak_month_data[1]
+            insights.append(
+                f"{peak_month}에 가장 활발했습니다 (총 {peak_activity}건의 활동)"
+            )
+
+        if quiet_month and quiet_month != peak_month:
+            quiet_activity = next((act for month, act in monthly_activities if month == quiet_month), 0)
+            insights.append(
+                f"{quiet_month}에는 상대적으로 조용했습니다 (총 {quiet_activity}건의 활동)"
+            )
+
+        if trend_direction == "increasing":
+            insights.append(
+                "시간이 지날수록 활동량이 증가하는 성장 추세를 보였습니다"
+            )
+        elif trend_direction == "decreasing":
+            insights.append(
+                "최근 활동량이 감소하는 경향이 있습니다. 새로운 동기 부여가 필요할 수 있습니다"
+            )
+        else:
+            insights.append(
+                "꾸준한 활동 수준을 유지했습니다"
+            )
+
+        if consistency_score > 0.7:
+            insights.append(
+                f"매우 일관된 활동 패턴을 보였습니다 (일관성 점수: {consistency_score:.1%})"
+            )
+        elif consistency_score < 0.3:
+            insights.append(
+                f"활동량의 변동이 큰 편입니다 (일관성 점수: {consistency_score:.1%}). "
+                "더 균형잡힌 기여 리듬을 만들어보세요"
+            )
+
+        # Analyze specific activity types
+        commits_trend = [trend.commits for trend in monthly_trends]
+        prs_trend = [trend.pull_requests for trend in monthly_trends]
+        reviews_trend = [trend.reviews for trend in monthly_trends]
+
+        if commits_trend and max(commits_trend) > 0:
+            peak_commit_month = monthly_trends[commits_trend.index(max(commits_trend))].month
+            insights.append(
+                f"커밋 활동은 {peak_commit_month}에 정점을 찍었습니다 ({max(commits_trend)}회)"
+            )
+
+        if prs_trend and max(prs_trend) > 0:
+            peak_pr_month = monthly_trends[prs_trend.index(max(prs_trend))].month
+            if max(prs_trend) >= 10:
+                insights.append(
+                    f"PR 활동은 {peak_pr_month}에 가장 왕성했습니다 ({max(prs_trend)}개)"
+                )
+
+        return MonthlyTrendInsights(
+            peak_month=peak_month,
+            quiet_month=quiet_month,
+            trend_direction=trend_direction,
+            total_active_months=total_active_months,
+            consistency_score=consistency_score,
+            insights=insights,
+        )
+
     def _build_tech_stack_analysis(
         self, tech_stack_data: Optional[Dict[str, int]]
     ) -> Optional[TechStackAnalysis]:
@@ -728,9 +873,9 @@ class Analyzer:
         highlights: List[str],
         awards: List[str],
     ) -> YearEndReview:
-        """Generate year-end specific review content."""
+        """Generate year-end specific review content based on actual data."""
 
-        # Proudest moments based on metrics
+        # Proudest moments based on actual metrics
         proudest_moments = []
         if collection.commits > 200:
             proudest_moments.append(
@@ -744,33 +889,143 @@ class Analyzer:
             proudest_moments.append(
                 f"{collection.reviews}회의 코드 리뷰로 팀의 코드 품질 향상에 기여했습니다."
             )
+
+        # Add insights from PR examples
+        if collection.pull_request_examples:
+            total_changes = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples)
+            avg_changes = total_changes // len(collection.pull_request_examples) if collection.pull_request_examples else 0
+            if total_changes > 10000:
+                proudest_moments.append(
+                    f"총 {total_changes:,}줄의 코드 변경으로 대규모 개선을 주도했습니다."
+                )
+
+            # Find largest PR
+            largest_pr = max(collection.pull_request_examples,
+                           key=lambda pr: pr.additions + pr.deletions)
+            if (largest_pr.additions + largest_pr.deletions) > 1000:
+                proudest_moments.append(
+                    f"가장 큰 PR(#{largest_pr.number}: {largest_pr.title})에서 "
+                    f"{largest_pr.additions + largest_pr.deletions:,}줄의 변경으로 도전적인 작업을 완수했습니다."
+                )
+
         if not proudest_moments:
             proudest_moments.append(
                 "꾸준한 활동으로 프로젝트 발전에 기여했습니다."
             )
 
-        # Challenges (generic, to be filled by user)
-        biggest_challenges = [
-            "복잡한 기술적 문제를 해결하며 문제 해결 능력을 키웠습니다.",
-            "새로운 기술 스택을 학습하고 프로젝트에 적용했습니다.",
-            "팀원들과의 협업을 통해 커뮤니케이션 스킬을 향상시켰습니다.",
-        ]
+        # Data-driven challenges based on activity patterns
+        biggest_challenges = []
+        month_span = max(collection.months, 1)
 
-        # Lessons learned
-        lessons_learned = [
-            "작고 자주 커밋하는 것이 코드 리뷰와 협업에 더 효과적입니다.",
-            "코드 리뷰는 단순한 버그 찾기가 아닌 지식 공유의 장입니다.",
-            "좋은 커밋 메시지와 PR 설명은 미래의 나와 팀원들을 위한 투자입니다.",
-        ]
+        if collection.pull_requests > 30:
+            avg_pr_per_month = collection.pull_requests / month_span
+            biggest_challenges.append(
+                f"월평균 {avg_pr_per_month:.1f}개의 PR을 관리하며 지속적인 배포 리듬을 유지하는 도전을 해냈습니다."
+            )
 
-        # Next year goals
-        next_year_goals = [
-            "새로운 프로그래밍 언어나 프레임워크를 학습하여 기술 스택 다변화",
-            "오픈소스 프로젝트에 기여하여 커뮤니티 참여 확대",
-            "기술 블로그나 발표를 통해 배운 내용을 공유",
-            "코드 품질과 테스트 커버리지 개선에 더 집중",
-            "멘토링을 통해 주니어 개발자 성장 지원",
-        ]
+        if collection.reviews > 20:
+            biggest_challenges.append(
+                f"{collection.reviews}회의 코드 리뷰를 진행하며 팀원들의 다양한 관점을 이해하고 조율했습니다."
+            )
+
+        if collection.issues > 0:
+            biggest_challenges.append(
+                f"{collection.issues}건의 이슈를 처리하며 문제 해결 능력과 우선순위 판단 능력을 키웠습니다."
+            )
+
+        # Add PR-specific challenges
+        if collection.pull_request_examples:
+            feature_prs = [pr for pr in collection.pull_request_examples
+                         if any(kw in pr.title.lower() for kw in ['feature', 'feat', '기능', 'add'])]
+            if len(feature_prs) > 5:
+                biggest_challenges.append(
+                    f"{len(feature_prs)}개의 새로운 기능을 개발하며 요구사항 분석과 설계 능력을 향상시켰습니다."
+                )
+
+        if not biggest_challenges:
+            biggest_challenges = [
+                "복잡한 기술적 문제를 해결하며 문제 해결 능력을 키웠습니다.",
+                "팀원들과의 협업을 통해 커뮤니케이션 스킬을 향상시켰습니다.",
+            ]
+
+        # Data-driven lessons learned
+        lessons_learned = []
+
+        if collection.commits > 0 and collection.pull_requests > 0:
+            commits_per_pr = collection.commits / collection.pull_requests
+            if commits_per_pr > 5:
+                lessons_learned.append(
+                    f"PR당 평균 {commits_per_pr:.1f}개의 커밋을 작성했습니다. "
+                    "작은 단위로 자주 커밋하고 리뷰받는 것이 더 효과적일 수 있습니다."
+                )
+            else:
+                lessons_learned.append(
+                    f"PR당 평균 {commits_per_pr:.1f}개의 커밋으로 적절한 크기의 변경을 유지했습니다. "
+                    "작고 집중된 PR이 리뷰와 병합을 더 쉽게 만듭니다."
+                )
+
+        if collection.reviews > 0 and collection.pull_requests > 0:
+            review_ratio = collection.reviews / collection.pull_requests
+            if review_ratio > 2:
+                lessons_learned.append(
+                    f"내 PR보다 {review_ratio:.1f}배 많은 리뷰를 진행했습니다. "
+                    "코드 리뷰는 팀의 코드 품질을 높이고 지식을 공유하는 핵심 활동입니다."
+                )
+            else:
+                lessons_learned.append(
+                    "코드 리뷰를 통해 다른 팀원들의 접근 방식을 배우고 시야를 넓힐 수 있었습니다."
+                )
+
+        if collection.pull_request_examples:
+            merged_prs = [pr for pr in collection.pull_request_examples if pr.merged_at]
+            if merged_prs:
+                merge_rate = len(merged_prs) / len(collection.pull_request_examples)
+                if merge_rate > 0.8:
+                    lessons_learned.append(
+                        f"{merge_rate*100:.0f}%의 높은 PR 머지율을 달성했습니다. "
+                        "명확한 목적과 충분한 설명이 있는 PR이 성공률을 높입니다."
+                    )
+
+        if not lessons_learned:
+            lessons_learned = [
+                "작고 자주 커밋하는 것이 코드 리뷰와 협업에 더 효과적입니다.",
+                "코드 리뷰는 단순한 버그 찾기가 아닌 지식 공유의 장입니다.",
+            ]
+
+        # Data-informed next year goals
+        next_year_goals = []
+
+        # Goals based on current weak points
+        if collection.reviews < collection.pull_requests:
+            next_year_goals.append(
+                "코드 리뷰 참여를 늘려 팀의 코드 품질 향상에 더욱 기여하기"
+            )
+
+        if collection.pull_request_examples:
+            doc_prs = [pr for pr in collection.pull_request_examples
+                      if any(kw in pr.title.lower() for kw in ['doc', 'readme', '문서'])]
+            if len(doc_prs) < 3:
+                next_year_goals.append(
+                    "문서화에 더 신경써서 프로젝트의 접근성과 유지보수성 향상하기"
+                )
+
+            test_prs = [pr for pr in collection.pull_request_examples
+                       if any(kw in pr.title.lower() for kw in ['test', '테스트'])]
+            if len(test_prs) < 5:
+                next_year_goals.append(
+                    "테스트 커버리지를 높여 코드의 안정성과 신뢰도 강화하기"
+                )
+
+        # Always include growth goals
+        next_year_goals.append(
+            "새로운 기술이나 프레임워크를 학습하여 기술 스택 확장하기"
+        )
+        next_year_goals.append(
+            "오픈소스 기여나 기술 공유를 통해 개발 커뮤니티에 환원하기"
+        )
+
+        # Limit to 5 goals
+        next_year_goals = next_year_goals[:5]
 
         return YearEndReview(
             proudest_moments=proudest_moments,

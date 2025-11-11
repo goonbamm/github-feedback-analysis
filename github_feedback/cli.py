@@ -407,8 +407,39 @@ def _prepare_metrics_payload(metrics: MetricSnapshot) -> dict:
         "awards": metrics.awards,
     }
 
+    # Add date range if available
+    if metrics.since_date:
+        metrics_payload["since_date"] = metrics.since_date.isoformat()
+    if metrics.until_date:
+        metrics_payload["until_date"] = metrics.until_date.isoformat()
+
+    # Add detailed feedback
     if metrics.detailed_feedback:
         metrics_payload["detailed_feedback"] = metrics.detailed_feedback.to_dict()
+
+    # Add monthly trends
+    if metrics.monthly_trends:
+        metrics_payload["monthly_trends"] = [trend.to_dict() for trend in metrics.monthly_trends]
+
+    # Add monthly insights
+    if metrics.monthly_insights:
+        metrics_payload["monthly_insights"] = metrics.monthly_insights.to_dict()
+
+    # Add tech stack analysis
+    if metrics.tech_stack:
+        metrics_payload["tech_stack"] = metrics.tech_stack.to_dict()
+
+    # Add collaboration network
+    if metrics.collaboration:
+        metrics_payload["collaboration"] = metrics.collaboration.to_dict()
+
+    # Add reflection prompts
+    if metrics.reflection_prompts:
+        metrics_payload["reflection_prompts"] = metrics.reflection_prompts.to_dict()
+
+    # Add year-end review
+    if metrics.year_end_review:
+        metrics_payload["year_end_review"] = metrics.year_end_review.to_dict()
 
     return metrics_payload
 
