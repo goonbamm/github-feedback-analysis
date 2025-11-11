@@ -42,6 +42,7 @@ from .models import (
 from .reporter import Reporter
 from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
+from .utils import validate_pat_format, validate_url, validate_repo_format, validate_months
 
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")
 console = Console()
@@ -62,7 +63,9 @@ def _resolve_output_dir(value: Path | str | object) -> Path:
 
 def _load_config() -> Config:
     try:
-        return Config.load()
+        config = Config.load()
+        config.validate_required_fields()
+        return config
     except ValueError as exc:
         console.print(f"[danger]Configuration error:[/] {exc}")
         console.print("[info]Hint:[/] Run [accent]gf init[/] to set up your configuration")
@@ -103,12 +106,27 @@ def init(
     configuration options. Run this once before using other commands.
     """
 
+    # Validate inputs
+    try:
+        validate_pat_format(pat)
+        validate_months(months)
+        validate_url(llm_endpoint, "LLM endpoint")
+    except ValueError as exc:
+        console.print(f"[danger]Validation error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
     host_input = (enterprise_host or "").strip()
     if host_input:
-        host = host_input
-        if not host.startswith(("http://", "https://")):
-            host = f"https://{host}"
-        host = host.rstrip("/")
+        try:
+            # Add scheme if missing
+            if not host_input.startswith(("http://", "https://")):
+                host_input = f"https://{host_input}"
+            validate_url(host_input, "Enterprise host")
+            host = host_input.rstrip("/")
+        except ValueError as exc:
+            console.print(f"[danger]Validation error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
+
         api_url = f"{host}/api/v3"
         graphql_url = f"{host}/api/graphql"
         web_url = host
@@ -127,6 +145,7 @@ def init(
     config.defaults.months = months
     config.dump()
     console.print("[success]Configuration saved successfully.[/]")
+    console.print("[success]GitHub token stored securely in system keyring.[/]")
 
     console.print()
     show_config()
@@ -465,9 +484,28 @@ def brief(
         console.print("[info]Example:[/] [accent]gf brief --repo torvalds/linux[/]")
         raise typer.Exit(code=1)
 
+    try:
+        validate_repo_format(repo_input)
+    except ValueError as exc:
+        console.print(f"[danger]Validation error:[/] {exc}")
+        console.print("[info]Example:[/] [accent]gf brief --repo torvalds/linux[/]")
+        raise typer.Exit(code=1) from exc
+
     # Phase 1: Collect repository data
     with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
         collection = collector.collect(repo=repo_input, months=months, filters=filters)
+
+    # Check if repository has any activity
+    if (collection.commits == 0 and collection.pull_requests == 0 and
+        collection.reviews == 0 and collection.issues == 0):
+        console.print("[warning]No activity found in the repository for the specified period.[/]")
+        console.print(f"[info]Repository:[/] {repo_input}")
+        console.print(f"[info]Period:[/] Last {months} months")
+        console.print("[info]Suggestions:[/]")
+        console.print("  • Try increasing the analysis period: [accent]gf init --months 24[/]")
+        console.print("  • Verify the repository has commits, PRs, or issues")
+        console.print("  • Check if your PAT has access to this repository")
+        raise typer.Exit(code=1)
 
     # Phase 2: Collect detailed feedback
     since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
@@ -623,6 +661,13 @@ def feedback(
         console.print("[info]Expected format:[/] [accent]owner/repository[/]")
         console.print("[info]Example:[/] [accent]gf feedback --repo myname/myproject[/]")
         raise typer.Exit(code=1)
+
+    try:
+        validate_repo_format(repo_input)
+    except ValueError as exc:
+        console.print(f"[danger]Validation error:[/] {exc}")
+        console.print("[info]Example:[/] [accent]gf feedback --repo myname/myproject[/]")
+        raise typer.Exit(code=1) from exc
 
     state_value = state.default if isinstance(state, OptionInfo) else state
 

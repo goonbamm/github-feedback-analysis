@@ -18,7 +18,8 @@ dependencies = [
   "pydantic>=2.5",
   "requests>=2.31",
   "tomli>=2.0",
-  "tomli-w>=1.0"
+  "tomli-w>=1.0",
+  "keyring>=24.0"
 ]
 
 [project.optional-dependencies]
