@@ -201,26 +201,151 @@ class Analyzer:
 
     def _determine_awards(self, collection: CollectionResult) -> List[str]:
         awards: List[str] = []
-        if collection.commits >= 100:
+
+        # Commit-based awards with tiers
+        if collection.commits >= 1000:
             awards.append(
-                "🏆 코드 대장장이 상 — 100회 이상의 커밋으로 저장소의 핵심을 단단하게 다졌습니다."
+                "💎 코드 전설 상 (다이아몬드) — 1000회 이상의 커밋으로 저장소의 살아있는 역사를 썼습니다."
             )
-        if collection.pull_requests >= 25:
+        elif collection.commits >= 500:
             awards.append(
-                "🚀 릴리스 선장 상 — 25건 이상의 Pull Request로 출시 흐름을 이끌었습니다."
+                "🏆 코드 마스터 상 (플래티넘) — 500회 이상의 커밋으로 코드베이스의 중추를 완성했습니다."
             )
-        if collection.reviews >= 20:
+        elif collection.commits >= 200:
             awards.append(
-                "🤝 성장 멘토 상 — 20회 이상 리뷰로 팀의 성장을 뒷받침했습니다."
+                "🥇 코드 대장장이 상 (골드) — 200회 이상의 커밋으로 저장소의 핵심을 단단하게 다졌습니다."
             )
+        elif collection.commits >= 100:
+            awards.append(
+                "🥈 코드 장인 상 (실버) — 100회 이상의 커밋으로 꾸준한 개선을 이어갔습니다."
+            )
+        elif collection.commits >= 50:
+            awards.append(
+                "🥉 코드 견습생 상 (브론즈) — 50회 이상의 커밋으로 성장의 발판을 마련했습니다."
+            )
+
+        # Pull Request-based awards with tiers
+        if collection.pull_requests >= 200:
+            awards.append(
+                "💎 릴리스 전설 상 (다이아몬드) — 200건 이상의 Pull Request로 배포의 새 역사를 열었습니다."
+            )
+        elif collection.pull_requests >= 100:
+            awards.append(
+                "🏆 배포 제독 상 (플래티넘) — 100건 이상의 Pull Request로 릴리스 함대를 지휘했습니다."
+            )
+        elif collection.pull_requests >= 50:
+            awards.append(
+                "🥇 릴리스 선장 상 (골드) — 50건 이상의 Pull Request로 출시 흐름을 이끌었습니다."
+            )
+        elif collection.pull_requests >= 25:
+            awards.append(
+                "🥈 릴리스 항해사 상 (실버) — 25건 이상의 Pull Request로 협업 릴리스를 주도했습니다."
+            )
+        elif collection.pull_requests >= 10:
+            awards.append(
+                "🥉 배포 선원 상 (브론즈) — 10건 이상의 Pull Request로 팀 배포에 기여했습니다."
+            )
+
+        # Review-based awards with tiers
+        if collection.reviews >= 200:
+            awards.append(
+                "💎 지식 전파자 상 (다이아몬드) — 200회 이상의 리뷰로 팀 전체의 성장을 이끌었습니다."
+            )
+        elif collection.reviews >= 100:
+            awards.append(
+                "🏆 멘토링 대가 상 (플래티넘) — 100회 이상의 리뷰로 지식 공유 문화를 정착시켰습니다."
+            )
+        elif collection.reviews >= 50:
+            awards.append(
+                "🥇 리뷰 전문가 상 (골드) — 50회 이상의 리뷰로 코드 품질을 한 단계 끌어올렸습니다."
+            )
+        elif collection.reviews >= 20:
+            awards.append(
+                "🥈 성장 멘토 상 (실버) — 20회 이상의 리뷰로 팀의 성장을 뒷받침했습니다."
+            )
+        elif collection.reviews >= 10:
+            awards.append(
+                "🥉 코드 지원자 상 (브론즈) — 10회 이상의 리뷰로 동료를 도왔습니다."
+            )
+
+        # New category: Velocity-based awards
+        month_span = max(collection.months, 1)
+        velocity_score = collection.commits / month_span
+        if velocity_score >= 50:
+            awards.append(
+                "⚡ 번개 개발자 상 — 월 평균 50회 이상의 커밋으로 놀라운 속도를 보여줬습니다."
+            )
+        elif velocity_score >= 20:
+            awards.append(
+                "🚀 속도왕 상 — 월 평균 20회 이상의 커밋으로 빠른 개발 템포를 유지했습니다."
+            )
+
+        # New category: Collaboration-based awards
+        collaboration_score = (collection.pull_requests + collection.reviews) / month_span
+        if collaboration_score >= 20:
+            awards.append(
+                "🤝 협업 마스터 상 — 월 평균 20회 이상의 PR과 리뷰로 팀워크의 중심이 되었습니다."
+            )
+        elif collaboration_score >= 10:
+            awards.append(
+                "👥 협업 전문가 상 — 월 평균 10회 이상의 PR과 리뷰로 팀 시너지를 강화했습니다."
+            )
+
+        # New category: All-rounder awards
+        if (collection.commits >= 50 and
+            collection.pull_requests >= 15 and
+            collection.reviews >= 15):
+            awards.append(
+                "🌟 다재다능 상 — 커밋, PR, 리뷰 전 영역에서 균형잡힌 기여를 보여줬습니다."
+            )
+
+        # New category: Large-scale change awards
+        if collection.pull_request_examples:
+            max_change = max(
+                (pr.additions + pr.deletions for pr in collection.pull_request_examples),
+                default=0
+            )
+            if max_change >= 5000:
+                awards.append(
+                    "🏗️ 대규모 아키텍트 상 — 5000줄 이상의 변경으로 대담한 리팩터링을 완수했습니다."
+                )
+            elif max_change >= 2000:
+                awards.append(
+                    "🔨 대형 빌더 상 — 2000줄 이상의 변경으로 큰 규모의 개선을 이뤄냈습니다."
+                )
+
+        # New category: Consistency awards
+        total_activity = collection.commits + collection.pull_requests + collection.reviews
+        activity_per_month = total_activity / month_span
+        if activity_per_month >= 30 and collection.months >= 6:
+            awards.append(
+                "📅 꾸준함의 달인 상 — 6개월 이상 월 평균 30회 이상의 활동으로 일관성을 입증했습니다."
+            )
+        elif activity_per_month >= 15 and collection.months >= 3:
+            awards.append(
+                "🔄 지속성 상 — 꾸준한 월별 활동으로 성실함을 보여줬습니다."
+            )
+
+        # Stability award (original)
         if collection.issues and collection.issues <= max(collection.commits // 6, 1):
             awards.append(
                 "🛡️ 안정 지킴이 상 — 활동 대비 적은 이슈로 안정성을 지켰습니다."
             )
 
+        # New category: Issue resolver awards
+        if collection.issues >= 50:
+            awards.append(
+                "🔧 문제 해결사 상 — 50건 이상의 이슈를 다루며 저장소 품질을 개선했습니다."
+            )
+        elif collection.issues >= 20:
+            awards.append(
+                "🛠️ 버그 헌터 상 — 20건 이상의 이슈를 처리하며 안정성 확보에 기여했습니다."
+            )
+
+        # Default award if no other awards
         if not awards:
             awards.append(
-                "🌟 만능 성장상 — 한 해의 작은 발걸음들이 내년의 큰 도약을 예고합니다."
+                "🌱 성장 씨앗 상 — 작은 발걸음들이 모여 내일의 큰 성장을 준비하고 있습니다."
             )
 
         return awards
