@@ -64,17 +64,23 @@ def _load_config() -> Config:
     try:
         return Config.load()
     except ValueError as exc:
-        console.print("Configuration error:", exc)
+        console.print(f"[danger]Configuration error:[/] {exc}")
+        console.print("[info]Hint:[/] Run [accent]gf init[/] to set up your configuration")
         raise typer.Exit(code=1) from exc
 
 
 @app.command()
 def init(
-    pat: str = typer.Option(..., prompt=True, hide_input=True, help="GitHub Personal Access Token"),
+    pat: str = typer.Option(
+        ...,
+        prompt="GitHub Personal Access Token",
+        hide_input=True,
+        help="GitHub Personal Access Token (requires 'repo' scope for private repos)",
+    ),
     months: int = typer.Option(12, help="Default analysis window in months"),
     enterprise_host: Optional[str] = typer.Option(
         "",
-        prompt="GitHub Enterprise host (press enter for github.com)",
+        prompt="GitHub Enterprise host (leave empty for github.com)",
         help=(
             "Base URL of your GitHub Enterprise host (e.g. https://github.example.com). "
             "When provided, API, GraphQL, and web URLs are derived automatically."
@@ -82,16 +88,20 @@ def init(
     ),
     llm_endpoint: str = typer.Option(
         ...,
-        prompt="LLM endpoint (e.g. http://localhost:8000/v1/chat/completions)",
-        help="Default LLM endpoint",
+        prompt="LLM API endpoint (OpenAI-compatible format)",
+        help="LLM endpoint URL (e.g. http://localhost:8000/v1/chat/completions)",
     ),
     llm_model: str = typer.Option(
         ...,
-        prompt="LLM model identifier",
-        help="Preferred model identifier for the LLM",
+        prompt="LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)",
+        help="Model identifier for the LLM",
     ),
 ) -> None:
-    """Initialise local configuration and store credentials securely."""
+    """Initialize configuration and store credentials securely.
+
+    This command sets up your GitHub access token, LLM endpoint, and other
+    configuration options. Run this once before using other commands.
+    """
 
     host_input = (enterprise_host or "").strip()
     if host_input:
@@ -122,38 +132,6 @@ def init(
     show_config()
 
 
-@app.command()
-def show_config() -> None:
-    """Display the currently stored configuration (safely)."""
-
-    config = _load_config()
-    data = config.to_display_dict()
-
-    if Table is None:
-        console.print("GitHub Feedback Configuration")
-        for section, values in data.items():
-            console.print(f"[{section}]")
-            for key, value in values.items():
-                console.print(f"{key} = {value}")
-            console.print("")
-        return
-
-    table = Table(
-        title="GitHub Feedback Configuration",
-        box=box.ROUNDED,
-        title_style="title",
-        border_style="frame",
-        expand=True,
-        show_lines=True,
-    )
-    table.add_column("Section", style="label", no_wrap=True)
-    table.add_column("Values", style="value")
-
-    for section, values in data.items():
-        rendered_values = "\n".join(f"[label]{k}[/]: [value]{v}[/]" for k, v in values.items())
-        table.add_row(f"[accent]{section}[/]", rendered_values)
-
-    console.print(table)
 
 
 def _render_metrics(metrics: MetricSnapshot) -> None:
@@ -397,11 +375,16 @@ def brief(
     repo: str = typer.Option(
         "",
         "--repo",
-        prompt="Repository to analyse (owner/name)",
-        help="Repository in owner/name format",
+        prompt="Repository to analyze (e.g. torvalds/linux)",
+        help="Repository in owner/name format (e.g. microsoft/vscode)",
     ),
 ) -> None:
-    """Collect data, compute metrics, and generate reports."""
+    """Analyze repository activity and generate detailed reports.
+
+    This command collects commits, PRs, reviews, and issues from a GitHub
+    repository, then generates comprehensive reports with insights and
+    recommendations. Reports are saved to the 'reports/' directory.
+    """
     from datetime import datetime, timedelta, timezone
 
     config = _load_config()
@@ -418,7 +401,8 @@ def brief(
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(str(exc))
+        console.print(f"[danger]Error:[/] {exc}")
+        console.print("[info]Hint:[/] Check your GitHub token with [accent]gf show-config[/]")
         raise typer.Exit(code=1) from exc
 
     analyzer = Analyzer(web_base_url=config.server.web_url)
@@ -427,7 +411,9 @@ def brief(
 
     repo_input = repo.strip()
     if not repo_input:
-        console.print("Repository value cannot be empty.")
+        console.print("[danger]Error:[/] Repository value cannot be empty")
+        console.print("[info]Expected format:[/] [accent]owner/repository[/]")
+        console.print("[info]Example:[/] [accent]gf brief --repo torvalds/linux[/]")
         raise typer.Exit(code=1)
 
     # Phase 1: Collect repository data
@@ -454,6 +440,13 @@ def brief(
     console.rule("Artifacts")
     for label, path in artifacts:
         console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
+
+    console.print()
+    console.print("[success]✓ Analysis complete![/]")
+    console.print()
+    console.print("[info]Next steps:[/]")
+    console.print("  • View the report: [accent]cat reports/report.md[/]")
+    console.print("  • Review your PRs: [accent]gf feedback --repo {}[/]".format(repo_input))
 
 
 
@@ -484,23 +477,30 @@ def feedback(
     repo: str = typer.Option(
         "",
         "--repo",
-        prompt="Repository to review (owner/name)",
-        help="Repository in owner/name format",
+        prompt="Repository to review (e.g. myname/myproject)",
+        help="Repository in owner/name format (e.g. facebook/react)",
     ),
     state: str = typer.Option(
         "all",
         "--state",
-        help="Limit pull requests by state (open, closed, all)",
+        help="PR state filter: 'open', 'closed', or 'all' (default: all)",
     ),
 ) -> None:
-    """Collect pull request context, generate reviews, and create an integrated report."""
+    """Generate AI-powered reviews for your pull requests.
+
+    This command reviews all PRs authored by you (based on your GitHub token)
+    in the specified repository. It analyzes code changes, comments, and
+    creates an integrated retrospective report. Reviews are saved to the
+    'reviews/' directory.
+    """
 
     config = _load_config()
 
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(str(exc))
+        console.print(f"[danger]Error:[/] {exc}")
+        console.print("[info]Hint:[/] Check your configuration with [accent]gf show-config[/]")
         raise typer.Exit(code=1) from exc
 
     llm_client = LLMClient(
@@ -512,7 +512,9 @@ def feedback(
 
     repo_input = repo.strip()
     if not repo_input:
-        console.print("Repository value cannot be empty.")
+        console.print("[danger]Error:[/] Repository value cannot be empty")
+        console.print("[info]Expected format:[/] [accent]owner/repository[/]")
+        console.print("[info]Example:[/] [accent]gf feedback --repo myname/myproject[/]")
         raise typer.Exit(code=1)
 
     state_value = state.default if isinstance(state, OptionInfo) else state
@@ -603,6 +605,51 @@ def feedback(
 
     console.rule("Integrated Review Report")
     console.print(
-        "[success]통합 리뷰 보고서가 생성되었습니다:[/]",
+        "[success]Integrated review report generated:[/]",
         f"[value]{report_path}[/]",
     )
+
+    console.print()
+    console.print("[success]✓ Review complete![/]")
+    console.print()
+    console.print("[info]Next steps:[/]")
+    console.print("  • Read the report: [accent]cat {}[/]".format(report_path))
+    console.print("  • Analyze the repository: [accent]gf brief --repo {}[/]".format(repo_input))
+
+
+@app.command()
+def show_config() -> None:
+    """Display current configuration settings.
+
+    Shows your GitHub server URLs, LLM endpoint, and default settings.
+    Sensitive values like tokens are masked for security.
+    """
+
+    config = _load_config()
+    data = config.to_display_dict()
+
+    if Table is None:
+        console.print("GitHub Feedback Configuration")
+        for section, values in data.items():
+            console.print(f"[{section}]")
+            for key, value in values.items():
+                console.print(f"{key} = {value}")
+            console.print("")
+        return
+
+    table = Table(
+        title="GitHub Feedback Configuration",
+        box=box.ROUNDED,
+        title_style="title",
+        border_style="frame",
+        expand=True,
+        show_lines=True,
+    )
+    table.add_column("Section", style="label", no_wrap=True)
+    table.add_column("Values", style="value")
+
+    for section, values in data.items():
+        rendered_values = "\n".join(f"[label]{k}[/]: [value]{v}[/]" for k, v in values.items())
+        table.add_row(f"[accent]{section}[/]", rendered_values)
+
+    console.print(table)
