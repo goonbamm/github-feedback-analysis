@@ -312,6 +312,95 @@ class DetailedFeedbackSnapshot:
 
 
 @dataclass(slots=True)
+class MonthlyTrend:
+    """Monthly activity trend data."""
+
+    month: str  # YYYY-MM format
+    commits: int = 0
+    pull_requests: int = 0
+    reviews: int = 0
+    issues: int = 0
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise monthly trend."""
+        return {
+            "month": self.month,
+            "commits": self.commits,
+            "pull_requests": self.pull_requests,
+            "reviews": self.reviews,
+            "issues": self.issues,
+        }
+
+
+@dataclass(slots=True)
+class TechStackAnalysis:
+    """Analysis of technologies used in the codebase."""
+
+    languages: Dict[str, int] = field(default_factory=dict)  # language -> file count
+    top_languages: List[str] = field(default_factory=list)  # Top 5 languages
+    diversity_score: float = 0.0  # 0-1 scale
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise tech stack analysis."""
+        return {
+            "languages": self.languages,
+            "top_languages": self.top_languages,
+            "diversity_score": self.diversity_score,
+        }
+
+
+@dataclass(slots=True)
+class CollaborationNetwork:
+    """Analysis of collaboration patterns."""
+
+    pr_reviewers: Dict[str, int] = field(default_factory=dict)  # reviewer -> count
+    top_reviewers: List[str] = field(default_factory=list)  # Top 5 reviewers
+    review_received_count: int = 0  # Number of reviews received
+    unique_collaborators: int = 0  # Number of unique collaborators
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise collaboration network."""
+        return {
+            "pr_reviewers": self.pr_reviewers,
+            "top_reviewers": self.top_reviewers,
+            "review_received_count": self.review_received_count,
+            "unique_collaborators": self.unique_collaborators,
+        }
+
+
+@dataclass(slots=True)
+class ReflectionPrompts:
+    """Self-reflection questions for year-end review."""
+
+    questions: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise reflection prompts."""
+        return {
+            "questions": self.questions,
+        }
+
+
+@dataclass(slots=True)
+class YearEndReview:
+    """Year-end specific insights and reflections."""
+
+    proudest_moments: List[str] = field(default_factory=list)
+    biggest_challenges: List[str] = field(default_factory=list)
+    lessons_learned: List[str] = field(default_factory=list)
+    next_year_goals: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise year-end review."""
+        return {
+            "proudest_moments": self.proudest_moments,
+            "biggest_challenges": self.biggest_challenges,
+            "lessons_learned": self.lessons_learned,
+            "next_year_goals": self.next_year_goals,
+        }
+
+
+@dataclass(slots=True)
 class MetricSnapshot:
     """Computed metrics ready for reporting."""
 
@@ -327,3 +416,8 @@ class MetricSnapshot:
     yearbook_story: List[str] = field(default_factory=list)
     awards: List[str] = field(default_factory=list)
     detailed_feedback: Optional[DetailedFeedbackSnapshot] = None
+    monthly_trends: List[MonthlyTrend] = field(default_factory=list)
+    tech_stack: Optional[TechStackAnalysis] = None
+    collaboration: Optional[CollaborationNetwork] = None
+    reflection_prompts: Optional[ReflectionPrompts] = None
+    year_end_review: Optional[YearEndReview] = None

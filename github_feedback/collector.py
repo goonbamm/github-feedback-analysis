@@ -958,3 +958,163 @@ class Collector:
                 break
 
         return issues[:limit]
+
+    # Year-end review specific collection methods ---------------------------------
+
+    def collect_monthly_trends(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+    ) -> List[Dict[str, Any]]:
+        """Collect monthly activity trends for time-series analysis."""
+        filters = filters or AnalysisFilters()
+
+        # Initialize monthly buckets
+        from collections import defaultdict
+        monthly_data: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: {"commits": 0, "pull_requests": 0, "reviews": 0, "issues": 0}
+        )
+
+        # Collect commits by month
+        seen_shas: Set[str] = set()
+        include_branches: Sequence[Optional[str]] = [None]
+
+        for branch in include_branches:
+            params: Dict[str, Any] = {
+                "since": since.isoformat(),
+                "per_page": 100,
+            }
+            if branch:
+                params["sha"] = branch
+
+            try:
+                commits = self._request_all(f"repos/{repo}/commits", params)
+                for commit in commits:
+                    sha = commit.get("sha", "")
+                    if sha in seen_shas:
+                        continue
+                    seen_shas.add(sha)
+
+                    author = commit.get("author")
+                    if self._filter_bot(author, filters):
+                        continue
+
+                    commit_data = commit.get("commit", {})
+                    date_str = commit_data.get("author", {}).get("date", "")
+                    if date_str:
+                        commit_date = self._parse_timestamp(date_str)
+                        month_key = commit_date.strftime("%Y-%m")
+                        monthly_data[month_key]["commits"] += 1
+            except Exception:
+                pass
+
+        # Collect PRs by month
+        try:
+            params = {
+                "state": "all",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": 100,
+            }
+            prs = self._request_all(f"repos/{repo}/pulls", params)
+            for pr in prs:
+                created_at_raw = pr.get("created_at")
+                if not created_at_raw:
+                    continue
+
+                created_at = self._parse_timestamp(created_at_raw).astimezone(timezone.utc)
+                if created_at < since:
+                    continue
+
+                author = pr.get("user")
+                if self._filter_bot(author, filters):
+                    continue
+
+                month_key = created_at.strftime("%Y-%m")
+                monthly_data[month_key]["pull_requests"] += 1
+        except Exception:
+            pass
+
+        # Convert to list and sort by month
+        result = []
+        for month_key in sorted(monthly_data.keys()):
+            result.append({
+                "month": month_key,
+                **monthly_data[month_key]
+            })
+
+        return result
+
+    def collect_tech_stack(
+        self,
+        repo: str,
+        pr_metadata: List[Dict[str, Any]],
+    ) -> Dict[str, int]:
+        """Analyze technology stack from PR file changes."""
+        language_counts: Dict[str, int] = {}
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+
+        for pr in pr_metadata[:50]:  # Limit to recent 50 PRs for performance
+            number = int(pr.get("number", 0))
+            files = pr_file_cache.get(number)
+
+            if files is None:
+                try:
+                    files = self._request_all(
+                        f"repos/{repo}/pulls/{number}/files",
+                        {"per_page": 100}
+                    )
+                    pr_file_cache[number] = files
+                except Exception:
+                    continue
+
+            for file_entry in files:
+                filename = file_entry.get("filename", "")
+                language = self._filename_to_language(filename)
+                if language:
+                    language_counts[language] = language_counts.get(language, 0) + 1
+
+        return language_counts
+
+    def collect_collaboration_network(
+        self,
+        repo: str,
+        pr_metadata: List[Dict[str, Any]],
+        filters: Optional[AnalysisFilters] = None,
+    ) -> Dict[str, Any]:
+        """Analyze collaboration patterns from PR reviews."""
+        filters = filters or AnalysisFilters()
+        reviewer_counts: Dict[str, int] = {}
+        total_reviews_received = 0
+        unique_reviewers: Set[str] = set()
+
+        for pr in pr_metadata[:100]:  # Analyze recent 100 PRs
+            number = pr["number"]
+
+            try:
+                reviews = self._request_all(
+                    f"repos/{repo}/pulls/{number}/reviews",
+                    {"per_page": 100}
+                )
+
+                for review in reviews:
+                    reviewer = review.get("user")
+                    if self._filter_bot(reviewer, filters):
+                        continue
+
+                    reviewer_login = (reviewer or {}).get("login", "")
+                    if not reviewer_login:
+                        continue
+
+                    reviewer_counts[reviewer_login] = reviewer_counts.get(reviewer_login, 0) + 1
+                    unique_reviewers.add(reviewer_login)
+                    total_reviews_received += 1
+            except Exception:
+                continue
+
+        return {
+            "pr_reviewers": reviewer_counts,
+            "review_received_count": total_reviews_received,
+            "unique_collaborators": len(unique_reviewers),
+        }
