@@ -40,14 +40,14 @@ uv pip install -e .
 
 ## 🚀 빠른 시작
 1. **초기 설정:** `gf init`을 실행해 PAT와 기본 옵션을 저장합니다. 모든 값을 옵션으로 넘기면 비대화형으로도 사용할 수 있습니다.
-2. **데이터 수집 및 분석:** `gf analyze --repo owner/name`으로 분석을 수행합니다.
+2. **데이터 수집 및 분석:** `gf brief --repo owner/name`으로 분석을 수행합니다.
 3. **보고서 확인:** 기본 경로인 `reports/` 폴더에서 `metrics.json`과 `report.md` 파일을 확인합니다.
 
 ## 📦 명령어 요약
 | 명령 | 설명 |
 | --- | --- |
 | `gf init` | PAT와 서버/LLM 정보를 포함한 기본 설정을 저장합니다. |
-| `gf analyze` | 저장소 데이터를 수집하고 보고서를 생성합니다. |
+| `gf brief` | 저장소 데이터를 수집하고 상세 피드백을 포함한 보고서를 생성합니다. |
 | `gf show-config` | 현재 저장된 설정을 확인합니다. 민감 정보는 마스킹됩니다. |
 | `gf review` | 특정 PR의 변경 파일, 리뷰, 댓글을 모아 LLM 리뷰 초안을 생성합니다. |
 | `gf review-report` | 수집된 PR 리뷰 요약을 통합한 한국어 보고서를 생성합니다. |
@@ -78,41 +78,34 @@ gf init \
   --llm-model gpt-5-codex
 ```
 
-### `gf analyze`
-지정한 저장소의 최근 활동을 수집하고 보고서를 생성하는 핵심 명령입니다.
+### `gf brief`
+지정한 저장소의 최근 활동을 수집하고 상세 피드백을 포함한 보고서를 생성하는 핵심 명령입니다.
 
 ```bash
-gf analyze --repo owner/name
+gf brief --repo owner/name
 ```
 
-필터 옵션은 반복해서 지정할 수 있으며, 지정하지 않으면 전체 데이터를 대상으로 합니다.
+이 명령어는 자동으로 다음 설정을 사용합니다:
+- 분석 기간: `gf init`에서 설정한 기본값 (기본 12개월)
+- 필터: 모든 브랜치, 경로, 언어 포함
+- 봇 활동: 제외
+- 상세 피드백: 항상 활성화 (커밋 메시지, PR 제목, 리뷰 톤, 이슈 품질을 LLM으로 분석)
+- 출력 디렉터리: `reports/`
 
 | 옵션 | 기본값 | 설명 |
 | --- | --- | --- |
 | `--repo owner/name` | (필수) | 분석할 저장소. `owner/name` 형식으로 입력합니다. |
-| `--months N` | 설정값 또는 `12` | 분석 기간(개월). |
-| `--include-branch NAME` | 전체 | 포함할 브랜치 이름. 여러 개 입력하려면 옵션을 반복합니다. |
-| `--exclude-branch NAME` | 없음 | 제외할 브랜치 이름. 여러 개 반복 입력 가능. |
-| `--include-path PATH/` | 전체 | 포함할 경로 접두사. 여러 개 반복 입력 가능. |
-| `--exclude-path PATH/` | 없음 | 제외할 경로 접두사. 여러 개 반복 입력 가능. |
-| `--include-language EXT` | 전체 | 포함할 파일 확장자(예: `py`). 여러 개 반복 입력 가능. |
-| `--include-bots` | 봇 제외 | 옵션을 지정하면 봇 활동도 포함합니다. 기본은 봇 제외입니다. |
-| `--output-dir PATH` | `reports` | 지표와 보고서를 저장할 디렉터리. 경로가 없으면 자동으로 생성됩니다. |
 
-#### 자주 쓰는 예시
+#### 사용 예시
 ```bash
-# 최근 6개월 동안 Python 파일만 분석
-gf analyze --repo owner/name --months 6 --include-language py
+# 기본 사용법
+gf brief --repo owner/name
 
-# 특정 브랜치와 경로에 한정하여 분석
-gf analyze --repo owner/name --include-branch develop --include-path src/ --include-path docs/
-
-# 여러 저장소를 순차적으로 분석하고 결과를 개별 폴더로 보관
-gf analyze --repo owner/name --output-dir reports/owner-name
-gf analyze --repo another/name --output-dir reports/another-name
+# 프롬프트 없이 바로 실행
+gf brief --repo owner/name
 ```
 
-분석이 완료되면 기본적으로 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다. `--output-dir`를 사용하면 해당 경로 아래에 동일한 파일 구조가 만들어집니다.
+분석이 완료되면 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다. 상세 피드백 분석 결과도 자동으로 포함됩니다.
 
 ### `gf show-config`
 현재 저장된 설정을 확인합니다. PAT 등 민감한 값은 `<set>` 형태로 마스킹됩니다.

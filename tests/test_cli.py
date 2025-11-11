@@ -109,16 +109,59 @@ def _stub_config(monkeypatch: pytest.MonkeyPatch) -> Config:
     return config
 
 
+class DummyLLMClient:
+    def __init__(self, endpoint: str, model: str) -> None:
+        self.endpoint = endpoint
+        self.model = model
+
+    def analyze_commit_messages(self, data: Any) -> Dict[str, Any]:
+        return {"score": 5, "feedback": "Good commits"}
+
+    def analyze_pr_titles(self, data: Any) -> Dict[str, Any]:
+        return {"score": 5, "feedback": "Good PR titles"}
+
+    def analyze_review_tone(self, data: Any) -> Dict[str, Any]:
+        return {"score": 5, "feedback": "Good review tone"}
+
+    def analyze_issue_quality(self, data: Any) -> Dict[str, Any]:
+        return {"score": 5, "feedback": "Good issue quality"}
+
+
+class DummyCollectorWithDetailedFeedback(DummyCollector):
+    def collect_commit_messages(self, repo: str, since: Any, filters: Any, limit: int = 100) -> list:
+        return []
+
+    def collect_pr_titles(self, repo: str, since: Any, filters: Any, limit: int = 100) -> list:
+        return []
+
+    def collect_review_comments_detailed(self, repo: str, since: Any, filters: Any, limit: int = 100) -> list:
+        return []
+
+    def collect_issue_details(self, repo: str, since: Any, filters: Any, limit: int = 100) -> list:
+        return []
+
+
+class DummyAnalyzerWithDetailedFeedback(DummyAnalyzer):
+    def compute_metrics(self, collection: Dict[str, Any], detailed_feedback: Any = None) -> "DummyMetrics":
+        self.collections.append(collection)
+        return DummyMetrics(collection["repo"])
+
+    def build_detailed_feedback(self, commit_analysis: Any, pr_title_analysis: Any,
+                               review_tone_analysis: Any, issue_analysis: Any) -> Dict[str, Any]:
+        return {"commit_analysis": commit_analysis, "pr_title_analysis": pr_title_analysis}
+
+
 def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
     created: Dict[str, Any] = {}
 
-    def collector_factory(config: Config) -> DummyCollector:
-        instance = DummyCollector(config)
+    def collector_factory(config: Config) -> DummyCollectorWithDetailedFeedback:
+        instance = DummyCollectorWithDetailedFeedback(config)
         created["collector"] = instance
         return instance
 
     monkeypatch.setattr(cli, "Collector", collector_factory)
-    monkeypatch.setattr(cli, "Analyzer", lambda web_base_url: DummyAnalyzer(web_base_url))
+    monkeypatch.setattr(cli, "Analyzer", lambda web_base_url: DummyAnalyzerWithDetailedFeedback(web_base_url))
+    monkeypatch.setattr(cli, "LLMClient", DummyLLMClient)
 
     def reporter_factory(*args, **kwargs) -> DummyReporter:
         output_dir = kwargs.get("output_dir")
@@ -131,7 +174,7 @@ def _stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
         return instance
 
     monkeypatch.setattr(cli, "Reporter", reporter_factory)
-    
+
     def persist_stub(*args, **kwargs) -> Path:
         if args and not kwargs:
             # Backwards compatibility if positional args sneak in
@@ -215,21 +258,12 @@ def _stub_review_dependencies(
     return created
 
 
-def test_analyze_supports_multiple_filter_options(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_brief_uses_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     config = _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.analyze(
-        repo="example/repo",
-        months=6,
-        include_branch=["main", "release"],
-        exclude_branch=["legacy"],
-        include_path=["src/", "docs/"],
-        exclude_path=["tests/"],
-        include_language=["py", "md"],
-        include_bots=True,
-    )
+    cli.brief(repo="example/repo")
 
     assert "collector" in created
     collector = created["collector"]
@@ -238,69 +272,50 @@ def test_analyze_supports_multiple_filter_options(monkeypatch: pytest.MonkeyPatc
     call = collector.calls[-1]
     filters = call["filters"]
 
-    assert filters.include_branches == ["main", "release"]
-    assert filters.exclude_branches == ["legacy"]
-    assert filters.include_paths == ["src/", "docs/"]
-    assert filters.exclude_paths == ["tests/"]
-    assert filters.include_languages == ["py", "md"]
-    assert filters.exclude_bots is False
-    assert call["months"] == 6
+    # All filters should use default values (empty lists)
+    assert filters.include_branches == []
+    assert filters.exclude_branches == []
+    assert filters.include_paths == []
+    assert filters.exclude_paths == []
+    assert filters.include_languages == []
+    # Bots should be excluded by default
+    assert filters.exclude_bots is True
+    # Months should use config default
+    assert call["months"] == config.defaults.months
     assert call["repo"] == "example/repo"
 
-    # Ensure analyzer received the collection and config defaults were respected
-    assert config.defaults.months == 12
 
-
-def test_analyze_generates_html_when_requested(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_brief_generates_markdown_report(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.analyze(
-        repo="example/repo",
-        months=3,
-        include_branch=None,
-        exclude_branch=None,
-        include_path=None,
-        exclude_path=None,
-        include_language=None,
-        include_bots=False,
-        html=True,
-    )
+    cli.brief(repo="example/repo")
 
     reporters = created.get("reporters", [])
     assert reporters, "Reporter should be instantiated"
     reporter = reporters[-1]
     assert reporter.markdown_calls, "Markdown report should be generated"
-    assert reporter.html_calls, "HTML report should be generated when --html is provided"
+    # HTML is no longer an option in brief command
+    assert not reporter.html_calls, "HTML report should not be generated"
 
 
-def test_analyze_uses_custom_output_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_brief_uses_default_output_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     _silent_console(monkeypatch)
     _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.analyze(
-        repo="example/repo",
-        months=3,
-        include_branch=None,
-        exclude_branch=None,
-        include_path=None,
-        exclude_path=None,
-        include_language=None,
-        include_bots=False,
-        html=False,
-        output_dir=tmp_path,
-    )
+    cli.brief(repo="example/repo")
 
     reporters = created.get("reporters", [])
     assert reporters, "Reporter should be instantiated"
     reporter = reporters[-1]
-    assert reporter.output_dir == tmp_path
+    # Output dir is hardcoded to Path("reports")
+    assert reporter.output_dir == Path("reports")
 
     persist_calls = created.get("persist_calls", [])
     assert persist_calls, "persist_metrics should be invoked"
-    assert persist_calls[-1]["output_dir"] == tmp_path
+    assert persist_calls[-1]["output_dir"] == Path("reports")
     assert persist_calls[-1]["filename"] == "metrics.json"
 
 
