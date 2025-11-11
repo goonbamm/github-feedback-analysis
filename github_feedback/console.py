@@ -8,6 +8,7 @@ from typing import Any, Generator
 try:  # pragma: no cover - exercised implicitly
     from rich.console import Console as RichConsole
     from rich.theme import Theme
+    from .christmas_theme import is_christmas_season, get_christmas_theme
 
     _default_theme = Theme(
         {
@@ -29,7 +30,11 @@ try:  # pragma: no cover - exercised implicitly
         """Rich console pre-configured with a custom theme."""
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - mirror rich API
-            theme = kwargs.pop("theme", None) or _default_theme
+            # Use Christmas theme if in season (Nov 1 - Dec 31)
+            if is_christmas_season():
+                theme = kwargs.pop("theme", None) or get_christmas_theme()
+            else:
+                theme = kwargs.pop("theme", None) or _default_theme
             super().__init__(*args, theme=theme, **kwargs)
 
 except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envs
