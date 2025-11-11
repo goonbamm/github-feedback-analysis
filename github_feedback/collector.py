@@ -101,6 +101,7 @@ class Collector:
         )
 
         since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+        until = datetime.now(timezone.utc)
 
         commits = self._count_commits(repo, since, filters)
         pull_requests, pr_metadata = self._list_pull_requests(repo, since, filters)
@@ -118,6 +119,8 @@ class Collector:
             issues=issues,
             filters=filters,
             pull_request_examples=pull_request_examples,
+            since_date=since,
+            until_date=until,
         )
 
     # Internal helpers -------------------------------------------------

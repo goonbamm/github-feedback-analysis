@@ -153,6 +153,13 @@ class Reporter:
         summary_lines = ["# GitHub Feedback Report", ""]
         summary_lines.append(f"Repository: **{metrics.repo}**")
         summary_lines.append(f"Period: **{metrics.months} months**")
+
+        # Add exact date range if available
+        if metrics.since_date and metrics.until_date:
+            since_str = metrics.since_date.strftime("%Y-%m-%d")
+            until_str = metrics.until_date.strftime("%Y-%m-%d")
+            summary_lines.append(f"Analysis Period: **{since_str} ~ {until_str}**")
+
         summary_lines.append("")
         summary_lines.append("## Summary")
 
@@ -347,11 +354,24 @@ class Reporter:
         if metrics.monthly_trends:
             summary_lines.append("## 📈 월별 활동 트렌드")
             summary_lines.append("")
-            summary_lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 |")
-            summary_lines.append("|---|---|---|---|---|")
+
+            # Add insights if available
+            if metrics.monthly_insights and metrics.monthly_insights.insights:
+                summary_lines.append("### 트렌드 분석")
+                summary_lines.append("")
+                for insight in metrics.monthly_insights.insights:
+                    summary_lines.append(f"- {insight}")
+                summary_lines.append("")
+
+            summary_lines.append("### 월별 상세 데이터")
+            summary_lines.append("")
+            summary_lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 |")
+            summary_lines.append("|---|---|---|---|---|---|")
             for trend in metrics.monthly_trends:
+                total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
                 summary_lines.append(
-                    f"| {trend.month} | {trend.commits} | {trend.pull_requests} | {trend.reviews} | {trend.issues} |"
+                    f"| {trend.month} | {trend.commits} | {trend.pull_requests} | "
+                    f"{trend.reviews} | {trend.issues} | **{total_activity}** |"
                 )
             summary_lines.append("")
 

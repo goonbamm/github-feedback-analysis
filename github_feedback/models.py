@@ -192,6 +192,8 @@ class CollectionResult:
     issues: int
     filters: AnalysisFilters
     pull_request_examples: List[PullRequestSummary] = field(default_factory=list)
+    since_date: Optional[datetime] = None  # Actual analysis start date
+    until_date: Optional[datetime] = None  # Actual analysis end date
 
 
 @dataclass(slots=True)
@@ -333,6 +335,29 @@ class MonthlyTrend:
 
 
 @dataclass(slots=True)
+class MonthlyTrendInsights:
+    """Insights derived from monthly trend analysis."""
+
+    peak_month: Optional[str] = None  # Month with highest activity
+    quiet_month: Optional[str] = None  # Month with lowest activity
+    trend_direction: str = "stable"  # "increasing", "decreasing", "stable"
+    total_active_months: int = 0  # Number of months with activity
+    consistency_score: float = 0.0  # 0-1 scale
+    insights: List[str] = field(default_factory=list)  # Human-readable insights
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise monthly trend insights."""
+        return {
+            "peak_month": self.peak_month,
+            "quiet_month": self.quiet_month,
+            "trend_direction": self.trend_direction,
+            "total_active_months": self.total_active_months,
+            "consistency_score": self.consistency_score,
+            "insights": self.insights,
+        }
+
+
+@dataclass(slots=True)
 class TechStackAnalysis:
     """Analysis of technologies used in the codebase."""
 
@@ -417,7 +442,10 @@ class MetricSnapshot:
     awards: List[str] = field(default_factory=list)
     detailed_feedback: Optional[DetailedFeedbackSnapshot] = None
     monthly_trends: List[MonthlyTrend] = field(default_factory=list)
+    monthly_insights: Optional[MonthlyTrendInsights] = None
     tech_stack: Optional[TechStackAnalysis] = None
     collaboration: Optional[CollaborationNetwork] = None
     reflection_prompts: Optional[ReflectionPrompts] = None
     year_end_review: Optional[YearEndReview] = None
+    since_date: Optional[datetime] = None  # Actual analysis start date
+    until_date: Optional[datetime] = None  # Actual analysis end date
