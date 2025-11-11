@@ -273,18 +273,43 @@ def _collect_detailed_feedback(
     filters: AnalysisFilters,
 ) -> Optional[DetailedFeedbackSnapshot]:
     """Collect and analyze detailed feedback data."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     from .llm import LLMClient
 
     console.print("[accent]Collecting detailed feedback data...", style="accent")
 
     try:
-        # Collect detailed data
-        commits_data = collector.collect_commit_messages(repo, since, filters, limit=100)
-        pr_titles_data = collector.collect_pr_titles(repo, since, filters, limit=100)
-        review_comments_data = collector.collect_review_comments_detailed(
-            repo, since, filters, limit=100
-        )
-        issues_data = collector.collect_issue_details(repo, since, filters, limit=100)
+        # Collect detailed data in parallel
+        data_collection_tasks = {
+            "commits": (collector.collect_commit_messages, (repo, since, filters), {"limit": 100}, "commit messages"),
+            "pr_titles": (collector.collect_pr_titles, (repo, since, filters), {"limit": 100}, "PR titles"),
+            "review_comments": (collector.collect_review_comments_detailed, (repo, since, filters), {"limit": 100}, "review comments"),
+            "issues": (collector.collect_issue_details, (repo, since, filters), {"limit": 100}, "issues"),
+        }
+
+        collected_data = {}
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(func, *args, **kwargs): (key, label)
+                for key, (func, args, kwargs, label) in data_collection_tasks.items()
+            }
+
+            completed = 0
+            total = len(futures)
+            for future in as_completed(futures):
+                key, label = futures[future]
+                try:
+                    collected_data[key] = future.result()
+                    completed += 1
+                    console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
+                except Exception as e:
+                    console.print(f"[warning]✗ {label} collection failed: {e}", style="warning")
+                    collected_data[key] = []
+
+        commits_data = collected_data.get("commits", [])
+        pr_titles_data = collected_data.get("pr_titles", [])
+        review_comments_data = collected_data.get("review_comments", [])
+        issues_data = collected_data.get("issues", [])
 
         # Analyze using LLM
         llm_client = LLMClient(
@@ -292,17 +317,41 @@ def _collect_detailed_feedback(
             model=config.llm.model,
         )
 
-        with console.status("[accent]Analyzing commit messages...", spinner="dots"):
-            commit_analysis = llm_client.analyze_commit_messages(commits_data)
+        # Parallelize LLM analysis calls
+        console.print("[accent]Analyzing feedback in parallel...", style="accent")
 
-        with console.status("[accent]Analyzing PR titles...", spinner="dots"):
-            pr_title_analysis = llm_client.analyze_pr_titles(pr_titles_data)
+        analysis_tasks = {
+            "commit_messages": (llm_client.analyze_commit_messages, commits_data, "commits"),
+            "pr_titles": (llm_client.analyze_pr_titles, pr_titles_data, "PR titles"),
+            "review_tone": (llm_client.analyze_review_tone, review_comments_data, "review tone"),
+            "issue_quality": (llm_client.analyze_issue_quality, issues_data, "issues"),
+        }
 
-        with console.status("[accent]Analyzing review tone...", spinner="dots"):
-            review_tone_analysis = llm_client.analyze_review_tone(review_comments_data)
+        results = {}
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            # Submit all tasks
+            futures = {
+                executor.submit(func, data): (key, label)
+                for key, (func, data, label) in analysis_tasks.items()
+            }
 
-        with console.status("[accent]Analyzing issue quality...", spinner="dots"):
-            issue_analysis = llm_client.analyze_issue_quality(issues_data)
+            # Collect results with progress indication
+            completed = 0
+            total = len(futures)
+            for future in as_completed(futures):
+                key, label = futures[future]
+                try:
+                    results[key] = future.result()
+                    completed += 1
+                    console.print(f"[success]✓ {label} analyzed ({completed}/{total})", style="success")
+                except Exception as e:
+                    console.print(f"[warning]✗ {label} analysis failed: {e}", style="warning")
+                    results[key] = None
+
+        commit_analysis = results.get("commit_messages")
+        pr_title_analysis = results.get("pr_titles")
+        review_tone_analysis = results.get("review_tone")
+        issue_analysis = results.get("issue_quality")
 
         # Build detailed feedback snapshot
         detailed_feedback_snapshot = analyzer.build_detailed_feedback(
@@ -426,38 +475,54 @@ def brief(
         collector, analyzer, config, repo_input, since, filters
     )
 
-    # Phase 2.5: Collect year-end review data
-    monthly_trends_data = None
-    tech_stack_data = None
-    collaboration_data = None
+    # Phase 2.5: Collect year-end review data in parallel
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    try:
-        with console.status("[accent]Collecting monthly trends...", spinner="dots"):
-            monthly_trends_data = collector.collect_monthly_trends(
-                repo=repo_input, since=since, filters=filters
-            )
-    except Exception as exc:
-        console.print(f"[warning]Warning:[/] Could not collect monthly trends: {exc}")
+    console.print("[accent]Collecting year-end review data in parallel...", style="accent")
 
-    try:
-        with console.status("[accent]Analyzing tech stack...", spinner="dots"):
-            # Get PR metadata from collection result
-            _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
-            tech_stack_data = collector.collect_tech_stack(
-                repo=repo_input, pr_metadata=pr_metadata
-            )
-    except Exception as exc:
-        console.print(f"[warning]Warning:[/] Could not analyze tech stack: {exc}")
+    # Get PR metadata once for reuse
+    _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
 
-    try:
-        with console.status("[accent]Analyzing collaboration network...", spinner="dots"):
-            # Reuse PR metadata
-            _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
-            collaboration_data = collector.collect_collaboration_network(
-                repo=repo_input, pr_metadata=pr_metadata, filters=filters
-            )
-    except Exception as exc:
-        console.print(f"[warning]Warning:[/] Could not analyze collaboration: {exc}")
+    yearend_tasks = {
+        "monthly_trends": (
+            collector.collect_monthly_trends,
+            (repo_input, since, filters),
+            "monthly trends"
+        ),
+        "tech_stack": (
+            collector.collect_tech_stack,
+            (repo_input, pr_metadata),
+            "tech stack"
+        ),
+        "collaboration": (
+            collector.collect_collaboration_network,
+            (repo_input, pr_metadata, filters),
+            "collaboration network"
+        ),
+    }
+
+    yearend_data = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {
+            executor.submit(func, *args): (key, label)
+            for key, (func, args, label) in yearend_tasks.items()
+        }
+
+        completed = 0
+        total = len(futures)
+        for future in as_completed(futures):
+            key, label = futures[future]
+            try:
+                yearend_data[key] = future.result()
+                completed += 1
+                console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
+            except Exception as exc:
+                console.print(f"[warning]✗ {label} collection failed: {exc}", style="warning")
+                yearend_data[key] = None
+
+    monthly_trends_data = yearend_data.get("monthly_trends")
+    tech_stack_data = yearend_data.get("tech_stack")
+    collaboration_data = yearend_data.get("collaboration")
 
     # Phase 3: Compute metrics
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
@@ -605,15 +670,19 @@ def feedback(
         )
         return
 
-    for pr_number in sorted(set(numbers)):
+    pr_numbers = sorted(set(numbers))
+    total_prs = len(pr_numbers)
+
+    for idx, pr_number in enumerate(pr_numbers, 1):
         with console.status(
-            f"[accent]Curating context for PR #{pr_number}...", spinner="line"
+            f"[accent]Curating context for PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
         ):
             artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
                 repo=repo_input,
                 number=pr_number,
             )
         results.append((pr_number, artefact_path, summary_path, markdown_path))
+        console.print(f"[success]✓ PR #{pr_number} reviewed ({idx}/{total_prs})", style="success")
 
     console.rule("Review Assets")
     for pr_number, artefact_path, summary_path, markdown_path in results:
