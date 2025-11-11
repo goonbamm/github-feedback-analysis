@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from .console import Console
@@ -137,7 +137,7 @@ class Analyzer:
         return MetricSnapshot(
             repo=collection.repo,
             months=collection.months,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
             status=AnalysisStatus.ANALYSED,
             summary=summary,
             stats=stats,

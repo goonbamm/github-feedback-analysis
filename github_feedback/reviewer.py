@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
+
+import requests
 
 from .collector import Collector
 from .console import Console
@@ -14,6 +17,7 @@ from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import truncate_patch
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -106,8 +110,13 @@ class Reviewer:
 
         try:
             summary = self.llm.generate_review(bundle)
-        except Exception as exc:  # pragma: no cover - network errors are hard to simulate
-            console.log("LLM generation failed", str(exc))
+        except requests.HTTPError as exc:  # pragma: no cover - network errors are hard to simulate
+            logger.error(f"LLM HTTP error for PR #{bundle.number}: {exc.response.status_code if exc.response else 'unknown'}")
+            console.log(f"LLM generation failed (HTTP error), using fallback summary")
+            summary = self._fallback_summary(bundle)
+        except Exception as exc:
+            logger.error(f"LLM generation error for PR #{bundle.number}: {exc}")
+            console.log(f"LLM generation failed ({type(exc).__name__}), using fallback summary")
             summary = self._fallback_summary(bundle)
 
         if not summary.overview:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set
@@ -17,6 +18,8 @@ from .models import (
     PullRequestReviewBundle,
     PullRequestSummary,
 )
+
+logger = logging.getLogger(__name__)
 
 
 LANGUAGE_EXTENSION_MAP: Dict[str, str] = {
@@ -70,11 +73,12 @@ class Collector:
     )
 
     def __post_init__(self) -> None:
-        if self.config.auth is None or not self.config.auth.pat:
+        pat = self.config.get_pat()
+        if not pat:
             raise ValueError("Authentication PAT is not configured. Run `gf init` first.")
 
         self._headers = {
-            "Authorization": f"Bearer {self.config.auth.pat}",
+            "Authorization": f"Bearer {pat}",
             "Accept": "application/vnd.github+json",
         }
         object.__setattr__(self, "_request", self._request_impl)
@@ -107,7 +111,7 @@ class Collector:
         return CollectionResult(
             repo=repo,
             months=months,
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(timezone.utc),
             commits=commits,
             pull_requests=pull_requests,
             reviews=reviews,
@@ -427,14 +431,16 @@ class Collector:
             futures = {executor.submit(fetch_pr_reviews, pr): pr for pr in valid_prs}
             for future in as_completed(futures):
                 completed_count += 1
+                pr_num = futures[future]
                 try:
                     count = future.result()
                     total += count
                     if completed_count % 10 == 0 or completed_count == total_prs:
                         console.log(f"Review counting progress: {completed_count}/{total_prs} PRs processed")
-                except Exception:
-                    # Skip PRs that fail
-                    continue
+                except requests.HTTPError as exc:
+                    logger.warning(f"Failed to fetch reviews for PR #{pr_num}: HTTP {exc.response.status_code if exc.response else 'error'}")
+                except Exception as exc:
+                    logger.warning(f"Failed to fetch reviews for PR #{pr_num}: {exc}")
 
         return total
 
@@ -702,7 +708,7 @@ class Collector:
             {"per_page": 100},
         )
 
-        created_at_raw = pr_payload.get("created_at", datetime.utcnow().isoformat())
+        created_at_raw = pr_payload.get("created_at", datetime.now(timezone.utc).isoformat())
         updated_at_raw = pr_payload.get("updated_at", created_at_raw)
 
         repo_root = self.config.server.web_url.rstrip("/")

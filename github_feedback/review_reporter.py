@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List
 
@@ -86,7 +86,7 @@ class ReviewReporter:
                 created_at = (
                     datetime.fromisoformat(created_at_raw)
                     if isinstance(created_at_raw, str)
-                    else datetime.utcnow()
+                    else datetime.now(timezone.utc)
                 )
             except Exception:  # pragma: no cover - defensive parsing guard
                 console.log("Skipping malformed artefact", str(pr_dir))
