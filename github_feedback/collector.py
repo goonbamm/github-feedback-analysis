@@ -182,6 +182,50 @@ class Collector:
 
         return results
 
+    def _paginate(
+        self,
+        path: str,
+        base_params: Dict[str, Any],
+        per_page: int = 100,
+        early_stop: Optional[Callable[[Dict[str, Any]], bool]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Generic pagination helper with optional early stopping.
+
+        Args:
+            path: API endpoint path
+            base_params: Base query parameters
+            per_page: Items per page (default: 100)
+            early_stop: Optional callback that receives each item and returns True to stop pagination
+
+        Returns:
+            List of collected items
+        """
+        results: List[Dict[str, Any]] = []
+        page = 1
+
+        while True:
+            page_params = base_params | {"page": page, "per_page": per_page}
+            data = self._request(path, page_params)
+
+            if not data:
+                break
+
+            # Check early stop condition for each item
+            if early_stop:
+                for item in data:
+                    if early_stop(item):
+                        return results
+                    results.append(item)
+            else:
+                results.extend(data)
+
+            if len(data) < per_page:
+                break
+
+            page += 1
+
+        return results
+
     @staticmethod
     def _parse_timestamp(value: str) -> datetime:
         if value.endswith("Z"):
@@ -265,9 +309,6 @@ class Collector:
     def _list_pull_requests(
         self, repo: str, since: datetime, filters: AnalysisFilters
     ) -> tuple[int, List[Dict[str, Any]]]:
-        total = 0
-        page = 1
-        metadata: List[Dict[str, Any]] = []
         params: Dict[str, Any] = {
             "state": "all",
             "per_page": 100,
@@ -275,33 +316,33 @@ class Collector:
             "direction": "desc",
         }
 
-        stop_pagination = False
         pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
-        while not stop_pagination:
-            page_params = params | {"page": page}
-            data = self._request(f"repos/{repo}/pulls", page_params)
-            if not data:
-                break
-            for pr in data:
-                created_at = self._parse_timestamp(pr["created_at"]).astimezone(timezone.utc)
-                if created_at < since:
-                    stop_pagination = True
-                    break
-                author = pr.get("user")
-                if self._filter_bot(author, filters):
-                    continue
-                if not self._pr_matches_branch_filters(pr, filters):
-                    continue
-                if not self._pr_matches_file_filters(
-                    repo, pr, filters, pr_file_cache
-                ):
-                    continue
-                total += 1
-                metadata.append(pr)
-            if len(data) < 100:
-                break
-            page += 1
-        return total, metadata
+
+        def should_stop(pr: Dict[str, Any]) -> bool:
+            """Early stop condition: PR created before analysis period."""
+            created_at = self._parse_timestamp(pr["created_at"]).astimezone(timezone.utc)
+            return created_at < since
+
+        all_prs = self._paginate(
+            f"repos/{repo}/pulls",
+            base_params=params,
+            per_page=100,
+            early_stop=should_stop,
+        )
+
+        # Apply filters
+        metadata: List[Dict[str, Any]] = []
+        for pr in all_prs:
+            author = pr.get("user")
+            if self._filter_bot(author, filters):
+                continue
+            if not self._pr_matches_branch_filters(pr, filters):
+                continue
+            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+                continue
+            metadata.append(pr)
+
+        return len(metadata), metadata
 
     def _build_pull_request_examples(
         self, pr_metadata: List[Dict[str, Any]]
@@ -341,65 +382,112 @@ class Collector:
     ) -> int:
         total = 0
         pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+
         for pr in pull_requests:
             number = pr["number"]
             if not self._pr_matches_branch_filters(pr, filters):
                 continue
             if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
-            page = 1
-            while True:
-                data = self._request(
-                    f"repos/{repo}/pulls/{number}/reviews",
-                    {"per_page": 100, "page": page},
-                )
-                if not data:
-                    break
-                for review in data:
-                    submitted_at = review.get("submitted_at")
-                    if submitted_at:
-                        submitted_dt = self._parse_timestamp(submitted_at).astimezone(timezone.utc)
-                        if submitted_dt < since:
-                            continue
-                    author = review.get("user")
-                    if self._filter_bot(author, filters):
+
+            # Fetch all reviews for this PR using paginate
+            all_reviews = self._paginate(
+                f"repos/{repo}/pulls/{number}/reviews",
+                base_params={"per_page": 100},
+                per_page=100,
+            )
+
+            # Count reviews that pass filters
+            for review in all_reviews:
+                submitted_at = review.get("submitted_at")
+                if submitted_at:
+                    submitted_dt = self._parse_timestamp(submitted_at).astimezone(timezone.utc)
+                    if submitted_dt < since:
                         continue
-                    total += 1
-                if len(data) < 100:
-                    break
-                page += 1
+                author = review.get("user")
+                if self._filter_bot(author, filters):
+                    continue
+                total += 1
+
         return total
 
     def _count_issues(
         self, repo: str, since: datetime, filters: AnalysisFilters
     ) -> int:
-        total = 0
-        page = 1
         params: Dict[str, Any] = {
             "state": "all",
             "per_page": 100,
             "since": since.isoformat(),
         }
-        while True:
-            page_params = params | {"page": page}
-            data = self._request(f"repos/{repo}/issues", page_params)
-            if not data:
-                break
-            for issue in data:
-                if "pull_request" in issue:
-                    continue
-                author = issue.get("user")
-                if self._filter_bot(author, filters):
-                    continue
-                if not self._issue_matches_filters(issue, filters):
-                    continue
-                total += 1
-            if len(data) < 100:
-                break
-            page += 1
+
+        all_issues = self._paginate(f"repos/{repo}/issues", base_params=params, per_page=100)
+
+        # Count issues that pass filters
+        total = 0
+        for issue in all_issues:
+            if "pull_request" in issue:
+                continue
+            author = issue.get("user")
+            if self._filter_bot(author, filters):
+                continue
+            if not self._issue_matches_filters(issue, filters):
+                continue
+            total += 1
+
         return total
 
     # Filtering helpers -------------------------------------------------
+
+    def _apply_file_filters(
+        self,
+        filenames: List[str],
+        filters: AnalysisFilters,
+    ) -> bool:
+        """Apply path and language filters to a list of filenames.
+
+        Args:
+            filenames: List of file paths to check
+            filters: Analysis filters to apply
+
+        Returns:
+            True if filenames pass all filters, False otherwise
+        """
+        if not filters.include_paths and not filters.exclude_paths and not filters.include_languages:
+            return True
+
+        # Check include_paths filter
+        if filters.include_paths:
+            if not any(
+                self._path_matches(filename, include_path)
+                for filename in filenames
+                for include_path in filters.include_paths
+            ):
+                return False
+
+        # Check exclude_paths filter
+        if filters.exclude_paths:
+            if any(
+                self._path_matches(filename, exclude_path)
+                for filename in filenames
+                for exclude_path in filters.exclude_paths
+            ):
+                return False
+
+        # Check include_languages filter
+        if filters.include_languages:
+            include_languages_normalised = self._normalise_language_filters(
+                filters.include_languages
+            )
+            if include_languages_normalised:
+                file_language_tokens = {
+                    token
+                    for filename in filenames
+                    for token in self._filename_language_tokens(filename)
+                }
+                if not file_language_tokens.intersection(include_languages_normalised):
+                    return False
+
+        return True
 
     def _commit_matches_path_filters(
         self,
@@ -408,12 +496,7 @@ class Collector:
         filters: AnalysisFilters,
         cache: Dict[str, List[str]],
     ) -> bool:
-        if (
-            not filters.include_paths
-            and not filters.exclude_paths
-            and not filters.include_languages
-        ):
-            return True
+        # Get files from cache or fetch from API
         files = cache.get(sha)
         if files is None:
             payload = self._request_json(f"repos/{repo}/commits/{sha}")
@@ -421,33 +504,7 @@ class Collector:
             files = [entry.get("filename", "") for entry in file_entries]
             cache[sha] = files
 
-        if filters.include_paths:
-            if not any(
-                self._path_matches(path, include_path)
-                for path in files
-                for include_path in filters.include_paths
-            ):
-                return False
-        if filters.exclude_paths:
-            if any(
-                self._path_matches(path, exclude_path)
-                for path in files
-                for exclude_path in filters.exclude_paths
-            ):
-                return False
-        if filters.include_languages:
-            include_languages_normalised = self._normalise_language_filters(
-                filters.include_languages
-            )
-            if include_languages_normalised:
-                file_language_tokens = {
-                    token
-                    for path in files
-                    for token in self._filename_language_tokens(path)
-                }
-                if not file_language_tokens.intersection(include_languages_normalised):
-                    return False
-        return True
+        return self._apply_file_filters(files, filters)
 
     @staticmethod
     def _path_matches(path: str, prefix: str) -> bool:
@@ -476,13 +533,7 @@ class Collector:
         filters: AnalysisFilters,
         cache: Dict[int, List[Dict[str, Any]]],
     ) -> bool:
-        if (
-            not filters.include_paths
-            and not filters.exclude_paths
-            and not filters.include_languages
-        ):
-            return True
-
+        # Get PR files from cache or fetch from API
         number = int(pr.get("number", 0))
         files = cache.get(number)
         if files is None:
@@ -492,36 +543,7 @@ class Collector:
             cache[number] = files
 
         filenames = [entry.get("filename", "") for entry in files]
-
-        if filters.include_paths:
-            if not any(
-                self._path_matches(filename, include_path)
-                for filename in filenames
-                for include_path in filters.include_paths
-            ):
-                return False
-        if filters.exclude_paths:
-            if any(
-                self._path_matches(filename, exclude_path)
-                for filename in filenames
-                for exclude_path in filters.exclude_paths
-            ):
-                return False
-
-        if filters.include_languages:
-            include_languages_normalised = self._normalise_language_filters(
-                filters.include_languages
-            )
-            if include_languages_normalised:
-                file_language_tokens = {
-                    token
-                    for filename in filenames
-                    for token in self._filename_language_tokens(filename)
-                }
-                if not file_language_tokens.intersection(include_languages_normalised):
-                    return False
-
-        return True
+        return self._apply_file_filters(filenames, filters)
 
     @staticmethod
     def _normalise_language_filters(include_languages: Sequence[str]) -> Set[str]:
@@ -561,41 +583,8 @@ class Collector:
     def _issue_matches_filters(
         self, issue: Dict[str, Any], filters: AnalysisFilters
     ) -> bool:
-        if (
-            not filters.include_paths
-            and not filters.exclude_paths
-            and not filters.include_languages
-        ):
-            return True
-
         filenames = self._extract_issue_files(issue)
-        if filters.include_paths:
-            if not any(
-                self._path_matches(filename, include_path)
-                for filename in filenames
-                for include_path in filters.include_paths
-            ):
-                return False
-        if filters.exclude_paths:
-            if any(
-                self._path_matches(filename, exclude_path)
-                for filename in filenames
-                for exclude_path in filters.exclude_paths
-            ):
-                return False
-        if filters.include_languages:
-            include_languages_normalised = self._normalise_language_filters(
-                filters.include_languages
-            )
-            if include_languages_normalised:
-                file_language_tokens = {
-                    token
-                    for filename in filenames
-                    for token in self._filename_language_tokens(filename)
-                }
-                if not file_language_tokens.intersection(include_languages_normalised):
-                    return False
-        return True
+        return self._apply_file_filters(filenames, filters)
 
     @staticmethod
     def _extract_issue_files(issue: Dict[str, Any]) -> List[str]:

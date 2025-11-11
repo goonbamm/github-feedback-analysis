@@ -33,7 +33,12 @@ from .collector import Collector
 from .config import Config
 from .console import Console
 from .llm import LLMClient
-from .models import AnalysisFilters, AnalysisStatus, MetricSnapshot
+from .models import (
+    AnalysisFilters,
+    AnalysisStatus,
+    DetailedFeedbackSnapshot,
+    MetricSnapshot,
+)
 from .reporter import Reporter
 from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
@@ -281,63 +286,27 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
         console.print(Columns(evidence_panels, expand=True))
 
 
-@app.command()
-def brief(
-    repo: str = typer.Option(
-        "",
-        "--repo",
-        prompt="Repository to analyse (owner/name)",
-        help="Repository in owner/name format",
-    ),
-) -> None:
-    """Collect data, compute metrics, and generate reports."""
-
-    config = _load_config()
-    months = config.defaults.months
-    filters = AnalysisFilters(
-        include_branches=[],
-        exclude_branches=[],
-        include_paths=[],
-        exclude_paths=[],
-        include_languages=[],
-        exclude_bots=True,
-    )
-
-    try:
-        collector = Collector(config)
-    except ValueError as exc:
-        console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-
-    analyzer = Analyzer(web_base_url=config.server.web_url)
-    output_dir = _resolve_output_dir(Path("reports"))
-    reporter = Reporter(output_dir=output_dir)
-
-    repo_input = repo.strip()
-    if not repo_input:
-        console.print("Repository value cannot be empty.")
-        raise typer.Exit(code=1)
-
-    with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
-        collection = collector.collect(repo=repo_input, months=months, filters=filters)
-
-    # Collect detailed feedback data (always enabled)
-    detailed_feedback_snapshot = None
-    from datetime import datetime, timedelta, timezone
+def _collect_detailed_feedback(
+    collector: Collector,
+    analyzer: Analyzer,
+    config: Config,
+    repo: str,
+    since: datetime,
+    filters: AnalysisFilters,
+) -> Optional[DetailedFeedbackSnapshot]:
+    """Collect and analyze detailed feedback data."""
     from .llm import LLMClient
 
     console.print("[accent]Collecting detailed feedback data...", style="accent")
 
-    since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
-
     try:
         # Collect detailed data
-        commits_data = collector.collect_commit_messages(repo_input, since, filters, limit=100)
-        pr_titles_data = collector.collect_pr_titles(repo_input, since, filters, limit=100)
+        commits_data = collector.collect_commit_messages(repo, since, filters, limit=100)
+        pr_titles_data = collector.collect_pr_titles(repo, since, filters, limit=100)
         review_comments_data = collector.collect_review_comments_detailed(
-            repo_input, since, filters, limit=100
+            repo, since, filters, limit=100
         )
-        issues_data = collector.collect_issue_details(repo_input, since, filters, limit=100)
+        issues_data = collector.collect_issue_details(repo, since, filters, limit=100)
 
         # Analyze using LLM
         llm_client = LLMClient(
@@ -366,15 +335,18 @@ def brief(
         )
 
         console.print("[success]✓ Detailed feedback analysis complete", style="success")
+        return detailed_feedback_snapshot
+
     except Exception as exc:
         console.print(
             f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
         )
         console.print("[info]Continuing with standard analysis...", style="info")
+        return None
 
-    with console.status("[accent]Synthesizing insights...", spinner="dots"):
-        metrics = analyzer.compute_metrics(collection, detailed_feedback=detailed_feedback_snapshot)
 
+def _prepare_metrics_payload(metrics: MetricSnapshot) -> dict:
+    """Prepare metrics data for serialization."""
     metrics_payload = {
         "repo": metrics.repo,
         "months": metrics.months,
@@ -392,17 +364,91 @@ def brief(
     if metrics.detailed_feedback:
         metrics_payload["detailed_feedback"] = metrics.detailed_feedback.to_dict()
 
+    return metrics_payload
+
+
+def _generate_artifacts(
+    metrics: MetricSnapshot,
+    reporter: Reporter,
+    output_dir: Path,
+    metrics_payload: dict,
+) -> List[tuple[str, Path]]:
+    """Generate all report artifacts."""
+    artifacts = []
+
+    # Save metrics
     metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
+    artifacts.append(("Metrics snapshot", metrics_path))
 
-    artifacts = [("Metrics snapshot", metrics_path)]
-
+    # Generate markdown report
     markdown_path = reporter.generate_markdown(metrics)
     artifacts.append(("Markdown report", markdown_path))
 
+    # Generate prompt packets
     prompt_artifacts = reporter.generate_prompt_packets(metrics)
     for prompt_request, prompt_path in prompt_artifacts:
         artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
 
+    return artifacts
+
+
+@app.command()
+def brief(
+    repo: str = typer.Option(
+        "",
+        "--repo",
+        prompt="Repository to analyse (owner/name)",
+        help="Repository in owner/name format",
+    ),
+) -> None:
+    """Collect data, compute metrics, and generate reports."""
+    from datetime import datetime, timedelta, timezone
+
+    config = _load_config()
+    months = config.defaults.months
+    filters = AnalysisFilters(
+        include_branches=[],
+        exclude_branches=[],
+        include_paths=[],
+        exclude_paths=[],
+        include_languages=[],
+        exclude_bots=True,
+    )
+
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    analyzer = Analyzer(web_base_url=config.server.web_url)
+    output_dir = _resolve_output_dir(Path("reports"))
+    reporter = Reporter(output_dir=output_dir)
+
+    repo_input = repo.strip()
+    if not repo_input:
+        console.print("Repository value cannot be empty.")
+        raise typer.Exit(code=1)
+
+    # Phase 1: Collect repository data
+    with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
+        collection = collector.collect(repo=repo_input, months=months, filters=filters)
+
+    # Phase 2: Collect detailed feedback
+    since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+    detailed_feedback_snapshot = _collect_detailed_feedback(
+        collector, analyzer, config, repo_input, since, filters
+    )
+
+    # Phase 3: Compute metrics
+    with console.status("[accent]Synthesizing insights...", spinner="dots"):
+        metrics = analyzer.compute_metrics(collection, detailed_feedback=detailed_feedback_snapshot)
+
+    # Phase 4: Generate reports
+    metrics_payload = _prepare_metrics_payload(metrics)
+    artifacts = _generate_artifacts(metrics, reporter, output_dir, metrics_payload)
+
+    # Phase 5: Display results
     console.rule("Analysis Summary")
     _render_metrics(metrics)
     console.rule("Artifacts")
