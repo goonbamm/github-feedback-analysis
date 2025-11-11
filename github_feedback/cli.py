@@ -426,9 +426,48 @@ def brief(
         collector, analyzer, config, repo_input, since, filters
     )
 
+    # Phase 2.5: Collect year-end review data
+    monthly_trends_data = None
+    tech_stack_data = None
+    collaboration_data = None
+
+    try:
+        with console.status("[accent]Collecting monthly trends...", spinner="dots"):
+            monthly_trends_data = collector.collect_monthly_trends(
+                repo=repo_input, since=since, filters=filters
+            )
+    except Exception as exc:
+        console.print(f"[warning]Warning:[/] Could not collect monthly trends: {exc}")
+
+    try:
+        with console.status("[accent]Analyzing tech stack...", spinner="dots"):
+            # Get PR metadata from collection result
+            _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
+            tech_stack_data = collector.collect_tech_stack(
+                repo=repo_input, pr_metadata=pr_metadata
+            )
+    except Exception as exc:
+        console.print(f"[warning]Warning:[/] Could not analyze tech stack: {exc}")
+
+    try:
+        with console.status("[accent]Analyzing collaboration network...", spinner="dots"):
+            # Reuse PR metadata
+            _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
+            collaboration_data = collector.collect_collaboration_network(
+                repo=repo_input, pr_metadata=pr_metadata, filters=filters
+            )
+    except Exception as exc:
+        console.print(f"[warning]Warning:[/] Could not analyze collaboration: {exc}")
+
     # Phase 3: Compute metrics
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
-        metrics = analyzer.compute_metrics(collection, detailed_feedback=detailed_feedback_snapshot)
+        metrics = analyzer.compute_metrics(
+            collection,
+            detailed_feedback=detailed_feedback_snapshot,
+            monthly_trends_data=monthly_trends_data,
+            tech_stack_data=tech_stack_data,
+            collaboration_data=collaboration_data,
+        )
 
     # Phase 4: Generate reports
     metrics_payload = _prepare_metrics_payload(metrics)

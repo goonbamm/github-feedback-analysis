@@ -295,6 +295,79 @@ class Reporter:
                             summary_lines.append(f"- {example}")
                 summary_lines.append("")
 
+        # Add year-end review sections
+        if metrics.monthly_trends:
+            summary_lines.append("## 📈 월별 활동 트렌드")
+            summary_lines.append("")
+            summary_lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 |")
+            summary_lines.append("|---|---|---|---|---|")
+            for trend in metrics.monthly_trends:
+                summary_lines.append(
+                    f"| {trend.month} | {trend.commits} | {trend.pull_requests} | {trend.reviews} | {trend.issues} |"
+                )
+            summary_lines.append("")
+
+        if metrics.tech_stack:
+            summary_lines.append("## 💻 기술 스택 분석")
+            summary_lines.append("")
+            summary_lines.append(f"**다양성 점수**: {metrics.tech_stack.diversity_score:.2f} (0-1 척도)")
+            summary_lines.append("")
+            summary_lines.append("**주요 사용 언어:**")
+            for i, lang in enumerate(metrics.tech_stack.top_languages[:5], 1):
+                count = metrics.tech_stack.languages.get(lang, 0)
+                summary_lines.append(f"{i}. {lang} ({count}개 파일)")
+            summary_lines.append("")
+
+        if metrics.collaboration:
+            summary_lines.append("## 🤝 협업 네트워크")
+            summary_lines.append("")
+            summary_lines.append(f"- 받은 리뷰 수: **{metrics.collaboration.review_received_count}건**")
+            summary_lines.append(f"- 협업한 사람 수: **{metrics.collaboration.unique_collaborators}명**")
+            summary_lines.append("")
+            if metrics.collaboration.top_reviewers:
+                summary_lines.append("**주요 리뷰어:**")
+                for i, reviewer in enumerate(metrics.collaboration.top_reviewers, 1):
+                    count = metrics.collaboration.pr_reviewers.get(reviewer, 0)
+                    summary_lines.append(f"{i}. @{reviewer} ({count}회)")
+                summary_lines.append("")
+
+        if metrics.reflection_prompts and metrics.reflection_prompts.questions:
+            summary_lines.append("## 🤔 회고 질문")
+            summary_lines.append("")
+            summary_lines.append("스스로에게 물어보세요:")
+            summary_lines.append("")
+            for i, question in enumerate(metrics.reflection_prompts.questions, 1):
+                summary_lines.append(f"{i}. {question}")
+            summary_lines.append("")
+
+        if metrics.year_end_review:
+            summary_lines.append("## 🎯 연말 회고")
+            summary_lines.append("")
+
+            if metrics.year_end_review.proudest_moments:
+                summary_lines.append("### 자랑스러운 순간들")
+                for moment in metrics.year_end_review.proudest_moments:
+                    summary_lines.append(f"- {moment}")
+                summary_lines.append("")
+
+            if metrics.year_end_review.biggest_challenges:
+                summary_lines.append("### 극복한 도전들")
+                for challenge in metrics.year_end_review.biggest_challenges:
+                    summary_lines.append(f"- {challenge}")
+                summary_lines.append("")
+
+            if metrics.year_end_review.lessons_learned:
+                summary_lines.append("### 배운 교훈들")
+                for lesson in metrics.year_end_review.lessons_learned:
+                    summary_lines.append(f"- {lesson}")
+                summary_lines.append("")
+
+            if metrics.year_end_review.next_year_goals:
+                summary_lines.append("### 내년 목표")
+                for goal in metrics.year_end_review.next_year_goals:
+                    summary_lines.append(f"- {goal}")
+                summary_lines.append("")
+
         report_path.write_text("\n".join(summary_lines), encoding="utf-8")
         return report_path
 
