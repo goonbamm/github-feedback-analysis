@@ -49,8 +49,7 @@ uv pip install -e .
 | `gf init` | PAT와 서버/LLM 정보를 포함한 기본 설정을 저장합니다. |
 | `gf brief` | 저장소 데이터를 수집하고 상세 피드백을 포함한 보고서를 생성합니다. |
 | `gf show-config` | 현재 저장된 설정을 확인합니다. 민감 정보는 마스킹됩니다. |
-| `gf review` | 특정 PR의 변경 파일, 리뷰, 댓글을 모아 LLM 리뷰 초안을 생성합니다. |
-| `gf review-report` | 수집된 PR 리뷰 요약을 통합한 한국어 보고서를 생성합니다. |
+| `gf feedback` | PR 리뷰를 생성하고 통합 보고서를 자동으로 생성합니다. (review + review-report 통합) |
 
 ## 🧭 명령어 상세 가이드
 ### `gf init`
@@ -114,43 +113,35 @@ gf brief --repo owner/name
 gf show-config
 ```
 
-### `gf review`
-특정 PR의 리뷰 맥락을 수집하고 LLM을 통해 요약/리뷰 초안을 생성합니다. 두 가지 방식으로 실행할 수 있습니다.
+### `gf feedback`
+특정 PR의 리뷰 맥락을 수집하고 LLM을 통해 요약/리뷰 초안을 생성한 후, 자동으로 통합 회고 보고서까지 생성합니다. 두 가지 방식으로 실행할 수 있습니다.
 
-**1. 단일 PR 바로 리뷰하기**
+**1. 단일 PR 리뷰하고 통합 보고서 생성하기**
 
 ```bash
-gf review --repo owner/name --number 123
+gf feedback --repo owner/name --number 123
 ```
 
 - `repo`: 저장소 식별자
 - `number`: 리뷰할 PR 번호
+- `output-dir`: (선택) 리뷰 산출물 저장 경로. 기본값은 `reviews/`
 
-**2. 담당자 기준으로 여러 PR 리뷰하기**
+**2. 인증된 사용자의 여러 PR 리뷰하고 통합 보고서 생성하기**
 
 ```bash
-gf review --repo owner/name --assignee octocat --state open
+gf feedback --repo owner/name --state open
 ```
 
-- `assignee`: 리뷰 초안을 생성할 담당자 GitHub 로그인
 - `state`: (선택) `open`, `closed`, `all` 중 하나. 기본값은 `all`
+- PAT로 인증된 사용자가 작성한 PR들을 자동으로 검색합니다
 
-결과로 PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/<owner>_<repo>/pr-<번호>/` 경로 아래에 저장됩니다.
+이 명령어는 다음 과정을 순차적으로 수행합니다:
+1. **PR 리뷰 생성**: PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/<owner>_<repo>/pr-<번호>/` 경로에 저장됩니다.
+2. **통합 보고서 생성**: 수집된 리뷰 요약을 한데 모아 개발자 관점의 통합 회고 보고서(`integrated_report.md`)를 생성합니다.
 
 > ℹ️ **LLM 프롬프트 구성**
 >
 > 리뷰 초안을 만들 때 LLM에는 PR 본문과 함께 상위 변경 파일 메타데이터, 그리고 각 파일의 diff 스니펫이 전달됩니다. 스니펫은 최대 5개 파일, 파일당 20줄로 잘라 보내 토큰 사용량을 안정적으로 유지합니다.
-
-### `gf review-report`
-`gf review`로 축적된 리뷰 요약을 한데 모아 개발자 관점의 통합 회고 보고서를 생성합니다.
-
-```bash
-gf review-report --repo owner/name
-```
-
-- 기본적으로 `reviews/` 디렉터리 아래 캐시된 `review_summary.json`과 `artefacts.json`을 읽어옵니다.
-- 동일한 저장소에 대한 `integrated_report.md` 파일이 생성되며, 장점/보완점/올해 성장한 점을 한국어로 정리합니다.
-- LLM 설정이 유효하다면 맥락을 전달해 맞춤 보고서를 요청하고, LLM을 사용할 수 없는 경우에도 기본 템플릿으로 보고서를 생성합니다.
 
 ## 🔐 설정 파일 구조
 - 저장 경로: `~/.config/github_feedback/config.toml`
