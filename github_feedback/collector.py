@@ -380,15 +380,23 @@ class Collector:
         since: datetime,
         filters: AnalysisFilters,
     ) -> int:
-        total = 0
-        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+        valid_prs = []
+
+        # Filter PRs first
         for pr in pull_requests:
-            number = pr["number"]
             if not self._pr_matches_branch_filters(pr, filters):
                 continue
             if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
+            valid_prs.append(pr)
+
+        # Parallelize review fetching
+        def fetch_pr_reviews(pr: Dict[str, Any]) -> int:
+            number = pr["number"]
+            count = 0
 
             # Fetch all reviews for this PR using paginate
             all_reviews = self._paginate(
@@ -407,7 +415,26 @@ class Collector:
                 author = review.get("user")
                 if self._filter_bot(author, filters):
                     continue
-                total += 1
+                count += 1
+
+            return count
+
+        total = 0
+        completed_count = 0
+        total_prs = len(valid_prs)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(fetch_pr_reviews, pr): pr for pr in valid_prs}
+            for future in as_completed(futures):
+                completed_count += 1
+                try:
+                    count = future.result()
+                    total += count
+                    if completed_count % 10 == 0 or completed_count == total_prs:
+                        console.log(f"Review counting progress: {completed_count}/{total_prs} PRs processed")
+                except Exception:
+                    # Skip PRs that fail
+                    continue
 
         return total
 
@@ -1052,28 +1079,53 @@ class Collector:
         pr_metadata: List[Dict[str, Any]],
     ) -> Dict[str, int]:
         """Analyze technology stack from PR file changes."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         language_counts: Dict[str, int] = {}
-        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
 
-        for pr in pr_metadata[:50]:  # Limit to recent 50 PRs for performance
+        def fetch_pr_files(pr: Dict[str, Any]) -> Dict[str, int]:
+            """Fetch files for a single PR and count languages."""
             number = int(pr.get("number", 0))
-            files = pr_file_cache.get(number)
+            local_counts: Dict[str, int] = {}
 
-            if files is None:
+            try:
+                files = self._request_all(
+                    f"repos/{repo}/pulls/{number}/files",
+                    {"per_page": 100}
+                )
+
+                for file_entry in files:
+                    filename = file_entry.get("filename", "")
+                    language = self._filename_to_language(filename)
+                    if language:
+                        local_counts[language] = local_counts.get(language, 0) + 1
+
+            except Exception:
+                pass
+
+            return local_counts
+
+        # Parallelize file fetching for recent 50 PRs
+        prs_to_process = pr_metadata[:50]
+        completed_count = 0
+        total_prs = len(prs_to_process)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(fetch_pr_files, pr): pr
+                for pr in prs_to_process
+            }
+
+            for future in as_completed(futures):
+                completed_count += 1
                 try:
-                    files = self._request_all(
-                        f"repos/{repo}/pulls/{number}/files",
-                        {"per_page": 100}
-                    )
-                    pr_file_cache[number] = files
+                    local_counts = future.result()
+                    for language, count in local_counts.items():
+                        language_counts[language] = language_counts.get(language, 0) + count
+                    if completed_count % 10 == 0 or completed_count == total_prs:
+                        console.log(f"Tech stack analysis progress: {completed_count}/{total_prs} PRs analyzed")
                 except Exception:
                     continue
-
-            for file_entry in files:
-                filename = file_entry.get("filename", "")
-                language = self._filename_to_language(filename)
-                if language:
-                    language_counts[language] = language_counts.get(language, 0) + 1
 
         return language_counts
 
@@ -1084,13 +1136,19 @@ class Collector:
         filters: Optional[AnalysisFilters] = None,
     ) -> Dict[str, Any]:
         """Analyze collaboration patterns from PR reviews."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         filters = filters or AnalysisFilters()
         reviewer_counts: Dict[str, int] = {}
         total_reviews_received = 0
         unique_reviewers: Set[str] = set()
 
-        for pr in pr_metadata[:100]:  # Analyze recent 100 PRs
+        def fetch_pr_reviews(pr: Dict[str, Any]) -> tuple[Dict[str, int], Set[str], int]:
+            """Fetch reviews for a single PR and count reviewers."""
             number = pr["number"]
+            local_counts: Dict[str, int] = {}
+            local_reviewers: Set[str] = set()
+            local_total = 0
 
             try:
                 reviews = self._request_all(
@@ -1107,11 +1165,37 @@ class Collector:
                     if not reviewer_login:
                         continue
 
-                    reviewer_counts[reviewer_login] = reviewer_counts.get(reviewer_login, 0) + 1
-                    unique_reviewers.add(reviewer_login)
-                    total_reviews_received += 1
+                    local_counts[reviewer_login] = local_counts.get(reviewer_login, 0) + 1
+                    local_reviewers.add(reviewer_login)
+                    local_total += 1
             except Exception:
-                continue
+                pass
+
+            return local_counts, local_reviewers, local_total
+
+        # Parallelize review fetching for recent 100 PRs
+        prs_to_process = pr_metadata[:100]
+        completed_count = 0
+        total_prs = len(prs_to_process)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(fetch_pr_reviews, pr): pr
+                for pr in prs_to_process
+            }
+
+            for future in as_completed(futures):
+                completed_count += 1
+                try:
+                    local_counts, local_reviewers, local_total = future.result()
+                    for reviewer, count in local_counts.items():
+                        reviewer_counts[reviewer] = reviewer_counts.get(reviewer, 0) + count
+                    unique_reviewers.update(local_reviewers)
+                    total_reviews_received += local_total
+                    if completed_count % 20 == 0 or completed_count == total_prs:
+                        console.log(f"Collaboration network progress: {completed_count}/{total_prs} PRs analyzed")
+                except Exception:
+                    continue
 
         return {
             "pr_reviewers": reviewer_counts,
