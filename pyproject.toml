@@ -26,7 +26,7 @@ dependencies = [
 test = ["pytest>=7.4"]
 
 [project.scripts]
-gf = "github_feedback.cli:app"
+ghf = "github_feedback.cli:app"
 
 [tool.pytest.ini_options]
 addopts = "-ra"

@@ -7,7 +7,7 @@
 
 1. **Enterprise 호스트 자동 구성 지원**
    - 설정 모델에 `ServerConfig`가 추가되어 REST API, GraphQL, 웹 URL을 저장합니다.【F:github_feedback/config.py†L13-L88】
-   - `gf init` 명령의 Enterprise 호스트 프롬프트에 한 번만 입력해도 각 URL이 자동으로 채워지며, 설정 파일(`~/.config/github_feedback/config.toml`)에 즉시 반영됩니다.【F:github_feedback/cli.py†L42-L104】
+   - `ghf init` 명령의 Enterprise 호스트 프롬프트에 한 번만 입력해도 각 URL이 자동으로 채워지며, 설정 파일(`~/.config/github_feedback/config.toml`)에 즉시 반영됩니다.【F:github_feedback/cli.py†L42-L104】
 
 2. **PAT 기반 인증과 실제 데이터 수집**
    - `Collector`는 초기화 시 PAT가 없으면 오류를 발생시키며, `requests.Session`에 `Authorization: Bearer <PAT>` 헤더를 설정합니다.【F:github_feedback/collector.py†L16-L46】
@@ -22,7 +22,7 @@
 
 ## Enterprise 환경 체크리스트
 
-1. `gf init` 실행 시 프롬프트에서 Enterprise 호스트를 입력하거나 `--enterprise-host https://<host>` 옵션을 사용하면 API/GraphQL/Web URL이 한 번에 구성됩니다.【F:github_feedback/cli.py†L56-L100】
+1. `ghf init` 실행 시 프롬프트에서 Enterprise 호스트를 입력하거나 `--enterprise-host https://<host>` 옵션을 사용하면 API/GraphQL/Web URL이 한 번에 구성됩니다.【F:github_feedback/cli.py†L56-L100】
 2. Enterprise에서 발급한 PAT에 `repo`, `read:org`, `read:user` 권한을 부여합니다.【F:README.md†L133-L147】
 
 상세 사용법은 [README](../README.md#github-enterprise-사용-가이드)를 참고하세요.

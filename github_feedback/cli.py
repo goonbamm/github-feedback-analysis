@@ -68,7 +68,7 @@ def _load_config() -> Config:
         return config
     except ValueError as exc:
         console.print(f"[danger]Configuration error:[/] {exc}")
-        console.print("[info]Hint:[/] Run [accent]gf init[/] to set up your configuration")
+        console.print("[info]Hint:[/] Run [accent]ghf init[/] to set up your configuration")
         raise typer.Exit(code=1) from exc
 
 
@@ -470,7 +470,7 @@ def brief(
         collector = Collector(config)
     except ValueError as exc:
         console.print(f"[danger]Error:[/] {exc}")
-        console.print("[info]Hint:[/] Check your GitHub token with [accent]gf show-config[/]")
+        console.print("[info]Hint:[/] Check your GitHub token with [accent]ghf show-config[/]")
         raise typer.Exit(code=1) from exc
 
     analyzer = Analyzer(web_base_url=config.server.web_url)
@@ -481,14 +481,14 @@ def brief(
     if not repo_input:
         console.print("[danger]Error:[/] Repository value cannot be empty")
         console.print("[info]Expected format:[/] [accent]owner/repository[/]")
-        console.print("[info]Example:[/] [accent]gf brief --repo torvalds/linux[/]")
+        console.print("[info]Example:[/] [accent]ghf brief --repo torvalds/linux[/]")
         raise typer.Exit(code=1)
 
     try:
         validate_repo_format(repo_input)
     except ValueError as exc:
         console.print(f"[danger]Validation error:[/] {exc}")
-        console.print("[info]Example:[/] [accent]gf brief --repo torvalds/linux[/]")
+        console.print("[info]Example:[/] [accent]ghf brief --repo torvalds/linux[/]")
         raise typer.Exit(code=1) from exc
 
     # Phase 1: Collect repository data
@@ -502,7 +502,7 @@ def brief(
         console.print(f"[info]Repository:[/] {repo_input}")
         console.print(f"[info]Period:[/] Last {months} months")
         console.print("[info]Suggestions:[/]")
-        console.print("  • Try increasing the analysis period: [accent]gf init --months 24[/]")
+        console.print("  • Try increasing the analysis period: [accent]ghf init --months 24[/]")
         console.print("  • Verify the repository has commits, PRs, or issues")
         console.print("  • Check if your PAT has access to this repository")
         raise typer.Exit(code=1)
@@ -588,7 +588,7 @@ def brief(
     console.print()
     console.print("[info]Next steps:[/]")
     console.print("  • View the report: [accent]cat reports/report.md[/]")
-    console.print("  • Review your PRs: [accent]gf feedback --repo {}[/]".format(repo_input))
+    console.print("  • Review your PRs: [accent]ghf feedback --repo {}[/]".format(repo_input))
 
 
 
@@ -645,7 +645,7 @@ def feedback(
         collector = Collector(config)
     except ValueError as exc:
         console.print(f"[danger]Error:[/] {exc}")
-        console.print("[info]Hint:[/] Check your configuration with [accent]gf show-config[/]")
+        console.print("[info]Hint:[/] Check your configuration with [accent]ghf show-config[/]")
         raise typer.Exit(code=1) from exc
 
     llm_client = LLMClient(
@@ -659,14 +659,14 @@ def feedback(
     if not repo_input:
         console.print("[danger]Error:[/] Repository value cannot be empty")
         console.print("[info]Expected format:[/] [accent]owner/repository[/]")
-        console.print("[info]Example:[/] [accent]gf feedback --repo myname/myproject[/]")
+        console.print("[info]Example:[/] [accent]ghf feedback --repo myname/myproject[/]")
         raise typer.Exit(code=1)
 
     try:
         validate_repo_format(repo_input)
     except ValueError as exc:
         console.print(f"[danger]Validation error:[/] {exc}")
-        console.print("[info]Example:[/] [accent]gf feedback --repo myname/myproject[/]")
+        console.print("[info]Example:[/] [accent]ghf feedback --repo myname/myproject[/]")
         raise typer.Exit(code=1) from exc
 
     state_value = state.default if isinstance(state, OptionInfo) else state
@@ -770,7 +770,7 @@ def feedback(
     console.print()
     console.print("[info]Next steps:[/]")
     console.print("  • Read the report: [accent]cat {}[/]".format(report_path))
-    console.print("  • Analyze the repository: [accent]gf brief --repo {}[/]".format(repo_input))
+    console.print("  • Analyze the repository: [accent]ghf brief --repo {}[/]".format(repo_input))
 
 
 @app.command()

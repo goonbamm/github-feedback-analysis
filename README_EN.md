@@ -40,7 +40,7 @@ uv pip install -e .
 ### 1️⃣ Initialize Configuration
 
 ```bash
-gf init
+ghfinit
 ```
 
 When prompted, enter the following information:
@@ -52,7 +52,7 @@ When prompted, enter the following information:
 ### 2️⃣ Analyze Repository
 
 ```bash
-gf brief --repo goonbamm/github-feedback-analysis
+ghfbrief --repo goonbamm/github-feedback-analysis
 ```
 
 After analysis completes, the following files are generated in the `reports/` directory:
@@ -68,20 +68,20 @@ cat reports/report.md
 
 ## 📚 Command Reference
 
-### 🎯 `gf init` - Initial Configuration
+### 🎯 `ghfinit` - Initial Configuration
 
 Store GitHub access information and LLM settings.
 
 #### Basic Usage (Interactive)
 
 ```bash
-gf init
+ghfinit
 ```
 
 #### Example: GitHub.com + Local LLM
 
 ```bash
-gf init \
+ghfinit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -91,7 +91,7 @@ gf init \
 #### Example: GitHub Enterprise
 
 ```bash
-gf init \
+ghfinit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -108,27 +108,27 @@ gf init \
 | `--months` | Default analysis period (months) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise host | ❌ | github.com |
 
-### 📊 `gf brief` - Repository Analysis
+### 📊 `ghfbrief` - Repository Analysis
 
 Analyze repository and generate detailed feedback reports.
 
 #### Basic Usage
 
 ```bash
-gf brief --repo owner/repo-name
+ghfbrief --repo owner/repo-name
 ```
 
 #### Examples
 
 ```bash
 # Analyze public repository
-gf brief --repo torvalds/linux
+ghfbrief --repo torvalds/linux
 
 # Analyze personal repository
-gf brief --repo myusername/my-private-repo
+ghfbrief --repo myusername/my-private-repo
 
 # Analyze organization repository
-gf brief --repo microsoft/vscode
+ghfbrief --repo microsoft/vscode
 ```
 
 #### Generated Reports
@@ -153,27 +153,27 @@ reports/
 - 🏆 **Awards**: Automatic awards based on contributions
 - 📈 **Trends**: Monthly activity trends and velocity analysis
 
-### 🎯 `gf feedback` - Automated PR Review
+### 🎯 `ghffeedback` - Automated PR Review
 
 Automatically review authenticated user's (PAT owner's) PRs and generate integrated retrospective report.
 
 #### Basic Usage
 
 ```bash
-gf feedback --repo owner/repo-name
+ghffeedback --repo owner/repo-name
 ```
 
 #### Examples
 
 ```bash
 # Review all PRs (open + closed)
-gf feedback --repo myusername/my-project --state all
+ghffeedback --repo myusername/my-project --state all
 
 # Review only open PRs
-gf feedback --repo myusername/my-project --state open
+ghffeedback --repo myusername/my-project --state open
 
 # Review only closed PRs
-gf feedback --repo myusername/my-project --state closed
+ghffeedback --repo myusername/my-project --state closed
 ```
 
 #### Options
@@ -211,12 +211,12 @@ reviews/
     └── integrated_report.md        # Integrated retrospective report
 ```
 
-### ⚙️ `gf show-config` - View Configuration
+### ⚙️ `ghfshow-config` - View Configuration
 
 View currently stored configuration.
 
 ```bash
-gf show-config
+ghfshow-config
 ```
 
 #### Example Output
@@ -239,7 +239,7 @@ gf show-config
 
 ## 📁 Configuration File
 
-Configuration is stored in `~/.config/github_feedback/config.toml` and is automatically created when running `gf init`.
+Configuration is stored in `~/.config/github_feedback/config.toml` and is automatically created when running `ghfinit`.
 
 ### Configuration File Example
 
@@ -272,7 +272,7 @@ If needed, you can edit the configuration file directly:
 
 ```bash
 # Check configuration file location
-gf show-config
+ghfshow-config
 
 # Open in editor
 nano ~/.config/github_feedback/config.toml
@@ -331,8 +331,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **Solution**:
 1. Verify LLM server is running
-2. Verify endpoint URL is correct (`gf show-config`)
-3. Reinitialize configuration if needed: `gf init`
+2. Verify endpoint URL is correct (`ghfshow-config`)
+3. Reinitialize configuration if needed: `ghfinit`
 
 ### Repository Not Found
 
@@ -352,7 +352,7 @@ No activity detected during analysis period.
 ```
 
 **Solution**:
-- Try increasing analysis period: `gf init --months 24`
+- Try increasing analysis period: `ghfinit --months 24`
 - Verify repository is active
 
 ## 👩‍💻 Developer Guide
