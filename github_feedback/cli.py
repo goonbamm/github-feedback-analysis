@@ -572,8 +572,11 @@ def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metri
 @app.callback()
 def main_callback() -> None:
     """CLI entry-point callback for shared initialisation."""
+    from .christmas_theme import is_christmas_season, get_christmas_banner
 
-    pass
+    # Display Christmas decorations if in season (Nov 1 - Dec 31)
+    if is_christmas_season():
+        console.print(get_christmas_banner())
 
 
 @app.command()
