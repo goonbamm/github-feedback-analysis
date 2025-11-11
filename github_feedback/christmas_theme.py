@@ -39,42 +39,62 @@ def get_christmas_theme() -> Theme:
 
 def get_christmas_tree() -> str:
     """Return a colorful Christmas tree ASCII art."""
-    return """[rgb(250,204,21)]    ★[/]
-[rgb(22,163,74)]    /\\[/]
-[rgb(22,163,74)]   /[rgb(220,38,38)]o[rgb(22,163,74)]\\[/]
-[rgb(22,163,74)]  /[rgb(250,204,21)]o[rgb(22,163,74)]  \\[/]
-[rgb(22,163,74)] /[rgb(220,38,38)]o[rgb(22,163,74)] [rgb(250,204,21)]o[rgb(22,163,74)] \\[/]
-[rgb(22,163,74)]/[rgb(220,38,38)]o[rgb(22,163,74)] [rgb(250,204,21)]o[rgb(22,163,74)] [rgb(220,38,38)]o[rgb(22,163,74)]\\[/]
-[rgb(101,67,33)]   |||[/]"""
+    return """[rgb(250,204,21) bold]         ✦[/]
+[rgb(22,163,74)]        /[rgb(250,204,21)]★[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]       /[rgb(220,38,38)]●[rgb(22,163,74)] [rgb(255,255,255)]◦[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]      /[rgb(250,204,21)]●[rgb(22,163,74)]   [rgb(220,38,38)]●[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]     /[rgb(220,38,38)]◦[rgb(22,163,74)] [rgb(250,204,21)]✦[rgb(22,163,74)] [rgb(220,38,38)]●[rgb(22,163,74)] [rgb(255,255,255)]◦[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]    /[rgb(250,204,21)]●[rgb(22,163,74)]   [rgb(220,38,38)]◦[rgb(22,163,74)]   [rgb(250,204,21)]●[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]   /[rgb(220,38,38)]◦[rgb(22,163,74)] [rgb(255,255,255)]●[rgb(22,163,74)] [rgb(250,204,21)]●[rgb(22,163,74)] [rgb(220,38,38)]●[rgb(22,163,74)] [rgb(255,255,255)]◦[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)]  /[rgb(250,204,21)]●[rgb(22,163,74)]   [rgb(220,38,38)]◦[rgb(22,163,74)] [rgb(250,204,21)]✦[rgb(22,163,74)] [rgb(220,38,38)]◦[rgb(22,163,74)]   [rgb(250,204,21)]●[rgb(22,163,74)]\\[/]
+[rgb(22,163,74)] /[rgb(220,38,38)]◦[rgb(22,163,74)] [rgb(255,255,255)]●[rgb(22,163,74)] [rgb(250,204,21)]●[rgb(22,163,74)] [rgb(220,38,38)]●[rgb(22,163,74)] [rgb(255,255,255)]◦[rgb(22,163,74)] [rgb(220,38,38)]●[rgb(22,163,74)] [rgb(250,204,21)]●[rgb(22,163,74)]\\[/]
+[rgb(101,67,33) bold]      ║║║[/]
+[rgb(101,67,33) bold]      ║║║[/]"""
 
 
 def get_snowman() -> str:
     """Return a cute snowman ASCII art."""
-    return """[rgb(255,255,255)]  ☃️  [/]
-[rgb(74,222,128)]⛄ Happy Holidays! ⛄[/]"""
+    return """[rgb(255,255,255) bold]     _[rgb(220,38,38)]^[rgb(255,255,255)]_[/]
+[rgb(255,255,255) bold]    ([rgb(0,0,0)]• •[rgb(255,255,255)])[/]
+[rgb(255,255,255) bold]    ([rgb(255,140,0)]▬[rgb(255,255,255)])[/]
+[rgb(255,255,255) bold]   ([rgb(220,38,38)]● ● ●[rgb(255,255,255)])[/]
+[rgb(255,255,255) bold]  ([rgb(220,38,38)]● ● ● ●[rgb(255,255,255)])[/]
+[rgb(101,67,33)]  [rgb(255,255,255)]╚[rgb(101,67,33)]═[rgb(255,255,255)]╝ [rgb(255,255,255)]╚[rgb(101,67,33)]═[rgb(255,255,255)]╝[/]"""
 
 
 def get_reindeer() -> str:
     """Return Rudolph the reindeer ASCII art."""
-    return """[rgb(101,67,33)]  }   {[/]
-[rgb(101,67,33)]  (o.o)[/]
-[rgb(101,67,33)]   > [rgb(220,38,38)]♥[rgb(101,67,33)] <[/]"""
+    return """[rgb(139,69,19) bold]    ╱|╲   ╱|╲[/]
+[rgb(139,69,19) bold]   (⟡[rgb(220,38,38)]◉[rgb(139,69,19)]⟡)[/]
+[rgb(139,69,19) bold]    ╰─[rgb(220,38,38) bold blink]●[rgb(139,69,19) bold]─╯[/]
+[rgb(139,69,19) bold]     │││[/]
+[rgb(250,204,21)]   ～ Rudolph ～[/]"""
 
 
 def get_christmas_decorations() -> str:
     """Return a festive decoration banner."""
-    snow_line = "[rgb(255,255,255)]" + "❄ " * 20 + "[/]"
-    festive_line = "[rgb(220,38,38)]🎄[/] [rgb(22,163,74)]Merry Christmas![/] [rgb(220,38,38)]🎄[/] [rgb(250,204,21)]✨[/] [rgb(22,163,74)]Happy Holidays![/] [rgb(250,204,21)]✨[/] [rgb(220,38,38)]🎁[/]"
+    snow_line = "[rgb(135,206,250)]╔" + "═" * 78 + "╗[/]"
+    snow_top = "[rgb(255,255,255) bold]" + " ❄ " * 26 + "[/]"
+    festive_line = "[rgb(220,38,38) bold]  🎄[/] [rgb(22,163,74) bold]Merry Christmas![/] [rgb(220,38,38) bold]🎄[/] [rgb(250,204,21) bold]✨[/] [rgb(22,163,74) bold]Happy Holidays![/] [rgb(250,204,21) bold]✨[/] [rgb(220,38,38) bold]🎁[/] [rgb(135,206,250)]Season's Greetings![/] [rgb(250,204,21)]⭐[/]"
+    snow_bottom = "[rgb(135,206,250)]╚" + "═" * 78 + "╝[/]"
 
-    return f"{snow_line}\n{festive_line}\n{snow_line}"
+    return f"{snow_line}\n{snow_top}\n{festive_line}\n{snow_top}\n{snow_bottom}"
 
 
 def get_christmas_banner() -> str:
     """Return a full Christmas banner with tree, snowman, and decorations."""
-    tree = get_christmas_tree()
     decorations = get_christmas_decorations()
+    tree = get_christmas_tree()
+    gifts = get_gift_boxes()
 
-    return f"\n{decorations}\n\n{tree}\n"
+    return f"\n{decorations}\n\n{tree}\n\n{gifts}\n"
+
+
+def get_gift_boxes() -> str:
+    """Return colorful gift boxes ASCII art."""
+    return """[rgb(220,38,38) bold]      ╔═══╗[/]  [rgb(22,163,74) bold]╔═══╗[/]  [rgb(250,204,21) bold]╔═══╗[/]
+[rgb(220,38,38) bold]      ║[rgb(250,204,21)]🎀[rgb(220,38,38)]║[/]  [rgb(22,163,74) bold]║[rgb(220,38,38)]🎀[rgb(22,163,74)]║[/]  [rgb(250,204,21) bold]║[rgb(220,38,38)]🎀[rgb(250,204,21)]║[/]
+[rgb(220,38,38) bold]      ╚═══╝[/]  [rgb(22,163,74) bold]╚═══╝[/]  [rgb(250,204,21) bold]╚═══╝[/]"""
 
 
 def get_festive_message() -> str:
@@ -100,5 +120,6 @@ __all__ = [
     "get_reindeer",
     "get_christmas_decorations",
     "get_christmas_banner",
+    "get_gift_boxes",
     "get_festive_message",
 ]
