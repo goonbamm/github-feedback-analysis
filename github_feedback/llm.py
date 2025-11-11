@@ -29,30 +29,30 @@ class LLMClient:
         """Create the prompt messages describing the pull request."""
 
         summary_lines = [
-            f"Repository: {bundle.repo}",
+            f"저장소: {bundle.repo}",
             f"Pull Request: #{bundle.number} {bundle.title}",
-            f"Author: {bundle.author or 'unknown'}",
-            f"Diff Stats: +{bundle.additions} / -{bundle.deletions} across {bundle.changed_files} files",
+            f"작성자: {bundle.author or 'unknown'}",
+            f"변경 통계: +{bundle.additions} / -{bundle.deletions} ({bundle.changed_files}개 파일)",
             "",
-            "Pull Request Body:",
-            bundle.body or "<empty>",
+            "Pull Request 본문:",
+            bundle.body or "<비어있음>",
             "",
         ]
 
         if bundle.review_bodies:
-            summary_lines.append("Existing Reviews:")
+            summary_lines.append("기존 리뷰:")
             summary_lines.extend(f"- {body}" for body in bundle.review_bodies)
             summary_lines.append("")
 
         if bundle.review_comments:
-            summary_lines.append("Inline Review Comments:")
+            summary_lines.append("인라인 리뷰 코멘트:")
             summary_lines.extend(f"- {comment}" for comment in bundle.review_comments[:20])
             summary_lines.append("")
 
-        summary_lines.append("Changed Files:")
+        summary_lines.append("변경된 파일:")
         for index, file in enumerate(limit_items(bundle.files, MAX_FILES_IN_PROMPT)):
             summary_lines.append(
-                f"- {file.filename} ({file.status}, +{file.additions}/-{file.deletions}, changes={file.changes})"
+                f"- {file.filename} ({file.status}, +{file.additions}/-{file.deletions}, 변경={file.changes})"
             )
             if (
                 index < MAX_FILES_WITH_PATCH_SNIPPETS
@@ -70,10 +70,9 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "You are an experienced software reviewer. Provide balanced, actionable "
-                    "feedback highlighting concrete strengths and improvement opportunities. "
-                    "Respond strictly in JSON with keys: overview, strengths, improvements. "
-                    "Each strengths/improvements entry should contain a message and an example."
+                    "당신은 경험이 풍부한 소프트웨어 리뷰어입니다. 구체적인 장점과 개선 기회를 강조하며 균형 잡히고 실행 가능한 "
+                    "피드백을 제공하세요. 반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: overview, strengths, improvements. "
+                    "각 strengths/improvements 항목은 message와 example을 포함해야 합니다. 모든 응답은 한국어로 작성하세요."
                 ),
             },
             {

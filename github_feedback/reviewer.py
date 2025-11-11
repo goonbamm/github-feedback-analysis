@@ -58,15 +58,15 @@ class Reviewer:
         """Provide a deterministic summary when the LLM cannot be reached."""
 
         overview = (
-            f"Pull request #{bundle.number} updates {bundle.changed_files} files with "
-            f"+{bundle.additions} additions and -{bundle.deletions} deletions."
+            f"Pull Request #{bundle.number}는 {bundle.changed_files}개 파일을 수정했으며, "
+            f"+{bundle.additions} 추가, -{bundle.deletions} 삭제가 있습니다."
         )
 
         strengths: List[ReviewPoint] = []
         if bundle.body.strip():
             strengths.append(
                 ReviewPoint(
-                    message="The pull request description outlines the intent clearly.",
+                    message="Pull Request 설명이 의도를 명확히 설명하고 있습니다.",
                     example=bundle.body.strip().splitlines()[0],
                 )
             )
@@ -74,7 +74,7 @@ class Reviewer:
             first_file = bundle.files[0]
             strengths.append(
                 ReviewPoint(
-                    message=f"Includes focused changes in `{first_file.filename}`.",
+                    message=f"`{first_file.filename}`에 집중된 변경사항이 포함되어 있습니다.",
                     example=truncate_patch(first_file.patch or ""),
                 )
             )
@@ -83,15 +83,15 @@ class Reviewer:
         if not bundle.review_comments:
             improvements.append(
                 ReviewPoint(
-                    message="Consider adding self-review comments to guide reviewers.",
-                    example="No inline comments were provided in the pull request.",
+                    message="리뷰어를 돕기 위해 셀프 리뷰 코멘트를 추가하는 것을 고려해보세요.",
+                    example="Pull Request에 인라인 코멘트가 제공되지 않았습니다.",
                 )
             )
         if bundle.files:
             improvements.append(
                 ReviewPoint(
-                    message="Double-check whether regression tests are affected.",
-                    example=f"Review the changes in `{bundle.files[-1].filename}` for coverage gaps.",
+                    message="회귀 테스트에 영향이 있는지 다시 확인해보세요.",
+                    example=f"`{bundle.files[-1].filename}`의 변경사항에 대한 테스트 커버리지 갭을 검토하세요.",
                 )
             )
 
@@ -112,8 +112,8 @@ class Reviewer:
 
         if not summary.overview:
             summary.overview = (
-                f"Pull request #{bundle.number} spans {bundle.changed_files} files "
-                f"with {bundle.additions} additions and {bundle.deletions} deletions."
+                f"Pull Request #{bundle.number}는 {bundle.changed_files}개 파일에 걸쳐 "
+                f"{bundle.additions}개 추가 및 {bundle.deletions}개 삭제가 있습니다."
             )
 
         return summary
@@ -128,17 +128,17 @@ class Reviewer:
         markdown_path = target_dir / "review.md"
 
         lines: List[str] = []
-        lines.append("# Pull Request Review")
+        lines.append("# Pull Request 리뷰")
         lines.append("")
-        lines.append(f"Repository : **{bundle.repo}**")
+        lines.append(f"저장소 : **{bundle.repo}**")
         lines.append(f"Pull Request : **#{bundle.number} {bundle.title}**")
         lines.append("")
-        lines.append(f"Author : **{bundle.author or 'unknown'}**")
+        lines.append(f"작성자 : **{bundle.author or 'unknown'}**")
         lines.append(f"URL : {bundle.html_url}")
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append("## Overview")
+        lines.append("## 개요")
         lines.append("")
         lines.append(summary.overview)
         lines.append("")
@@ -152,25 +152,25 @@ class Reviewer:
                 lines.append(f"- {point.message}")
                 if point.example:
                     lines.append("")
-                    lines.append(f"  _Example:_ {point.example}")
+                    lines.append(f"  _예시:_ {point.example}")
                     lines.append("")
                 else:
                     lines.append("")
             if not has_points:
-                lines.append("- No items recorded.")
+                lines.append("- 기록된 항목이 없습니다.")
                 lines.append("")
 
-        _render_points("Strengths", summary.strengths)
-        _render_points("Areas To Improve", summary.improvements)
+        _render_points("장점", summary.strengths)
+        _render_points("개선할 부분", summary.improvements)
 
-        lines.append("## Code Highlights")
+        lines.append("## 코드 하이라이트")
         lines.append("")
         if not bundle.files:
-            lines.append("- No file changes were detected.")
+            lines.append("- 파일 변경사항이 감지되지 않았습니다.")
         else:
             for file in bundle.files[:5]:
                 lines.append(
-                    f"- `{file.filename}` — {file.changes} changes ( +{file.additions} / -{file.deletions} )"
+                    f"- `{file.filename}` — {file.changes}개 변경 ( +{file.additions} / -{file.deletions} )"
                 )
                 if file.patch:
                     lines.append("")
@@ -182,10 +182,10 @@ class Reviewer:
                     lines.append("")
 
         lines.append("")
-        lines.append("## Stored Artefacts")
+        lines.append("## 저장된 파일")
         lines.append("")
-        lines.append("- `artefacts.json` contains the raw pull request data.")
-        lines.append("- `review_summary.json` preserves the structured LLM response.")
+        lines.append("- `artefacts.json` 파일에 원본 Pull Request 데이터가 포함되어 있습니다.")
+        lines.append("- `review_summary.json` 파일에 구조화된 LLM 응답이 저장되어 있습니다.")
         lines.append("")
 
         markdown_path.write_text("\n".join(lines), encoding="utf-8")
