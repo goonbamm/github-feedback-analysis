@@ -434,7 +434,7 @@ def main_callback() -> None:
 
 
 @app.command()
-def review(
+def feedback(
     repo: str = typer.Option(
         "",
         "--repo",
@@ -449,8 +449,13 @@ def review(
         "--state",
         help="Limit pull requests by state (open, closed, all)",
     ),
+    output_dir: Path = typer.Option(
+        Path("reviews"),
+        "--output-dir",
+        help="Root directory where review artefacts are stored",
+    ),
 ) -> None:
-    """Collect pull request context and generate LLM powered reviews."""
+    """Collect pull request context, generate reviews, and create an integrated report."""
 
     config = _load_config()
 
@@ -489,6 +494,9 @@ def review(
         console.print("")
 
     results = []
+
+    # Step 1: Generate PR reviews
+    console.rule("Step 1: Generating PR Reviews")
 
     if number_value is not None:
         with console.status(
@@ -551,36 +559,8 @@ def review(
             f"[value]{review_root}[/]",
         )
 
-
-@app.command("review-report")
-def review_report(
-    repo: str = typer.Option(
-        "",
-        "--repo",
-        prompt="Repository to summarise (owner/name)",
-        help="Repository in owner/name format",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reviews"),
-        "--output-dir",
-        help="Root directory where review artefacts are stored",
-    ),
-) -> None:
-    """Generate an integrated Korean report from cached pull request reviews."""
-
-    config = _load_config()
-
-    llm_client = None
-    if config.llm.endpoint:
-        llm_client = LLMClient(
-            endpoint=config.llm.endpoint,
-            model=config.llm.model,
-        )
-
-    repo_input = repo.strip()
-    if not repo_input:
-        console.print("Repository value cannot be empty.")
-        raise typer.Exit(code=1)
+    # Step 2: Generate integrated report
+    console.rule("Step 2: Generating Integrated Report")
 
     review_reporter = ReviewReporter(
         output_dir=_resolve_output_dir(output_dir),
@@ -588,7 +568,8 @@ def review_report(
     )
 
     try:
-        report_path = review_reporter.create_integrated_report(repo_input)
+        with console.status("[accent]Creating integrated report...", spinner="dots"):
+            report_path = review_reporter.create_integrated_report(repo_input)
     except ValueError as exc:
         console.print(f"[warning]{exc}[/]")
         raise typer.Exit(code=1) from exc
