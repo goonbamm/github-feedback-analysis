@@ -3,3 +3,5 @@ __pycache__/
 reports/
 templates/
 github_feedback/fonts/HangulSimplified-Regular.ttf
+*.egg-info/
+.venv/
