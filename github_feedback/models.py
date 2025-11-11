@@ -195,6 +195,123 @@ class CollectionResult:
 
 
 @dataclass(slots=True)
+class CommitMessageFeedback:
+    """Analysis of commit message quality."""
+
+    total_commits: int
+    good_messages: int
+    poor_messages: int
+    suggestions: List[str] = field(default_factory=list)
+    examples_good: List[Dict[str, str]] = field(default_factory=list)
+    examples_poor: List[Dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise commit message feedback."""
+        return {
+            "total_commits": self.total_commits,
+            "good_messages": self.good_messages,
+            "poor_messages": self.poor_messages,
+            "suggestions": self.suggestions,
+            "examples_good": self.examples_good,
+            "examples_poor": self.examples_poor,
+        }
+
+
+@dataclass(slots=True)
+class PRTitleFeedback:
+    """Analysis of pull request title quality."""
+
+    total_prs: int
+    clear_titles: int
+    vague_titles: int
+    suggestions: List[str] = field(default_factory=list)
+    examples_good: List[Dict[str, str]] = field(default_factory=list)
+    examples_poor: List[Dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise PR title feedback."""
+        return {
+            "total_prs": self.total_prs,
+            "clear_titles": self.clear_titles,
+            "vague_titles": self.vague_titles,
+            "suggestions": self.suggestions,
+            "examples_good": self.examples_good,
+            "examples_poor": self.examples_poor,
+        }
+
+
+@dataclass(slots=True)
+class ReviewToneFeedback:
+    """Analysis of code review tone and style."""
+
+    total_reviews: int
+    constructive_reviews: int
+    harsh_reviews: int
+    neutral_reviews: int
+    suggestions: List[str] = field(default_factory=list)
+    examples_good: List[Dict[str, str]] = field(default_factory=list)
+    examples_improve: List[Dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise review tone feedback."""
+        return {
+            "total_reviews": self.total_reviews,
+            "constructive_reviews": self.constructive_reviews,
+            "harsh_reviews": self.harsh_reviews,
+            "neutral_reviews": self.neutral_reviews,
+            "suggestions": self.suggestions,
+            "examples_good": self.examples_good,
+            "examples_improve": self.examples_improve,
+        }
+
+
+@dataclass(slots=True)
+class IssueFeedback:
+    """Analysis of issue quality and clarity."""
+
+    total_issues: int
+    well_described: int
+    poorly_described: int
+    suggestions: List[str] = field(default_factory=list)
+    examples_good: List[Dict[str, str]] = field(default_factory=list)
+    examples_poor: List[Dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise issue feedback."""
+        return {
+            "total_issues": self.total_issues,
+            "well_described": self.well_described,
+            "poorly_described": self.poorly_described,
+            "suggestions": self.suggestions,
+            "examples_good": self.examples_good,
+            "examples_poor": self.examples_poor,
+        }
+
+
+@dataclass(slots=True)
+class DetailedFeedbackSnapshot:
+    """Comprehensive feedback including commit messages, PR titles, review tone, and issues."""
+
+    commit_feedback: Optional[CommitMessageFeedback] = None
+    pr_title_feedback: Optional[PRTitleFeedback] = None
+    review_tone_feedback: Optional[ReviewToneFeedback] = None
+    issue_feedback: Optional[IssueFeedback] = None
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise detailed feedback."""
+        result: Dict[str, object] = {}
+        if self.commit_feedback:
+            result["commit_feedback"] = self.commit_feedback.to_dict()
+        if self.pr_title_feedback:
+            result["pr_title_feedback"] = self.pr_title_feedback.to_dict()
+        if self.review_tone_feedback:
+            result["review_tone_feedback"] = self.review_tone_feedback.to_dict()
+        if self.issue_feedback:
+            result["issue_feedback"] = self.issue_feedback.to_dict()
+        return result
+
+
+@dataclass(slots=True)
 class MetricSnapshot:
     """Computed metrics ready for reporting."""
 
@@ -209,3 +326,4 @@ class MetricSnapshot:
     spotlight_examples: Dict[str, List[str]] = field(default_factory=dict)
     yearbook_story: List[str] = field(default_factory=list)
     awards: List[str] = field(default_factory=list)
+    detailed_feedback: Optional[DetailedFeedbackSnapshot] = None

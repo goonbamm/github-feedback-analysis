@@ -735,3 +735,237 @@ class Collector:
             review_comments=review_comments,
             files=files,
         )
+
+    # Detailed feedback collection methods ---------------------------------
+
+    def collect_commit_messages(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, str]]:
+        """Collect commit messages for quality analysis."""
+        filters = filters or AnalysisFilters()
+        commits: List[Dict[str, str]] = []
+        seen_shas: Set[str] = set()
+
+        include_branches: Sequence[Optional[str]]
+        exclude_branches = set(filters.exclude_branches)
+        if filters.include_branches:
+            include_branches = [
+                branch
+                for branch in filters.include_branches
+                if branch not in exclude_branches
+            ]
+        elif exclude_branches:
+            branches = self._request_all(
+                f"repos/{repo}/branches",
+                {"per_page": 100},
+            )
+            include_branches = [
+                branch.get("name")
+                for branch in branches
+                if branch.get("name") and branch.get("name") not in exclude_branches
+            ]
+        else:
+            include_branches = [None]
+
+        if not include_branches:
+            return []
+
+        for branch in include_branches:
+            if len(commits) >= limit:
+                break
+
+            params: Dict[str, Any] = {
+                "since": since.isoformat(),
+                "per_page": min(100, limit - len(commits)),
+            }
+            if branch:
+                params["sha"] = branch
+
+            data = self._request(f"repos/{repo}/commits", params)
+            for item in data:
+                sha = item.get("sha", "")
+                if sha in seen_shas:
+                    continue
+                seen_shas.add(sha)
+
+                author = item.get("author")
+                if self._filter_bot(author, filters):
+                    continue
+
+                commit_data = item.get("commit", {})
+                message = commit_data.get("message", "")
+                commits.append({
+                    "sha": sha,
+                    "message": message,
+                    "author": (commit_data.get("author") or {}).get("name", ""),
+                    "date": commit_data.get("author", {}).get("date", ""),
+                })
+
+                if len(commits) >= limit:
+                    break
+
+        return commits[:limit]
+
+    def collect_pr_titles(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, str]]:
+        """Collect pull request titles for quality analysis."""
+        filters = filters or AnalysisFilters()
+        pr_titles: List[Dict[str, str]] = []
+
+        params: Dict[str, Any] = {
+            "state": "all",
+            "sort": "created",
+            "direction": "desc",
+            "per_page": limit,
+        }
+
+        data = self._request(f"repos/{repo}/pulls", params)
+        for pr in data:
+            created_at_raw = pr.get("created_at")
+            if not created_at_raw:
+                continue
+
+            created_at = self._parse_timestamp(created_at_raw).astimezone(timezone.utc)
+            if created_at < since:
+                continue
+
+            author = pr.get("user")
+            if self._filter_bot(author, filters):
+                continue
+
+            if not self._pr_matches_branch_filters(pr, filters):
+                continue
+
+            pr_titles.append({
+                "number": pr.get("number", 0),
+                "title": pr.get("title", ""),
+                "author": (pr.get("user") or {}).get("login", ""),
+                "url": pr.get("html_url", ""),
+                "state": pr.get("state", ""),
+            })
+
+            if len(pr_titles) >= limit:
+                break
+
+        return pr_titles[:limit]
+
+    def collect_review_comments_detailed(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, str]]:
+        """Collect review comments for tone analysis."""
+        filters = filters or AnalysisFilters()
+        review_comments: List[Dict[str, str]] = []
+
+        # Get pull requests first
+        params: Dict[str, Any] = {
+            "state": "all",
+            "sort": "created",
+            "direction": "desc",
+            "per_page": 50,
+        }
+
+        prs = self._request(f"repos/{repo}/pulls", params)
+        for pr in prs:
+            if len(review_comments) >= limit:
+                break
+
+            created_at_raw = pr.get("created_at")
+            if not created_at_raw:
+                continue
+
+            created_at = self._parse_timestamp(created_at_raw).astimezone(timezone.utc)
+            if created_at < since:
+                continue
+
+            number = pr.get("number")
+            if not number:
+                continue
+
+            # Get reviews for this PR
+            try:
+                reviews = self._request(
+                    f"repos/{repo}/pulls/{number}/reviews",
+                    {"per_page": 100},
+                )
+
+                for review in reviews:
+                    if len(review_comments) >= limit:
+                        break
+
+                    body = review.get("body", "").strip()
+                    if not body:
+                        continue
+
+                    review_author = review.get("user")
+                    if self._filter_bot(review_author, filters):
+                        continue
+
+                    review_comments.append({
+                        "pr_number": number,
+                        "author": (review.get("user") or {}).get("login", ""),
+                        "body": body,
+                        "state": review.get("state", ""),
+                        "submitted_at": review.get("submitted_at", ""),
+                    })
+            except Exception:
+                # Skip PRs that fail to fetch reviews
+                continue
+
+        return review_comments[:limit]
+
+    def collect_issue_details(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, str]]:
+        """Collect issue details for quality analysis."""
+        filters = filters or AnalysisFilters()
+        issues: List[Dict[str, str]] = []
+
+        params: Dict[str, Any] = {
+            "state": "all",
+            "sort": "created",
+            "direction": "desc",
+            "per_page": limit,
+            "since": since.isoformat(),
+        }
+
+        data = self._request(f"repos/{repo}/issues", params)
+        for issue in data:
+            # Skip pull requests (GitHub API returns them as issues)
+            if "pull_request" in issue:
+                continue
+
+            author = issue.get("user")
+            if self._filter_bot(author, filters):
+                continue
+
+            issues.append({
+                "number": issue.get("number", 0),
+                "title": issue.get("title", ""),
+                "body": issue.get("body", "") or "",
+                "author": (issue.get("user") or {}).get("login", ""),
+                "url": issue.get("html_url", ""),
+                "state": issue.get("state", ""),
+                "created_at": issue.get("created_at", ""),
+            })
+
+            if len(issues) >= limit:
+                break
+
+        return issues[:limit]

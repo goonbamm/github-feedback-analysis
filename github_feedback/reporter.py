@@ -173,6 +173,128 @@ class Reporter:
                 summary_lines.append(f"- {link}")
             summary_lines.append("")
 
+        # Add detailed feedback section
+        if metrics.detailed_feedback:
+            summary_lines.append("## 상세 피드백")
+            summary_lines.append("")
+
+            feedback = metrics.detailed_feedback
+
+            # Commit message feedback
+            if feedback.commit_feedback:
+                cf = feedback.commit_feedback
+                summary_lines.append("### 커밋 메시지 품질")
+                summary_lines.append(f"- 총 커밋: {cf.total_commits}")
+                summary_lines.append(f"- 좋은 메시지: {cf.good_messages}")
+                summary_lines.append(f"- 개선 필요: {cf.poor_messages}")
+                if cf.suggestions:
+                    summary_lines.append("")
+                    summary_lines.append("**개선 제안:**")
+                    for suggestion in cf.suggestions:
+                        summary_lines.append(f"- {suggestion}")
+                if cf.examples_good:
+                    summary_lines.append("")
+                    summary_lines.append("**좋은 예시:**")
+                    for example in cf.examples_good:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
+                        else:
+                            summary_lines.append(f"- {example}")
+                if cf.examples_poor:
+                    summary_lines.append("")
+                    summary_lines.append("**개선이 필요한 예시:**")
+                    for example in cf.examples_poor:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
+                        else:
+                            summary_lines.append(f"- {example}")
+                summary_lines.append("")
+
+            # PR title feedback
+            if feedback.pr_title_feedback:
+                pf = feedback.pr_title_feedback
+                summary_lines.append("### PR 제목 품질")
+                summary_lines.append(f"- 총 PR: {pf.total_prs}")
+                summary_lines.append(f"- 명확한 제목: {pf.clear_titles}")
+                summary_lines.append(f"- 모호한 제목: {pf.vague_titles}")
+                if pf.suggestions:
+                    summary_lines.append("")
+                    summary_lines.append("**개선 제안:**")
+                    for suggestion in pf.suggestions:
+                        summary_lines.append(f"- {suggestion}")
+                if pf.examples_good:
+                    summary_lines.append("")
+                    summary_lines.append("**좋은 예시:**")
+                    for example in pf.examples_good:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                        else:
+                            summary_lines.append(f"- {example}")
+                if pf.examples_poor:
+                    summary_lines.append("")
+                    summary_lines.append("**개선이 필요한 예시:**")
+                    for example in pf.examples_poor:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                        else:
+                            summary_lines.append(f"- {example}")
+                summary_lines.append("")
+
+            # Review tone feedback
+            if feedback.review_tone_feedback:
+                rf = feedback.review_tone_feedback
+                summary_lines.append("### 리뷰 톤 분석")
+                summary_lines.append(f"- 총 리뷰: {rf.total_reviews}")
+                summary_lines.append(f"- 건설적인 리뷰: {rf.constructive_reviews}")
+                summary_lines.append(f"- 가혹한 리뷰: {rf.harsh_reviews}")
+                summary_lines.append(f"- 중립적인 리뷰: {rf.neutral_reviews}")
+                if rf.suggestions:
+                    summary_lines.append("")
+                    summary_lines.append("**개선 제안:**")
+                    for suggestion in rf.suggestions:
+                        summary_lines.append(f"- {suggestion}")
+                if rf.examples_good:
+                    summary_lines.append("")
+                    summary_lines.append("**좋은 예시:**")
+                    for example in rf.examples_good:
+                        summary_lines.append(f"- {example}")
+                if rf.examples_improve:
+                    summary_lines.append("")
+                    summary_lines.append("**개선이 필요한 예시:**")
+                    for example in rf.examples_improve:
+                        summary_lines.append(f"- {example}")
+                summary_lines.append("")
+
+            # Issue feedback
+            if feedback.issue_feedback:
+                isf = feedback.issue_feedback
+                summary_lines.append("### 이슈 품질")
+                summary_lines.append(f"- 총 이슈: {isf.total_issues}")
+                summary_lines.append(f"- 잘 작성됨: {isf.well_described}")
+                summary_lines.append(f"- 개선 필요: {isf.poorly_described}")
+                if isf.suggestions:
+                    summary_lines.append("")
+                    summary_lines.append("**개선 제안:**")
+                    for suggestion in isf.suggestions:
+                        summary_lines.append(f"- {suggestion}")
+                if isf.examples_good:
+                    summary_lines.append("")
+                    summary_lines.append("**좋은 예시:**")
+                    for example in isf.examples_good:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                        else:
+                            summary_lines.append(f"- {example}")
+                if isf.examples_poor:
+                    summary_lines.append("")
+                    summary_lines.append("**개선이 필요한 예시:**")
+                    for example in isf.examples_poor:
+                        if isinstance(example, dict):
+                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                        else:
+                            summary_lines.append(f"- {example}")
+                summary_lines.append("")
+
         report_path.write_text("\n".join(summary_lines), encoding="utf-8")
         return report_path
 
