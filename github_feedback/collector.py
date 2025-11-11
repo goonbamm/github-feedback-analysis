@@ -71,7 +71,7 @@ class Collector:
 
     def __post_init__(self) -> None:
         if self.config.auth is None or not self.config.auth.pat:
-            raise ValueError("Authentication PAT is not configured. Run `gf init` first.")
+            raise ValueError("Authentication PAT is not configured. Run `ghf init` first.")
 
         self._headers = {
             "Authorization": f"Bearer {self.config.auth.pat}",
