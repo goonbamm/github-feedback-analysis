@@ -40,7 +40,7 @@ uv pip install -e .
 ### 1️⃣ 설정 초기화
 
 ```bash
-gf init
+ghfinit
 ```
 
 대화형 프롬프트가 나타나면 다음 정보를 입력하세요:
@@ -52,7 +52,7 @@ gf init
 ### 2️⃣ 저장소 분석
 
 ```bash
-gf brief --repo goonbamm/github-feedback-analysis
+ghfbrief --repo goonbamm/github-feedback-analysis
 ```
 
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
@@ -68,20 +68,20 @@ cat reports/report.md
 
 ## 📚 명령어 상세 가이드
 
-### 🎯 `gf init` - 초기 설정
+### 🎯 `ghfinit` - 초기 설정
 
 GitHub 접속 정보와 LLM 설정을 저장합니다.
 
 #### 기본 사용법 (대화형)
 
 ```bash
-gf init
+ghfinit
 ```
 
 #### 예시: GitHub.com + 로컬 LLM 사용
 
 ```bash
-gf init \
+ghfinit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -91,7 +91,7 @@ gf init \
 #### 예시: GitHub Enterprise 사용
 
 ```bash
-gf init \
+ghfinit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -108,27 +108,27 @@ gf init \
 | `--months` | 기본 분석 기간 (개월) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 호스트 | ❌ | github.com |
 
-### 📊 `gf brief` - 저장소 분석
+### 📊 `ghfbrief` - 저장소 분석
 
 저장소를 분석하고 상세 피드백 보고서를 생성합니다.
 
 #### 기본 사용법
 
 ```bash
-gf brief --repo owner/repo-name
+ghfbrief --repo owner/repo-name
 ```
 
 #### 예시
 
 ```bash
 # 공개 저장소 분석
-gf brief --repo torvalds/linux
+ghfbrief --repo torvalds/linux
 
 # 개인 저장소 분석
-gf brief --repo myusername/my-private-repo
+ghfbrief --repo myusername/my-private-repo
 
 # 조직 저장소 분석
-gf brief --repo microsoft/vscode
+ghfbrief --repo microsoft/vscode
 ```
 
 #### 생성되는 보고서
@@ -153,27 +153,27 @@ reports/
 - 🏆 **어워드**: 기여도에 따른 자동 어워드 부여
 - 📈 **트렌드**: 월별 활동 추이 및 속도 분석
 
-### 🎯 `gf feedback` - PR 자동 리뷰
+### 🎯 `ghffeedback` - PR 자동 리뷰
 
 인증된 사용자(PAT 소유자)의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
 
 #### 기본 사용법
 
 ```bash
-gf feedback --repo owner/repo-name
+ghffeedback --repo owner/repo-name
 ```
 
 #### 예시
 
 ```bash
 # 모든 PR 리뷰 (열린 것 + 닫힌 것)
-gf feedback --repo myusername/my-project --state all
+ghffeedback --repo myusername/my-project --state all
 
 # 열린 PR만 리뷰
-gf feedback --repo myusername/my-project --state open
+ghffeedback --repo myusername/my-project --state open
 
 # 닫힌 PR만 리뷰
-gf feedback --repo myusername/my-project --state closed
+ghffeedback --repo myusername/my-project --state closed
 ```
 
 #### 옵션 설명
@@ -211,12 +211,12 @@ reviews/
     └── integrated_report.md        # 통합 회고 보고서
 ```
 
-### ⚙️ `gf show-config` - 설정 확인
+### ⚙️ `ghfshow-config` - 설정 확인
 
 현재 저장된 설정을 확인합니다.
 
 ```bash
-gf show-config
+ghfshow-config
 ```
 
 #### 출력 예시
@@ -239,7 +239,7 @@ gf show-config
 
 ## 📁 설정 파일
 
-설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gf init` 실행 시 자동으로 생성됩니다.
+설정은 `~/.config/github_feedback/config.toml`에 저장되며, `ghfinit` 실행 시 자동으로 생성됩니다.
 
 ### 설정 파일 예시
 
@@ -266,7 +266,7 @@ months = 12
 
 ```bash
 # 설정 파일 위치 확인
-gf show-config
+ghfshow-config
 
 # 편집기로 열기
 nano ~/.config/github_feedback/config.toml
@@ -274,7 +274,7 @@ nano ~/.config/github_feedback/config.toml
 
 ## 📊 생성되는 파일 구조
 
-### `gf brief` 출력
+### `ghfbrief` 출력
 
 ```
 reports/
@@ -287,7 +287,7 @@ reports/
     └── issue_feedback.txt    # 🐛 이슈 품질 분석
 ```
 
-### `gf feedback` 출력
+### `ghffeedback` 출력
 
 ```
 reviews/
@@ -307,10 +307,10 @@ reviews/
 
 ```bash
 # 1. 설정 (최초 1회)
-gf init
+ghfinit
 
 # 2. 유명 오픈소스 프로젝트 분석
-gf brief --repo facebook/react
+ghfbrief --repo facebook/react
 
 # 3. 보고서 확인
 cat reports/report.md
@@ -320,10 +320,10 @@ cat reports/report.md
 
 ```bash
 # 내 프로젝트 분석
-gf brief --repo myname/my-awesome-project
+ghfbrief --repo myname/my-awesome-project
 
 # 내가 작성한 PR 자동 리뷰
-gf feedback --repo myname/my-awesome-project --state all
+ghffeedback --repo myname/my-awesome-project --state all
 
 # 통합 회고 보고서 확인
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -333,11 +333,11 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 조직 저장소 분석 (지난 6개월)
-gf init --months 6
-gf brief --repo mycompany/product-service
+ghfinit --months 6
+ghfbrief --repo mycompany/product-service
 
 # 팀원별 PR 리뷰 (각자 PAT로 실행)
-gf feedback --repo mycompany/product-service --state closed
+ghffeedback --repo mycompany/product-service --state closed
 ```
 
 ## 🎯 어워드 시스템
@@ -393,8 +393,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **해결방법**:
 1. LLM 서버가 실행 중인지 확인
-2. 엔드포인트 URL이 올바른지 확인 (`gf show-config`)
-3. 필요시 설정 재초기화: `gf init`
+2. 엔드포인트 URL이 올바른지 확인 (`ghfshow-config`)
+3. 필요시 설정 재초기화: `ghfinit`
 
 ### 저장소를 찾을 수 없음
 
@@ -414,7 +414,7 @@ Error: Repository not found
 ```
 
 **해결방법**:
-- 분석 기간을 늘려보세요: `gf init --months 24`
+- 분석 기간을 늘려보세요: `ghfinit --months 24`
 - 저장소가 활성화된 저장소인지 확인
 
 ## 👩‍💻 개발자 가이드
