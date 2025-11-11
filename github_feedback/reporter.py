@@ -35,6 +35,44 @@ class Reporter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         (self.output_dir / "charts").mkdir(parents=True, exist_ok=True)
 
+    def _categorize_awards(self, awards: List[str]) -> dict:
+        """Categorize awards by type for better organization."""
+        categories = {
+            "🎖️ 기본 성취": [],
+            "⚡ 속도 & 효율성": [],
+            "🤝 협업 & 리뷰": [],
+            "🎯 품질 & 안정성": [],
+            "🎨 특별 기여": [],
+            "👑 최고 영예": [],
+        }
+
+        for award in awards:
+            # Tier awards (Diamond, Platinum, Gold, Silver, Bronze)
+            if any(tier in award for tier in ["다이아몬드", "플래티넘", "골드", "실버", "브론즈"]):
+                categories["🎖️ 기본 성취"].append(award)
+            # Speed and efficiency awards
+            elif any(keyword in award for keyword in ["번개", "속도", "스프린터", "스피드", "스프린트", "머신"]):
+                categories["⚡ 속도 & 효율성"].append(award)
+            # Collaboration awards
+            elif any(keyword in award for keyword in ["협업", "리뷰", "멘토", "팀", "지식 전파", "감시자", "챔피언"]):
+                categories["🤝 협업 & 리뷰"].append(award)
+            # Quality and stability awards
+            elif any(keyword in award for keyword in ["품질", "안정", "테스트", "버그", "수호자", "지킴이", "머지"]):
+                categories["🎯 품질 & 안정성"].append(award)
+            # Special contribution awards
+            elif any(keyword in award for keyword in ["문서", "리팩터링", "기능", "빅뱅", "미세", "아키텍트", "빌더", "건축가"]):
+                categories["🎨 특별 기여"].append(award)
+            # Top honors
+            elif any(keyword in award for keyword in ["르네상스", "다재다능", "올라운더", "일관성의 왕", "균형"]):
+                categories["👑 최고 영예"].append(award)
+            # Default category
+            else:
+                categories["🎖️ 기본 성취"].append(award)
+
+        # Remove empty categories
+        return {k: v for k, v in categories.items() if v}
+
+
     def _build_prompt_context(self, metrics: MetricSnapshot) -> str:
         """Create a reusable context block describing the metrics."""
 
@@ -161,10 +199,20 @@ class Reporter:
                 summary_lines.append("")
 
         if metrics.awards:
-            summary_lines.append("## Awards Cabinet")
-            for award in metrics.awards:
-                summary_lines.append(f"- {award}")
+            summary_lines.append("## 🏆 Awards Cabinet")
             summary_lines.append("")
+            summary_lines.append(f"**총 {len(metrics.awards)}개의 어워드를 획득했습니다!**")
+            summary_lines.append("")
+
+            # Categorize awards
+            categories = self._categorize_awards(metrics.awards)
+
+            for category_name, category_awards in categories.items():
+                if category_awards:
+                    summary_lines.append(f"### {category_name}")
+                    for award in category_awards:
+                        summary_lines.append(f"- {award}")
+                    summary_lines.append("")
 
         summary_lines.append("## Evidence")
         for domain, links in metrics.evidence.items():
@@ -606,7 +654,22 @@ class Reporter:
             paragraphs = "".join(f"<p>{escape(paragraph)}</p>" for paragraph in metrics.yearbook_story)
             html_sections.append(f"<section><h2>Year in Review</h2>{paragraphs}</section>")
         if metrics.awards:
-            html_sections.append(self._render_list("Awards Cabinet", metrics.awards))
+            awards_html = f"<section><h2>🏆 Awards Cabinet</h2>"
+            awards_html += f"<p><strong>총 {len(metrics.awards)}개의 어워드를 획득했습니다!</strong></p>"
+
+            # Categorize awards
+            categories = self._categorize_awards(metrics.awards)
+
+            for category_name, category_awards in categories.items():
+                if category_awards:
+                    awards_html += f"<h3>{escape(category_name)}</h3>"
+                    awards_html += "<ul>"
+                    for award in category_awards:
+                        awards_html += f"<li>{escape(award)}</li>"
+                    awards_html += "</ul>"
+
+            awards_html += "</section>"
+            html_sections.append(awards_html)
 
         evidence_sections = []
         for domain, links in metrics.evidence.items():

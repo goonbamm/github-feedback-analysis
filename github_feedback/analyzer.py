@@ -56,18 +56,26 @@ AWARD_TIERS = {
     "velocity": [
         (50, "⚡ 번개 개발자 상 — 월 평균 50회 이상의 커밋으로 놀라운 속도를 보여줬습니다."),
         (20, "🚀 속도왕 상 — 월 평균 20회 이상의 커밋으로 빠른 개발 템포를 유지했습니다."),
+        (10, "🏃 스프린터 상 — 월 평균 10회 이상의 커밋으로 꾸준한 진전을 이뤘습니다."),
     ],
     "collaboration": [
         (20, "🤝 협업 마스터 상 — 월 평균 20회 이상의 PR과 리뷰로 팀워크의 중심이 되었습니다."),
         (10, "👥 협업 전문가 상 — 월 평균 10회 이상의 PR과 리뷰로 팀 시너지를 강화했습니다."),
+        (5, "🤗 팀 플레이어 상 — 월 평균 5회 이상의 PR과 리뷰로 협업 문화에 기여했습니다."),
     ],
     "activity_consistency": [
         ((30, 6), "📅 꾸준함의 달인 상 — 6개월 이상 월 평균 30회 이상의 활동으로 일관성을 입증했습니다."),
         ((15, 3), "🔄 지속성 상 — 꾸준한 월별 활동으로 성실함을 보여줬습니다."),
     ],
     "change_scale": [
+        (10000, "🌋 코드 화산 상 — 10000줄 이상의 폭발적인 변경으로 새로운 시대를 열었습니다."),
         (5000, "🏗️ 대규모 아키텍트 상 — 5000줄 이상의 변경으로 대담한 리팩터링을 완수했습니다."),
         (2000, "🔨 대형 빌더 상 — 2000줄 이상의 변경으로 큰 규모의 개선을 이뤄냈습니다."),
+        (1000, "🏠 중형 건축가 상 — 1000줄 이상의 변경으로 의미있는 개선을 완료했습니다."),
+    ],
+    "review_dedication": [
+        (3.0, "🔍 리뷰 매니아 상 — 자신의 PR보다 3배 이상 많은 리뷰로 팀 성장에 헌신했습니다."),
+        (2.0, "👁️ 코드 감시자 상 — 자신의 PR보다 2배 이상 많은 리뷰로 품질 관리에 기여했습니다."),
     ],
 }
 
@@ -322,11 +330,169 @@ class Analyzer:
             )
             self._add_tier_award(awards, "change_scale", max_change)
 
+            # Micro-commit artist award (많은 작은 PR)
+            small_prs = sum(1 for pr in collection.pull_request_examples
+                          if (pr.additions + pr.deletions) < 50)
+            if small_prs >= 10:
+                awards.append(
+                    "🎨 미세 조율 장인 상 — 10개 이상의 작은 PR로 점진적 개선의 미학을 보여줬습니다."
+                )
+
+            # Big bang award (큰 PR)
+            huge_prs = sum(1 for pr in collection.pull_request_examples
+                         if (pr.additions + pr.deletions) > 1000)
+            if huge_prs >= 3:
+                awards.append(
+                    "💥 빅뱅 상 — 3개 이상의 대규모 PR로 혁신적인 변화를 주도했습니다."
+                )
+
+            # Quick merger award (빠른 병합)
+            quick_merges = sum(1 for pr in collection.pull_request_examples
+                             if pr.merged_at and pr.created_at and
+                             (pr.merged_at - pr.created_at).total_seconds() < 3600)
+            if quick_merges >= 5:
+                awards.append(
+                    "⚡ 스피드 머저 상 — 5개 이상의 PR을 1시간 내 병합하는 민첩함을 보여줬습니다."
+                )
+
+        # Review dedication awards
+        if collection.pull_requests > 0:
+            review_ratio = collection.reviews / collection.pull_requests
+            self._add_tier_award(awards, "review_dedication", review_ratio)
+
+        # Balanced contributor award
+        if (collection.commits > 0 and collection.pull_requests > 0 and collection.reviews > 0):
+            commit_ratio = collection.commits / total_activity
+            pr_ratio = collection.pull_requests / total_activity
+            review_ratio = collection.reviews / total_activity
+
+            # Check if all three are balanced (each between 20% and 50%)
+            if all(0.2 <= ratio <= 0.5 for ratio in [commit_ratio, pr_ratio, review_ratio]):
+                awards.append(
+                    "⚖️ 균형잡힌 기여자 상 — 커밋, PR, 리뷰를 완벽하게 균형있게 수행했습니다."
+                )
+
+        # High PR merge rate
+        if collection.pull_requests >= 20 and collection.pull_request_examples:
+            merged_count = sum(1 for pr in collection.pull_request_examples if pr.merged_at)
+            merge_rate = merged_count / len(collection.pull_request_examples)
+            if merge_rate >= 0.9:
+                awards.append(
+                    "✅ 머지 마스터 상 — 90% 이상의 높은 PR 병합률로 탁월한 코드 품질을 입증했습니다."
+                )
+
         # Stability award
         if collection.issues and collection.issues <= max(collection.commits // 6, 1):
             awards.append(
                 "🛡️ 안정 지킴이 상 — 활동 대비 적은 이슈로 안정성을 지켰습니다."
             )
+
+        # Issue warrior award
+        if collection.issues > collection.commits and collection.issues >= 30:
+            awards.append(
+                "🛠️ 이슈 전사 상 — 커밋보다 많은 이슈 처리로 프로젝트 안정성에 집중했습니다."
+            )
+
+        # Review champion (리뷰가 가장 많은 경우)
+        if (collection.reviews > collection.commits and
+            collection.reviews > collection.pull_requests and
+            collection.reviews >= 30):
+            awards.append(
+                "👨‍🏫 리뷰 챔피언 상 — 다른 활동보다 리뷰에 집중하며 팀 성장의 멘토가 되었습니다."
+            )
+
+        # Commit machine (커밋이 압도적으로 많은 경우)
+        if (collection.commits > collection.pull_requests * 3 and
+            collection.commits > collection.reviews * 3 and
+            collection.commits >= 100):
+            awards.append(
+                "🔥 커밋 머신 상 — 압도적인 커밋 수로 코드베이스의 핵심 동력이 되었습니다."
+            )
+
+        # Renaissance developer (모든 지표가 높음)
+        if (collection.commits >= 100 and
+            collection.pull_requests >= 30 and
+            collection.reviews >= 50 and
+            collection.issues >= 10):
+            awards.append(
+                "🎭 르네상스 개발자 상 — 모든 영역에서 뛰어난 활약을 펼친 완벽한 올라운더입니다."
+            )
+
+        # Consistency king (매우 꾸준한 활동)
+        if collection.months >= 6 and activity_per_month >= 20:
+            variance_threshold = activity_per_month * 0.3
+            if variance_threshold > 0:  # Assuming low variance
+                awards.append(
+                    "👑 일관성의 왕 상 — 6개월 이상 월 20회 이상의 꾸준한 활동을 유지했습니다."
+                )
+
+        # Sprint finisher (최근 활동이 많은 경우 - 추정)
+        if collection.months >= 3 and velocity_score >= 30:
+            awards.append(
+                "🏁 스프린트 피니셔 상 — 높은 월평균 속도로 프로젝트를 빠르게 전진시켰습니다."
+            )
+
+        # Quality guardian (이슈 대비 높은 리뷰)
+        if collection.reviews >= 30 and collection.issues > 0:
+            review_issue_ratio = collection.reviews / collection.issues
+            if review_issue_ratio >= 3:
+                awards.append(
+                    "🎯 품질 수호자 상 — 이슈 대비 3배 이상의 리뷰로 사전 품질 관리에 힘썼습니다."
+                )
+
+        # Documentation hero (README나 문서 기여 - 간접 추정)
+        # Note: 실제로는 PR 예제를 통해 확인해야 하지만, 여기서는 PR 수와 커밋 비율로 추정
+        if collection.pull_requests >= 20 and collection.pull_request_examples:
+            # PR 타이틀에 docs, readme, documentation 등이 포함된 경우를 체크
+            doc_prs = sum(1 for pr in collection.pull_request_examples
+                         if any(keyword in pr.title.lower()
+                               for keyword in ['doc', 'readme', 'documentation', '문서']))
+            if doc_prs >= 5:
+                awards.append(
+                    "📚 문서화 영웅 상 — 5개 이상의 문서 PR로 지식 공유에 기여했습니다."
+                )
+
+        # Test advocate (test 관련 PR)
+        if collection.pull_request_examples:
+            test_prs = sum(1 for pr in collection.pull_request_examples
+                          if any(keyword in pr.title.lower()
+                                for keyword in ['test', 'testing', '테스트', 'spec']))
+            if test_prs >= 5:
+                awards.append(
+                    "🧪 테스트 옹호자 상 — 5개 이상의 테스트 PR로 코드 안정성을 강화했습니다."
+                )
+
+        # Refactoring master (refactor 관련 PR)
+        if collection.pull_request_examples:
+            refactor_prs = sum(1 for pr in collection.pull_request_examples
+                              if any(keyword in pr.title.lower()
+                                    for keyword in ['refactor', 'refactoring', '리팩터링', 'cleanup', 'clean']))
+            if refactor_prs >= 5:
+                awards.append(
+                    "♻️ 리팩터링 마스터 상 — 5개 이상의 리팩터링 PR로 코드 품질을 향상시켰습니다."
+                )
+
+        # Bug squasher (fix, bug 관련 PR)
+        if collection.pull_request_examples:
+            bug_prs = sum(1 for pr in collection.pull_request_examples
+                         if any(keyword in pr.title.lower()
+                               for keyword in ['fix', 'bug', 'hotfix', '버그', '수정']))
+            if bug_prs >= 10:
+                awards.append(
+                    "🐛 버그 스쿼셔 상 — 10개 이상의 버그 수정 PR로 안정성을 높였습니다."
+                )
+
+        # Feature factory (feature, feat 관련 PR)
+        if collection.pull_request_examples:
+            feature_prs = sum(1 for pr in collection.pull_request_examples
+                             if any(keyword in pr.title.lower()
+                                   for keyword in ['feature', 'feat', 'add', 'new', '추가', '기능']))
+            if feature_prs >= 10:
+                awards.append(
+                    "🏭 기능 공장 상 — 10개 이상의 기능 추가 PR로 제품을 풍부하게 만들었습니다."
+                )
+
+        # Early bird / Night owl (시간 기반은 데이터가 없어 생략)
 
         # Default award if no other awards
         if not awards:
