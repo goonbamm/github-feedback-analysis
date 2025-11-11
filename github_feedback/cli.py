@@ -441,18 +441,10 @@ def feedback(
         prompt="Repository to review (owner/name)",
         help="Repository in owner/name format",
     ),
-    number: Optional[int] = typer.Option(
-        None, "--number", help="Pull request number to review directly"
-    ),
     state: str = typer.Option(
         "all",
         "--state",
         help="Limit pull requests by state (open, closed, all)",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reviews"),
-        "--output-dir",
-        help="Root directory where review artefacts are stored",
     ),
 ) -> None:
     """Collect pull request context, generate reviews, and create an integrated report."""
@@ -477,7 +469,6 @@ def feedback(
         console.print("Repository value cannot be empty.")
         raise typer.Exit(code=1)
 
-    number_value = number.default if isinstance(number, OptionInfo) else number
     state_value = state.default if isinstance(state, OptionInfo) else state
 
     def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
@@ -498,54 +489,44 @@ def feedback(
     # Step 1: Generate PR reviews
     console.rule("Step 1: Generating PR Reviews")
 
-    if number_value is not None:
+    state_normalised = (state_value or "").lower().strip() or "all"
+    if state_normalised not in {"open", "closed", "all"}:
+        console.print("State must be one of: open, closed, all.")
+        raise typer.Exit(code=1)
+
+    with console.status(
+        "[accent]Retrieving authenticated user from PAT...", spinner="dots"
+    ):
+        try:
+            author = collector.get_authenticated_user()
+        except (ValueError, PermissionError) as exc:
+            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
+            raise typer.Exit(code=1) from exc
+
+    with console.status(
+        "[accent]Discovering authored pull requests...", spinner="dots"
+    ):
+        numbers = collector.list_authored_pull_requests(
+            repo=repo_input,
+            author=author,
+            state=state_normalised,
+        )
+
+    if not numbers:
+        console.print(
+            f"[warning]No pull requests found authored by '{author}' in {repo_input}.[/]"
+        )
+        return
+
+    for pr_number in sorted(set(numbers)):
         with console.status(
-            f"[accent]Curating context for PR #{number_value}...", spinner="line"
+            f"[accent]Curating context for PR #{pr_number}...", spinner="line"
         ):
             artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
                 repo=repo_input,
-                number=number_value,
+                number=pr_number,
             )
-        results.append((number_value, artefact_path, summary_path, markdown_path))
-    else:
-        state_normalised = (state_value or "").lower().strip() or "all"
-        if state_normalised not in {"open", "closed", "all"}:
-            console.print("State must be one of: open, closed, all.")
-            raise typer.Exit(code=1)
-
-        with console.status(
-            "[accent]Retrieving authenticated user from PAT...", spinner="dots"
-        ):
-            try:
-                author = collector.get_authenticated_user()
-            except (ValueError, PermissionError) as exc:
-                console.print(f"[error]Failed to get authenticated user: {exc}[/]")
-                raise typer.Exit(code=1) from exc
-
-        with console.status(
-            "[accent]Discovering authored pull requests...", spinner="dots"
-        ):
-            numbers = collector.list_authored_pull_requests(
-                repo=repo_input,
-                author=author,
-                state=state_normalised,
-            )
-
-        if not numbers:
-            console.print(
-                f"[warning]No pull requests found authored by '{author}' in {repo_input}.[/]"
-            )
-            return
-
-        for pr_number in sorted(set(numbers)):
-            with console.status(
-                f"[accent]Curating context for PR #{pr_number}...", spinner="line"
-            ):
-                artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
-                    repo=repo_input,
-                    number=pr_number,
-                )
-            results.append((pr_number, artefact_path, summary_path, markdown_path))
+        results.append((pr_number, artefact_path, summary_path, markdown_path))
 
     console.rule("Review Assets")
     for pr_number, artefact_path, summary_path, markdown_path in results:
@@ -563,7 +544,7 @@ def feedback(
     console.rule("Step 2: Generating Integrated Report")
 
     review_reporter = ReviewReporter(
-        output_dir=_resolve_output_dir(output_dir),
+        output_dir=Path("reviews"),
         llm=llm_client,
     )
 

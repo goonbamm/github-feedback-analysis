@@ -1,33 +1,18 @@
-# 🚀 GitHub Feedback Analysis
+# GitHub Feedback Analysis
 
-GitHub Feedback Analysis는 조직이나 팀의 저장소 활동을 수집해 핵심 지표와 인사이트가 담긴 마크다운 보고서를 자동으로 만들어 주는 CLI 도구입니다. GitHub.com과 GitHub Enterprise(Server) 환경 모두에서 동일하게 사용할 수 있으며, LLM을 활용한 자동 리뷰 요약 기능도 제공합니다.
+GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
 
-## 📚 목차
-- [✨ 무엇을 할 수 있나요?](#-무엇을-할-수-있나요)
-- [✅ 준비물](#-준비물)
-- [🛠️ 설치](#️-설치)
-- [🚀 빠른 시작](#-빠른-시작)
-- [📦 명령어 요약](#-명령어-요약)
-- [🧭 명령어 상세 가이드](#-명령어-상세-가이드)
-- [🔐 설정 파일 구조](#-설정-파일-구조)
-- [📝 생성되는 산출물](#-생성되는-산출물)
-- [🧪 개발자 가이드](#-개발자-가이드)
+## 주요 기능
+- 저장소의 커밋, 이슈, 리뷰 활동을 기간별로 집계하고 분석
+- LLM 기반 상세 피드백 보고서 자동 생성
+- 인증된 사용자의 PR 자동 리뷰 및 통합 회고 보고서 생성
 
-## ✨ 무엇을 할 수 있나요?
-- 저장소의 커밋, 이슈, 리뷰 활동량을 기간별로 집계합니다.
-- PR, 코드 리뷰, 하이라이트 등의 서사를 자동으로 요약한 보고서를 생성합니다.
-- 특정 브랜치, 경로, 언어만 포함하거나 봇 활동을 제외하도록 세밀하게 필터링할 수 있습니다.
-- 개별 Pull Request에 대한 맥락과 리뷰 초안을 자동으로 수집할 수 있습니다.
-
-## ✅ 준비물
+## 준비물
 - Python 3.11 이상
-- [uv](https://docs.astral.sh/uv/) 또는 선호하는 패키지 매니저 (설치 예시는 uv 기준)
-- GitHub Personal Access Token
-  - 공개 저장소만 분석한다면 `public_repo`
-  - 비공개 저장소까지 포함하려면 `repo`
-  - 조직 정보를 함께 분석하려면 `read:org`
+- [uv](https://docs.astral.sh/uv/) 또는 선호하는 패키지 매니저
+- GitHub Personal Access Token (비공개 저장소는 `repo`, 공개 저장소는 `public_repo` 권한 필요)
 
-## 🛠️ 설치
+## 설치
 ```bash
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
@@ -36,119 +21,65 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-테스트 의존성까지 설치하려면 `uv pip install -e .[test]`를 실행하세요.
+## 빠른 시작
+1. `gf init` - PAT와 LLM 설정 저장
+2. `gf brief --repo owner/name` - 저장소 분석 및 보고서 생성
+3. `reports/` 폴더에서 `metrics.json`과 `report.md` 확인
 
-## 🚀 빠른 시작
-1. **초기 설정:** `gf init`을 실행해 PAT와 기본 옵션을 저장합니다. 모든 값을 옵션으로 넘기면 비대화형으로도 사용할 수 있습니다.
-2. **데이터 수집 및 분석:** `gf brief --repo owner/name`으로 분석을 수행합니다.
-3. **보고서 확인:** 기본 경로인 `reports/` 폴더에서 `metrics.json`과 `report.md` 파일을 확인합니다.
+## 명령어
 
-## 📦 명령어 요약
-| 명령 | 설명 |
-| --- | --- |
-| `gf init` | PAT와 서버/LLM 정보를 포함한 기본 설정을 저장합니다. |
-| `gf brief` | 저장소 데이터를 수집하고 상세 피드백을 포함한 보고서를 생성합니다. |
-| `gf show-config` | 현재 저장된 설정을 확인합니다. 민감 정보는 마스킹됩니다. |
-| `gf feedback` | PR 리뷰를 생성하고 통합 보고서를 자동으로 생성합니다. (review + review-report 통합) |
-
-## 🧭 명령어 상세 가이드
 ### `gf init`
-GitHub 접속 정보와 기본 분석 옵션을 설정합니다. 처음 실행하면 필요한 값을 순서대로 묻습니다.
+GitHub 접속 정보와 LLM 설정을 저장합니다.
 
 ```bash
 gf init
 ```
 
-| 옵션 | 기본값 | 설명 |
-| --- | --- | --- |
-| `--pat TEXT` | (필수) | GitHub Personal Access Token. 인자가 없으면 안전하게 입력하도록 프롬프트가 뜹니다. |
-| `--months INTEGER` | `12` | 기본 분석 기간(개월). 분석 시 별도 입력이 없으면 이 값이 사용됩니다. |
-| `--enterprise-host TEXT` | `github.com` | GitHub Enterprise 호스트 주소. 입력하면 REST/GraphQL/Web URL이 자동으로 채워집니다. |
-| `--llm-endpoint TEXT` | (필수) | 리뷰 생성에 사용할 LLM API 엔드포인트. |
-| `--llm-model TEXT` | (필수) | 사용할 LLM 모델 식별자. |
-
-CI나 자동화 스크립트에서 사용하고 싶다면 모든 옵션을 명시적으로 전달하면 프롬프트 없이 실행됩니다. 예시는 다음과 같습니다.
-
-```bash
-gf init \
-  --pat ghp_xxxxxxxxxxxxxxxxxxxx \
-  --enterprise-host https://github.example.com \
-  --llm-endpoint https://llm.internal/api/v1/chat/completions \
-  --llm-model gpt-5-codex
-```
+주요 옵션:
+- `--pat`: GitHub Personal Access Token (필수)
+- `--months`: 기본 분석 기간 (기본값: 12개월)
+- `--enterprise-host`: GitHub Enterprise 호스트 주소
+- `--llm-endpoint`: LLM API 엔드포인트 (필수)
+- `--llm-model`: LLM 모델 식별자 (필수)
 
 ### `gf brief`
-지정한 저장소의 최근 활동을 수집하고 상세 피드백을 포함한 보고서를 생성하는 핵심 명령입니다.
+저장소를 분석하고 상세 피드백 보고서를 생성합니다.
 
 ```bash
 gf brief --repo owner/name
 ```
 
-이 명령어는 자동으로 다음 설정을 사용합니다:
-- 분석 기간: `gf init`에서 설정한 기본값 (기본 12개월)
-- 필터: 모든 브랜치, 경로, 언어 포함
-- 봇 활동: 제외
-- 상세 피드백: 항상 활성화 (커밋 메시지, PR 제목, 리뷰 톤, 이슈 품질을 LLM으로 분석)
-- 출력 디렉터리: `reports/`
-
-| 옵션 | 기본값 | 설명 |
-| --- | --- | --- |
-| `--repo owner/name` | (필수) | 분석할 저장소. `owner/name` 형식으로 입력합니다. |
-
-#### 사용 예시
-```bash
-# 기본 사용법
-gf brief --repo owner/name
-
-# 프롬프트 없이 바로 실행
-gf brief --repo owner/name
-```
-
-분석이 완료되면 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다. 상세 피드백 분석 결과도 자동으로 포함됩니다.
-
-### `gf show-config`
-현재 저장된 설정을 확인합니다. PAT 등 민감한 값은 `<set>` 형태로 마스킹됩니다.
-
-```bash
-gf show-config
-```
+자동으로 다음을 수행합니다:
+- 커밋, 이슈, PR, 리뷰 활동 집계
+- LLM 기반 상세 피드백 분석 (커밋 메시지, PR 제목, 리뷰 톤, 이슈 품질)
+- `reports/` 디렉터리에 `metrics.json`, `report.md` 생성
 
 ### `gf feedback`
-특정 PR의 리뷰 맥락을 수집하고 LLM을 통해 요약/리뷰 초안을 생성한 후, 자동으로 통합 회고 보고서까지 생성합니다. 두 가지 방식으로 실행할 수 있습니다.
-
-**1. 단일 PR 리뷰하고 통합 보고서 생성하기**
-
-```bash
-gf feedback --repo owner/name --number 123
-```
-
-- `repo`: 저장소 식별자
-- `number`: 리뷰할 PR 번호
-- `output-dir`: (선택) 리뷰 산출물 저장 경로. 기본값은 `reviews/`
-
-**2. 인증된 사용자의 여러 PR 리뷰하고 통합 보고서 생성하기**
+인증된 사용자의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
 
 ```bash
 gf feedback --repo owner/name --state open
 ```
 
-- `state`: (선택) `open`, `closed`, `all` 중 하나. 기본값은 `all`
-- PAT로 인증된 사용자가 작성한 PR들을 자동으로 검색합니다
+주요 옵션:
+- `--repo`: 저장소 식별자 (필수)
+- `--state`: PR 상태 필터 (`open`, `closed`, `all`, 기본값: `all`)
 
-이 명령어는 다음 과정을 순차적으로 수행합니다:
-1. **PR 리뷰 생성**: PR 메타데이터, 리뷰 요약, 마크다운 리뷰 초안이 `reviews/<owner>_<repo>/pr-<번호>/` 경로에 저장됩니다.
-2. **통합 보고서 생성**: 수집된 리뷰 요약을 한데 모아 개발자 관점의 통합 회고 보고서(`integrated_report.md`)를 생성합니다.
+실행 과정:
+1. PAT로 인증된 사용자가 작성한 PR 검색
+2. 각 PR에 대해 LLM 기반 리뷰 생성 (`reviews/` 디렉터리에 저장)
+3. 전체 PR을 아우르는 통합 회고 보고서 생성
 
-> ℹ️ **LLM 프롬프트 구성**
->
-> 리뷰 초안을 만들 때 LLM에는 PR 본문과 함께 상위 변경 파일 메타데이터, 그리고 각 파일의 diff 스니펫이 전달됩니다. 스니펫은 최대 5개 파일, 파일당 20줄로 잘라 보내 토큰 사용량을 안정적으로 유지합니다.
+### `gf show-config`
+현재 저장된 설정을 확인합니다.
 
-## 🔐 설정 파일 구조
-- 저장 경로: `~/.config/github_feedback/config.toml`
-- `gf init` 실행 시 자동으로 생성/갱신됩니다.
-- 직접 편집해도 되지만, 형식 오류가 나면 로드에 실패하니 주의하세요.
+```bash
+gf show-config
+```
 
-구성은 다음과 같이 나뉩니다.
+## 설정 파일
+`~/.config/github_feedback/config.toml`에 저장되며, `gf init` 실행 시 자동으로 생성됩니다.
+
 ```toml
 [auth]
 pat = "<set>"
@@ -166,17 +97,17 @@ model = "gpt-5-codex"
 months = 12
 ```
 
-## 📝 생성되는 산출물
-- `reports/metrics.json`: 분석 지표의 원본 데이터. `gf report`가 참조합니다.
-- `reports/report.md`: 주요 지표와 하이라이트가 담긴 마크다운 보고서.
-- `reviews/`: `gf review` 실행 시 PR 맥락(`artefacts.json`), 요약(`review_summary.json`), 리뷰 초안(`review.md`)이 저장됩니다.
+## 생성되는 파일
+- `reports/metrics.json` - 분석 지표 원본 데이터
+- `reports/report.md` - 마크다운 보고서
+- `reviews/<owner>_<repo>/pr-<번호>/` - PR 리뷰 결과
+  - `artefacts.json` - PR 원본 데이터
+  - `review_summary.json` - LLM 리뷰 요약
+  - `review.md` - 마크다운 리뷰 초안
+- `reviews/<owner>_<repo>/integrated_report.md` - 통합 회고 보고서
 
-## 🧪 개발자 가이드
+## 개발
 ```bash
 uv pip install -e .[test]
 pytest
 ```
-
-테스트는 네트워크 호출이 아닌 더미 요청으로 구성되어 있어 오프라인에서도 실행할 수 있습니다. 새로운 기능을 추가할 때는 CLI 동작과 페이징 로직에 대한 테스트를 함께 업데이트해 주세요.
-
-문제가 생기면 [이슈](https://github.com/goonbamm/github-feedback-analysis/issues)에 남겨주세요.
