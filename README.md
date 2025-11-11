@@ -16,7 +16,6 @@ GitHub Feedback Analysis는 조직이나 팀의 저장소 활동을 수집해 �
 ## ✨ 무엇을 할 수 있나요?
 - 저장소의 커밋, 이슈, 리뷰 활동량을 기간별로 집계합니다.
 - PR, 코드 리뷰, 하이라이트 등의 서사를 자동으로 요약한 보고서를 생성합니다.
-- 최신 메트릭을 재활용해 빠르게 보고서를 다시 만들 수 있습니다.
 - 특정 브랜치, 경로, 언어만 포함하거나 봇 활동을 제외하도록 세밀하게 필터링할 수 있습니다.
 - 개별 Pull Request에 대한 맥락과 리뷰 초안을 자동으로 수집할 수 있습니다.
 
@@ -43,14 +42,12 @@ uv pip install -e .
 1. **초기 설정:** `gf init`을 실행해 PAT와 기본 옵션을 저장합니다. 모든 값을 옵션으로 넘기면 비대화형으로도 사용할 수 있습니다.
 2. **데이터 수집 및 분석:** `gf analyze --repo owner/name`으로 분석을 수행합니다.
 3. **보고서 확인:** 기본 경로인 `reports/` 폴더에서 `metrics.json`과 `report.md` 파일을 확인합니다.
-4. **보고서 재생성:** 지표가 이미 있다면 `gf report`로 같은 데이터를 즉시 다시 생성할 수 있습니다.
 
 ## 📦 명령어 요약
 | 명령 | 설명 |
 | --- | --- |
 | `gf init` | PAT와 서버/LLM 정보를 포함한 기본 설정을 저장합니다. |
 | `gf analyze` | 저장소 데이터를 수집하고 보고서를 생성합니다. |
-| `gf report` | 저장된 지표(`reports/metrics.json`)로 보고서를 다시 만듭니다. |
 | `gf show-config` | 현재 저장된 설정을 확인합니다. 민감 정보는 마스킹됩니다. |
 | `gf review` | 특정 PR의 변경 파일, 리뷰, 댓글을 모아 LLM 리뷰 초안을 생성합니다. |
 | `gf review-report` | 수집된 PR 리뷰 요약을 통합한 한국어 보고서를 생성합니다. |
@@ -116,15 +113,6 @@ gf analyze --repo another/name --output-dir reports/another-name
 ```
 
 분석이 완료되면 기본적으로 `reports/metrics.json`과 `reports/report.md`가 생성되고, 터미널에 하이라이트가 요약되어 출력됩니다. `--output-dir`를 사용하면 해당 경로 아래에 동일한 파일 구조가 만들어집니다.
-
-### `gf report`
-이전에 저장한 지표로 기본 보고서를 다시 생성합니다.
-
-```bash
-gf report --output-dir reports/owner-name
-```
-
-지정한 디렉터리(기본값은 `reports`)에서 `metrics.json`을 찾아 `report.md`/`report.html`을 다시 생성합니다. 템플릿을 변경하고 싶다면 `github_feedback/reporter.py`를 수정하거나 별도의 스크립트에서 `MetricSnapshot`을 활용하세요.
 
 ### `gf show-config`
 현재 저장된 설정을 확인합니다. PAT 등 민감한 값은 `<set>` 형태로 마스킹됩니다.
