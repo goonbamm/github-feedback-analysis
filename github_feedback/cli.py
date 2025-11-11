@@ -386,67 +386,6 @@ def analyze(
         console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
 
 
-@app.command()
-def report(
-    html: bool = typer.Option(
-        False,
-        "--html",
-        help="Generate an HTML report alongside the cached markdown output.",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reports"),
-        "--output-dir",
-        path_type=Path,
-        help="Directory containing cached metrics and where refreshed reports will be written.",
-    ),
-) -> None:
-    """Generate reports from the latest cached metrics."""
-
-    output_dir = _resolve_output_dir(output_dir)
-    metrics_file = output_dir / "metrics.json"
-    if not metrics_file.exists():
-        console.print("[warning]No cached metrics available.[/] Run `gf analyze` first.")
-        raise typer.Exit(code=1)
-
-    import json
-
-    try:
-        with metrics_file.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-
-        metrics = MetricSnapshot(
-            repo=payload["repo"],
-            months=payload["months"],
-            generated_at=datetime.fromisoformat(payload["generated_at"]),
-            status=AnalysisStatus(payload.get("status", AnalysisStatus.ANALYSED.value)),
-            summary=payload.get("summary", {}),
-            stats=payload.get("stats", {}),
-            evidence=payload.get("evidence", {}),
-            highlights=payload.get("highlights", []),
-            spotlight_examples=payload.get("spotlight_examples", {}),
-            yearbook_story=payload.get("yearbook_story", []),
-            awards=payload.get("awards", []),
-        )
-    except (json.JSONDecodeError, KeyError, ValueError) as exc:
-        console.print(
-            "[error]Cached metrics file is corrupted.[/] "
-            f"Delete [value]{metrics_file}[/] and rerun `gf analyze`."
-        )
-        raise typer.Exit(code=1) from exc
-
-    reporter = Reporter(output_dir=output_dir)
-    markdown_path = reporter.generate_markdown(metrics)
-    artifacts = [("Markdown report", markdown_path)]
-
-    if html:
-        html_path = reporter.generate_html(metrics)
-        artifacts.append(("HTML report", html_path))
-
-    console.rule("Cached Insights")
-    _render_metrics(metrics)
-    console.rule("Artifacts")
-    for label, path in artifacts:
-        console.print(f"[success]{label} refreshed:[/]", f"[value]{path}[/]")
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
