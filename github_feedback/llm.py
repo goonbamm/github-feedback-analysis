@@ -186,5 +186,42 @@ class LLMClient:
 
         raise RuntimeError("LLM request failed without raising an explicit error")
 
+    def complete(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        temperature: float = 0.3,
+    ) -> str:
+        """Execute a generic chat completion request and return the content."""
+
+        payload = {
+            "model": self.model or "default-model",
+            "messages": messages,
+            "temperature": temperature,
+        }
+
+        response = requests.post(
+            self.endpoint,
+            json=payload,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+
+        try:
+            response_payload = response.json()
+        except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
+            raise ValueError("LLM response was not valid JSON") from exc
+
+        choices = response_payload.get("choices") or []
+        if not choices:
+            raise ValueError("LLM response did not contain choices")
+
+        message = choices[0].get("message") or {}
+        content = str(message.get("content") or "").strip()
+        if not content:
+            raise ValueError("LLM response did not contain content")
+
+        return content
+
 
 __all__ = ["LLMClient"]

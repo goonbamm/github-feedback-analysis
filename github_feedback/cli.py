@@ -35,6 +35,7 @@ from .console import Console
 from .llm import LLMClient
 from .models import AnalysisFilters, AnalysisStatus, MetricSnapshot
 from .reporter import Reporter
+from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
 
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")
@@ -590,3 +591,51 @@ def review(
             "[info]Review artefacts stored under:[/]",
             f"[value]{review_root}[/]",
         )
+
+
+@app.command("review-report")
+def review_report(
+    repo: str = typer.Option(
+        "",
+        "--repo",
+        prompt="Repository to summarise (owner/name)",
+        help="Repository in owner/name format",
+    ),
+    output_dir: Path = typer.Option(
+        Path("reviews"),
+        "--output-dir",
+        help="Root directory where review artefacts are stored",
+    ),
+) -> None:
+    """Generate an integrated Korean report from cached pull request reviews."""
+
+    config = _load_config()
+
+    llm_client = None
+    if config.llm.endpoint:
+        llm_client = LLMClient(
+            endpoint=config.llm.endpoint,
+            model=config.llm.model,
+        )
+
+    repo_input = repo.strip()
+    if not repo_input:
+        console.print("Repository value cannot be empty.")
+        raise typer.Exit(code=1)
+
+    review_reporter = ReviewReporter(
+        output_dir=_resolve_output_dir(output_dir),
+        llm=llm_client,
+    )
+
+    try:
+        report_path = review_reporter.create_integrated_report(repo_input)
+    except ValueError as exc:
+        console.print(f"[warning]{exc}[/]")
+        raise typer.Exit(code=1) from exc
+
+    console.rule("Integrated Review Report")
+    console.print(
+        "[success]통합 리뷰 보고서가 생성되었습니다:[/]",
+        f"[value]{report_path}[/]",
+    )

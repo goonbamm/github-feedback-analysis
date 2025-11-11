@@ -53,6 +53,7 @@ uv pip install -e .
 | `gf report` | 저장된 지표(`reports/metrics.json`)로 보고서를 다시 만듭니다. |
 | `gf show-config` | 현재 저장된 설정을 확인합니다. 민감 정보는 마스킹됩니다. |
 | `gf review` | 특정 PR의 변경 파일, 리뷰, 댓글을 모아 LLM 리뷰 초안을 생성합니다. |
+| `gf review-report` | 수집된 PR 리뷰 요약을 통합한 한국어 보고서를 생성합니다. |
 
 ## 🧭 명령어 상세 가이드
 ### `gf init`
@@ -158,6 +159,17 @@ gf review --repo owner/name --assignee octocat --state open
 > ℹ️ **LLM 프롬프트 구성**
 >
 > 리뷰 초안을 만들 때 LLM에는 PR 본문과 함께 상위 변경 파일 메타데이터, 그리고 각 파일의 diff 스니펫이 전달됩니다. 스니펫은 최대 5개 파일, 파일당 20줄로 잘라 보내 토큰 사용량을 안정적으로 유지합니다.
+
+### `gf review-report`
+`gf review`로 축적된 리뷰 요약을 한데 모아 개발자 관점의 통합 회고 보고서를 생성합니다.
+
+```bash
+gf review-report --repo owner/name
+```
+
+- 기본적으로 `reviews/` 디렉터리 아래 캐시된 `review_summary.json`과 `artefacts.json`을 읽어옵니다.
+- 동일한 저장소에 대한 `integrated_report.md` 파일이 생성되며, 장점/보완점/올해 성장한 점을 한국어로 정리합니다.
+- LLM 설정이 유효하다면 맥락을 전달해 맞춤 보고서를 요청하고, LLM을 사용할 수 없는 경우에도 기본 템플릿으로 보고서를 생성합니다.
 
 ## 🔐 설정 파일 구조
 - 저장 경로: `~/.config/github_feedback/config.toml`
