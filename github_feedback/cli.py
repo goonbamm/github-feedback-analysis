@@ -306,6 +306,11 @@ def analyze(
         None, help="File extension to include (repeat for multiple extensions)"
     ),
     include_bots: bool = typer.Option(False, help="Include bot commits in the analysis"),
+    detailed_feedback: bool = typer.Option(
+        False,
+        "--detailed-feedback",
+        help="Analyze commit messages, PR titles, review tone, and issue quality using LLM.",
+    ),
     html: bool = typer.Option(
         False,
         "--html",
@@ -349,8 +354,60 @@ def analyze(
     with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
         collection = collector.collect(repo=repo_input, months=months, filters=filters)
 
+    # Collect detailed feedback data if requested
+    detailed_feedback_snapshot = None
+    if detailed_feedback:
+        from datetime import datetime, timedelta, timezone
+        from .llm import LLMClient
+
+        console.print("[accent]Collecting detailed feedback data...", style="accent")
+
+        since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+
+        try:
+            # Collect detailed data
+            commits_data = collector.collect_commit_messages(repo_input, since, filters, limit=100)
+            pr_titles_data = collector.collect_pr_titles(repo_input, since, filters, limit=100)
+            review_comments_data = collector.collect_review_comments_detailed(
+                repo_input, since, filters, limit=100
+            )
+            issues_data = collector.collect_issue_details(repo_input, since, filters, limit=100)
+
+            # Analyze using LLM
+            llm_client = LLMClient(
+                endpoint=config.llm.endpoint,
+                model=config.llm.model,
+            )
+
+            with console.status("[accent]Analyzing commit messages...", spinner="dots"):
+                commit_analysis = llm_client.analyze_commit_messages(commits_data)
+
+            with console.status("[accent]Analyzing PR titles...", spinner="dots"):
+                pr_title_analysis = llm_client.analyze_pr_titles(pr_titles_data)
+
+            with console.status("[accent]Analyzing review tone...", spinner="dots"):
+                review_tone_analysis = llm_client.analyze_review_tone(review_comments_data)
+
+            with console.status("[accent]Analyzing issue quality...", spinner="dots"):
+                issue_analysis = llm_client.analyze_issue_quality(issues_data)
+
+            # Build detailed feedback snapshot
+            detailed_feedback_snapshot = analyzer.build_detailed_feedback(
+                commit_analysis=commit_analysis,
+                pr_title_analysis=pr_title_analysis,
+                review_tone_analysis=review_tone_analysis,
+                issue_analysis=issue_analysis,
+            )
+
+            console.print("[success]✓ Detailed feedback analysis complete", style="success")
+        except Exception as exc:
+            console.print(
+                f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
+            )
+            console.print("[info]Continuing with standard analysis...", style="info")
+
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
-        metrics = analyzer.compute_metrics(collection)
+        metrics = analyzer.compute_metrics(collection, detailed_feedback=detailed_feedback_snapshot)
 
     metrics_payload = {
         "repo": metrics.repo,
@@ -365,6 +422,9 @@ def analyze(
         "yearbook_story": metrics.yearbook_story,
         "awards": metrics.awards,
     }
+
+    if metrics.detailed_feedback:
+        metrics_payload["detailed_feedback"] = metrics.detailed_feedback.to_dict()
 
     metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
 

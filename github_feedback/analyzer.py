@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .console import Console
-from .models import AnalysisStatus, CollectionResult, MetricSnapshot
+from .models import (
+    AnalysisStatus,
+    CollectionResult,
+    MetricSnapshot,
+    DetailedFeedbackSnapshot,
+    CommitMessageFeedback,
+    PRTitleFeedback,
+    ReviewToneFeedback,
+    IssueFeedback,
+)
 
 console = Console()
 
@@ -18,7 +27,11 @@ class Analyzer:
 
     web_base_url: str = "https://github.com"
 
-    def compute_metrics(self, collection: CollectionResult) -> MetricSnapshot:
+    def compute_metrics(
+        self,
+        collection: CollectionResult,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot] = None,
+    ) -> MetricSnapshot:
         """Compute derived metrics from the collected artefacts."""
 
         console.log("Analyzing repository trends", f"repo={collection.repo}")
@@ -64,6 +77,7 @@ class Analyzer:
             spotlight_examples=spotlight_examples,
             yearbook_story=story_beats,
             awards=awards,
+            detailed_feedback=detailed_feedback,
         )
 
     def _calculate_scores(
@@ -377,3 +391,69 @@ class Analyzer:
                 f"{repo_root}/pulls",
             ],
         }
+
+    def build_detailed_feedback(
+        self,
+        commit_analysis: Optional[Dict] = None,
+        pr_title_analysis: Optional[Dict] = None,
+        review_tone_analysis: Optional[Dict] = None,
+        issue_analysis: Optional[Dict] = None,
+    ) -> DetailedFeedbackSnapshot:
+        """Build detailed feedback snapshot from LLM analysis results."""
+
+        commit_feedback = None
+        if commit_analysis:
+            commit_feedback = CommitMessageFeedback(
+                total_commits=commit_analysis.get("good_messages", 0)
+                + commit_analysis.get("poor_messages", 0),
+                good_messages=commit_analysis.get("good_messages", 0),
+                poor_messages=commit_analysis.get("poor_messages", 0),
+                suggestions=commit_analysis.get("suggestions", []),
+                examples_good=commit_analysis.get("examples_good", []),
+                examples_poor=commit_analysis.get("examples_poor", []),
+            )
+
+        pr_title_feedback = None
+        if pr_title_analysis:
+            pr_title_feedback = PRTitleFeedback(
+                total_prs=pr_title_analysis.get("clear_titles", 0)
+                + pr_title_analysis.get("vague_titles", 0),
+                clear_titles=pr_title_analysis.get("clear_titles", 0),
+                vague_titles=pr_title_analysis.get("vague_titles", 0),
+                suggestions=pr_title_analysis.get("suggestions", []),
+                examples_good=pr_title_analysis.get("examples_good", []),
+                examples_poor=pr_title_analysis.get("examples_poor", []),
+            )
+
+        review_tone_feedback = None
+        if review_tone_analysis:
+            review_tone_feedback = ReviewToneFeedback(
+                total_reviews=review_tone_analysis.get("constructive_reviews", 0)
+                + review_tone_analysis.get("harsh_reviews", 0)
+                + review_tone_analysis.get("neutral_reviews", 0),
+                constructive_reviews=review_tone_analysis.get("constructive_reviews", 0),
+                harsh_reviews=review_tone_analysis.get("harsh_reviews", 0),
+                neutral_reviews=review_tone_analysis.get("neutral_reviews", 0),
+                suggestions=review_tone_analysis.get("suggestions", []),
+                examples_good=review_tone_analysis.get("examples_good", []),
+                examples_improve=review_tone_analysis.get("examples_improve", []),
+            )
+
+        issue_feedback = None
+        if issue_analysis:
+            issue_feedback = IssueFeedback(
+                total_issues=issue_analysis.get("well_described", 0)
+                + issue_analysis.get("poorly_described", 0),
+                well_described=issue_analysis.get("well_described", 0),
+                poorly_described=issue_analysis.get("poorly_described", 0),
+                suggestions=issue_analysis.get("suggestions", []),
+                examples_good=issue_analysis.get("examples_good", []),
+                examples_poor=issue_analysis.get("examples_poor", []),
+            )
+
+        return DetailedFeedbackSnapshot(
+            commit_feedback=commit_feedback,
+            pr_title_feedback=pr_title_feedback,
+            review_tone_feedback=review_tone_feedback,
+            issue_feedback=issue_feedback,
+        )

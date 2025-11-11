@@ -222,5 +222,370 @@ class LLMClient:
 
         return content
 
+    def analyze_commit_messages(
+        self, commits: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Analyze commit message quality using LLM."""
+        if not commits:
+            return {
+                "good_messages": 0,
+                "poor_messages": 0,
+                "suggestions": ["커밋 메시지를 분석할 데이터가 없습니다."],
+                "examples_good": [],
+                "examples_poor": [],
+            }
+
+        # Sample commits for analysis (limit to 50)
+        sample_commits = commits[:50]
+
+        commit_list = "\n".join([
+            f"{i+1}. {commit['message'][:100]} (SHA: {commit['sha'][:7]})"
+            for i, commit in enumerate(sample_commits)
+        ])
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 코드 리뷰 전문가입니다. 커밋 메시지의 품질을 평가하세요. "
+                    "좋은 커밋 메시지는 명확하고, 간결하며, 변경 사항의 이유를 설명합니다. "
+                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
+                    "good_count (좋은 메시지 수), poor_count (개선이 필요한 메시지 수), "
+                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
+                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"다음 커밋 메시지들을 분석해주세요:\n\n{commit_list}",
+            },
+        ]
+
+        try:
+            response = self.complete(messages, temperature=0.2)
+            result = json.loads(response)
+
+            return {
+                "good_messages": result.get("good_count", 0),
+                "poor_messages": result.get("poor_count", 0),
+                "suggestions": result.get("suggestions", []),
+                "examples_good": result.get("examples_good", []),
+                "examples_poor": result.get("examples_poor", []),
+            }
+        except Exception:
+            # Fallback to simple heuristics
+            return self._fallback_commit_analysis(sample_commits)
+
+    def analyze_pr_titles(self, pr_titles: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Analyze pull request title quality using LLM."""
+        if not pr_titles:
+            return {
+                "clear_titles": 0,
+                "vague_titles": 0,
+                "suggestions": ["PR 제목을 분석할 데이터가 없습니다."],
+                "examples_good": [],
+                "examples_poor": [],
+            }
+
+        # Sample PR titles for analysis (limit to 50)
+        sample_prs = pr_titles[:50]
+
+        pr_list = "\n".join([
+            f"{i+1}. #{pr['number']}: {pr['title']}"
+            for i, pr in enumerate(sample_prs)
+        ])
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 코드 리뷰 전문가입니다. Pull Request 제목의 품질을 평가하세요. "
+                    "좋은 PR 제목은 변경 사항을 명확하게 설명하고, 간결하며, 이해하기 쉽습니다. "
+                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
+                    "clear_count (명확한 제목 수), vague_count (모호한 제목 수), "
+                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
+                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"다음 PR 제목들을 분석해주세요:\n\n{pr_list}",
+            },
+        ]
+
+        try:
+            response = self.complete(messages, temperature=0.2)
+            result = json.loads(response)
+
+            return {
+                "clear_titles": result.get("clear_count", 0),
+                "vague_titles": result.get("vague_count", 0),
+                "suggestions": result.get("suggestions", []),
+                "examples_good": result.get("examples_good", []),
+                "examples_poor": result.get("examples_poor", []),
+            }
+        except Exception:
+            # Fallback to simple heuristics
+            return self._fallback_pr_title_analysis(sample_prs)
+
+    def analyze_review_tone(
+        self, review_comments: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Analyze code review tone and style using LLM."""
+        if not review_comments:
+            return {
+                "constructive_reviews": 0,
+                "harsh_reviews": 0,
+                "neutral_reviews": 0,
+                "suggestions": ["리뷰 코멘트를 분석할 데이터가 없습니다."],
+                "examples_good": [],
+                "examples_improve": [],
+            }
+
+        # Sample review comments (limit to 30)
+        sample_reviews = review_comments[:30]
+
+        review_list = "\n".join([
+            f"{i+1}. (PR #{review['pr_number']}, {review['author']}): {review['body'][:200]}"
+            for i, review in enumerate(sample_reviews)
+        ])
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 팀 협업 전문가입니다. 코드 리뷰 코멘트의 톤과 스타일을 평가하세요. "
+                    "건설적인 리뷰는 존중하고, 명확하며, 구체적인 개선 제안을 포함합니다. "
+                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
+                    "constructive_count (건설적인 리뷰 수), harsh_count (가혹한 리뷰 수), "
+                    "neutral_count (중립적인 리뷰 수), suggestions (개선 제안 목록), "
+                    "examples_good (좋은 예시 최대 3개), examples_improve (개선이 필요한 예시 최대 3개). "
+                    "모든 응답은 한국어로 작성하세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"다음 리뷰 코멘트들을 분석해주세요:\n\n{review_list}",
+            },
+        ]
+
+        try:
+            response = self.complete(messages, temperature=0.2)
+            result = json.loads(response)
+
+            return {
+                "constructive_reviews": result.get("constructive_count", 0),
+                "harsh_reviews": result.get("harsh_count", 0),
+                "neutral_reviews": result.get("neutral_count", 0),
+                "suggestions": result.get("suggestions", []),
+                "examples_good": result.get("examples_good", []),
+                "examples_improve": result.get("examples_improve", []),
+            }
+        except Exception:
+            # Fallback to simple heuristics
+            return self._fallback_review_tone_analysis(sample_reviews)
+
+    def analyze_issue_quality(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Analyze issue quality and clarity using LLM."""
+        if not issues:
+            return {
+                "well_described": 0,
+                "poorly_described": 0,
+                "suggestions": ["이슈를 분석할 데이터가 없습니다."],
+                "examples_good": [],
+                "examples_poor": [],
+            }
+
+        # Sample issues (limit to 30)
+        sample_issues = issues[:30]
+
+        issue_list = "\n".join([
+            f"{i+1}. #{issue['number']}: {issue['title']}\n   본문: {issue['body'][:150]}"
+            for i, issue in enumerate(sample_issues)
+        ])
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 프로젝트 관리 전문가입니다. GitHub 이슈의 품질을 평가하세요. "
+                    "좋은 이슈는 명확한 제목, 상세한 설명, 재현 단계, 예상 결과를 포함합니다. "
+                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
+                    "well_described_count (잘 작성된 이슈 수), poorly_described_count (개선이 필요한 이슈 수), "
+                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
+                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"다음 이슈들을 분석해주세요:\n\n{issue_list}",
+            },
+        ]
+
+        try:
+            response = self.complete(messages, temperature=0.2)
+            result = json.loads(response)
+
+            return {
+                "well_described": result.get("well_described_count", 0),
+                "poorly_described": result.get("poorly_described_count", 0),
+                "suggestions": result.get("suggestions", []),
+                "examples_good": result.get("examples_good", []),
+                "examples_poor": result.get("examples_poor", []),
+            }
+        except Exception:
+            # Fallback to simple heuristics
+            return self._fallback_issue_analysis(sample_issues)
+
+    # Fallback analysis methods ----------------------------------------
+
+    def _fallback_commit_analysis(self, commits: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Simple heuristic-based commit message analysis."""
+        good_count = 0
+        poor_count = 0
+        examples_good = []
+        examples_poor = []
+
+        for commit in commits:
+            message = commit["message"].strip()
+            lines = message.split("\n")
+            first_line = lines[0] if lines else ""
+
+            # Simple heuristics
+            is_good = (
+                len(first_line) > 10
+                and len(first_line) < 100
+                and not first_line.lower().startswith(("fix", "update", "wip", "tmp"))
+                and "." not in first_line[-5:]
+            )
+
+            if is_good:
+                good_count += 1
+                if len(examples_good) < 3:
+                    examples_good.append({
+                        "message": first_line,
+                        "sha": commit["sha"][:7],
+                    })
+            else:
+                poor_count += 1
+                if len(examples_poor) < 3:
+                    examples_poor.append({
+                        "message": first_line,
+                        "sha": commit["sha"][:7],
+                    })
+
+        return {
+            "good_messages": good_count,
+            "poor_messages": poor_count,
+            "suggestions": [
+                "커밋 메시지의 첫 줄은 50자 이내로 작성하세요.",
+                "명령형 동사로 시작하세요 (예: Add, Fix, Update).",
+                "본문에 변경 이유를 상세히 설명하세요.",
+            ],
+            "examples_good": examples_good,
+            "examples_poor": examples_poor,
+        }
+
+    def _fallback_pr_title_analysis(self, prs: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Simple heuristic-based PR title analysis."""
+        clear_count = 0
+        vague_count = 0
+        examples_good = []
+        examples_poor = []
+
+        for pr in prs:
+            title = pr["title"].strip()
+
+            # Simple heuristics
+            is_clear = len(title) > 15 and len(title) < 100
+
+            if is_clear:
+                clear_count += 1
+                if len(examples_good) < 3:
+                    examples_good.append({
+                        "number": pr["number"],
+                        "title": title,
+                    })
+            else:
+                vague_count += 1
+                if len(examples_poor) < 3:
+                    examples_poor.append({
+                        "number": pr["number"],
+                        "title": title,
+                    })
+
+        return {
+            "clear_titles": clear_count,
+            "vague_titles": vague_count,
+            "suggestions": [
+                "PR 제목은 변경 사항을 명확하게 설명하세요.",
+                "너무 짧거나 모호한 제목은 피하세요.",
+                "일관된 형식을 사용하세요 (예: [타입] 설명).",
+            ],
+            "examples_good": examples_good,
+            "examples_poor": examples_poor,
+        }
+
+    def _fallback_review_tone_analysis(
+        self, reviews: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Simple heuristic-based review tone analysis."""
+        constructive_count = len(reviews)
+        harsh_count = 0
+        neutral_count = 0
+
+        return {
+            "constructive_reviews": constructive_count,
+            "harsh_reviews": harsh_count,
+            "neutral_reviews": neutral_count,
+            "suggestions": [
+                "리뷰 코멘트는 건설적이고 존중하는 톤을 유지하세요.",
+                "구체적인 개선 제안을 포함하세요.",
+                "긍정적인 피드백도 함께 제공하세요.",
+            ],
+            "examples_good": [],
+            "examples_improve": [],
+        }
+
+    def _fallback_issue_analysis(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Simple heuristic-based issue quality analysis."""
+        well_described = 0
+        poorly_described = 0
+        examples_good = []
+        examples_poor = []
+
+        for issue in issues:
+            body = issue.get("body", "").strip()
+
+            # Simple heuristics
+            is_good = len(body) > 100
+
+            if is_good:
+                well_described += 1
+                if len(examples_good) < 3:
+                    examples_good.append({
+                        "number": issue["number"],
+                        "title": issue["title"],
+                    })
+            else:
+                poorly_described += 1
+                if len(examples_poor) < 3:
+                    examples_poor.append({
+                        "number": issue["number"],
+                        "title": issue["title"],
+                    })
+
+        return {
+            "well_described": well_described,
+            "poorly_described": poorly_described,
+            "suggestions": [
+                "이슈 본문에 상세한 설명을 포함하세요.",
+                "재현 단계를 명확히 작성하세요.",
+                "예상 결과와 실제 결과를 비교하세요.",
+            ],
+            "examples_good": examples_good,
+            "examples_poor": examples_poor,
+        }
+
 
 __all__ = ["LLMClient"]
