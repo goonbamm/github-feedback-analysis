@@ -200,17 +200,37 @@ class Analyzer:
         if not collection.pull_request_examples:
             return spotlight_examples
 
+        # Sort PRs by change volume (largest first) to show most significant contributions
+        sorted_prs = sorted(
+            collection.pull_request_examples,
+            key=lambda pr: pr.additions + pr.deletions,
+            reverse=True
+        )
+
         pr_lines = []
-        for pr in collection.pull_request_examples[:3]:
+        for idx, pr in enumerate(sorted_prs[:5], 1):
             change_volume = pr.additions + pr.deletions
-            scale_phrase = f"변경 {change_volume}줄" if change_volume else "경량 변경"
+            scale_phrase = f"변경 {change_volume:,}줄" if change_volume else "경량 변경"
             merged_phrase = (
                 f"{pr.merged_at.date().isoformat()} 병합"
                 if pr.merged_at
                 else "미병합"
             )
+
+            # Add reason for showing this PR
+            if idx == 1:
+                reason = "최대 변경량"
+            elif idx == 2:
+                reason = "2번째 큰 변경"
+            elif idx == 3:
+                reason = "3번째 큰 변경"
+            elif change_volume > 500:
+                reason = "대규모 변경"
+            else:
+                reason = "주요 기여"
+
             pr_lines.append(
-                f"PR #{pr.number} · {pr.title} — {pr.author} ({pr.created_at.date().isoformat()}, {merged_phrase}, {scale_phrase}) · {pr.html_url}"
+                f"PR #{pr.number} · {pr.title} — {pr.author} ({pr.created_at.date().isoformat()}, {merged_phrase}, {scale_phrase}) · [{reason}] · {pr.html_url}"
             )
         spotlight_examples["pull_requests"] = pr_lines
         return spotlight_examples

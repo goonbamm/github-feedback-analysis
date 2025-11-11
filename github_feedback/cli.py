@@ -626,8 +626,8 @@ def feedback(
 
     state_value = state.default if isinstance(state, OptionInfo) else state
 
-    def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
-        console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
+    def _render_result(pr_number: int, pr_title: str, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
+        console.print(f"[accent]Pull Request #[/][value]{pr_number}[/] [accent]·[/] {pr_title}")
         console.print(
             "[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]"
         )
@@ -680,16 +680,16 @@ def feedback(
         with console.status(
             f"[accent]Curating context for PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
         ):
-            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+            pr_title, artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
                 repo=repo_input,
                 number=pr_number,
             )
-        results.append((pr_number, artefact_path, summary_path, markdown_path))
+        results.append((pr_number, pr_title, artefact_path, summary_path, markdown_path))
         console.print(f"[success]✓ PR #{pr_number} reviewed ({idx}/{total_prs})", style="success")
 
     console.rule("Review Assets")
-    for pr_number, artefact_path, summary_path, markdown_path in results:
-        _render_result(pr_number, artefact_path, summary_path, markdown_path)
+    for pr_number, pr_title, artefact_path, summary_path, markdown_path in results:
+        _render_result(pr_number, pr_title, artefact_path, summary_path, markdown_path)
 
     if results:
         review_root_value = getattr(reviewer, "output_dir", Path("reviews"))

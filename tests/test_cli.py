@@ -226,10 +226,11 @@ class DummyReviewer:
         self.calls: list[Dict[str, Any]] = []
         self.output_dir = Path("reviews")
 
-    def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
+    def review_pull_request(self, repo: str, number: int) -> tuple[str, Path, Path, Path]:
         self.calls.append({"repo": repo, "number": number})
         base = Path(f"reviews/{repo.replace('/', '_')}/pr-{number}")
         return (
+            f"Test PR #{number}",
             base / "artefacts.json",
             base / "review_summary.json",
             base / "review.md",

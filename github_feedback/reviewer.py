@@ -191,15 +191,19 @@ class Reviewer:
         markdown_path.write_text("\n".join(lines), encoding="utf-8")
         return markdown_path
 
-    def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
-        """End-to-end review helper used by the CLI command."""
+    def review_pull_request(self, repo: str, number: int) -> tuple[str, Path, Path, Path]:
+        """End-to-end review helper used by the CLI command.
+
+        Returns:
+            Tuple of (pr_title, artefact_path, summary_path, markdown_path)
+        """
 
         bundle = self.collector.collect_pull_request_details(repo=repo, number=number)
         artefact_path = self.persist_bundle(bundle)
         summary = self.generate_summary(bundle)
         summary_path = self.persist_summary(bundle, summary)
         markdown_path = self.create_markdown(bundle, summary)
-        return artefact_path, summary_path, markdown_path
+        return bundle.title, artefact_path, summary_path, markdown_path
 
 
 __all__ = ["Reviewer"]

@@ -141,10 +141,12 @@ def test_reviewer_persists_outputs(tmp_path, monkeypatch):
 
     reviewer = Reviewer(collector=DummyCollector(), llm=DummyLLM(), output_dir=tmp_path)
 
-    artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+    pr_title, artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
         repo=bundle.repo,
         number=bundle.number,
     )
+
+    assert pr_title == bundle.title
 
     assert artefact_path.exists()
     assert summary_path.exists()
