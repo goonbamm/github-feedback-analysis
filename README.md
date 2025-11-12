@@ -58,6 +58,8 @@ ghf brief --repo goonbamm/github-feedback-analysis
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
 - `metrics.json` - 분석 데이터
 - `report.md` - 마크다운 보고서
+- `report.html` - HTML 보고서 (시각화 차트 포함)
+- `charts/` - SVG 차트 파일들
 - `prompts/` - LLM 프롬프트 파일들
 
 ### 3️⃣ 결과 확인
@@ -139,6 +141,11 @@ ghf brief --repo microsoft/vscode
 reports/
 ├── metrics.json              # 원본 데이터 (JSON)
 ├── report.md                 # 분석 보고서 (마크다운)
+├── report.html               # 분석 보고서 (HTML, 차트 포함)
+├── charts/                   # 시각화 차트
+│   ├── quality.svg          # 품질 지표 차트
+│   ├── activity.svg         # 활동 지표 차트
+│   └── ...                  # 기타 도메인별 차트
 └── prompts/
     ├── commit_feedback.txt   # 커밋 메시지 피드백
     ├── pr_feedback.txt       # PR 제목 피드백
@@ -280,6 +287,12 @@ nano ~/.config/github_feedback/config.toml
 reports/
 ├── metrics.json              # 📈 분석 지표 원본 데이터
 ├── report.md                 # 📄 마크다운 보고서
+├── report.html               # 🎨 HTML 보고서 (시각화 차트 포함)
+├── charts/                   # 📊 시각화 차트 (SVG)
+│   ├── quality.svg          # 품질 지표 차트
+│   ├── activity.svg         # 활동 지표 차트
+│   ├── engagement.svg       # 참여도 차트
+│   └── ...                  # 기타 도메인별 차트
 └── prompts/
     ├── commit_feedback.txt   # 💬 커밋 메시지 품질 분석
     ├── pr_feedback.txt       # 🔀 PR 제목 분석
