@@ -334,6 +334,9 @@ def _collect_detailed_feedback(
         llm_client = LLMClient(
             endpoint=config.llm.endpoint,
             model=config.llm.model,
+            timeout=config.llm.timeout,
+            max_files_in_prompt=config.llm.max_files_in_prompt,
+            max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
         )
 
         # Parallelize LLM analysis calls
@@ -686,6 +689,9 @@ def feedback(
     llm_client = LLMClient(
         endpoint=config.llm.endpoint,
         model=config.llm.model,
+        timeout=config.llm.timeout,
+        max_files_in_prompt=config.llm.max_files_in_prompt,
+        max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
     )
 
     reviewer = Reviewer(collector=collector, llm=llm_client)

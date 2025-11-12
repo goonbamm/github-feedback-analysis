@@ -38,6 +38,7 @@ class LLMConfig(BaseModel):
     model: str = ""
     timeout: int = 60
     max_files_in_prompt: int = 10
+    max_files_with_patch_snippets: int = 5
     max_retries: int = 3
 
 
@@ -54,6 +55,14 @@ class APIConfig(BaseModel):
     max_retries: int = 3
 
 
+class ReporterConfig(BaseModel):
+    """Configuration for report generation."""
+
+    chart_width: int = 520
+    chart_height_per_item: int = 24
+    chart_bar_color: str = "#4CAF50"
+
+
 @dataclass(slots=True)
 class Config:
     """Top-level configuration container."""
@@ -63,6 +72,7 @@ class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
     api: APIConfig = field(default_factory=APIConfig)
     defaults: DefaultsConfig = field(default_factory=DefaultsConfig)
+    reporter: ReporterConfig = field(default_factory=ReporterConfig)
 
     @classmethod
     def load(cls, path: Path = CONFIG_FILE) -> "Config":
@@ -98,10 +108,11 @@ class Config:
             llm = LLMConfig(**raw.get("llm", {}))
             api = APIConfig(**raw.get("api", {}))
             defaults = DefaultsConfig(**raw.get("defaults", {}))
+            reporter = ReporterConfig(**raw.get("reporter", {}))
         except ValidationError as exc:
             raise ValueError(f"Invalid configuration: {exc}") from exc
 
-        return cls(version=version, server=server, llm=llm, api=api, defaults=defaults)
+        return cls(version=version, server=server, llm=llm, api=api, defaults=defaults, reporter=reporter)
 
     def dump(self, path: Path = CONFIG_FILE, backup: bool = True) -> None:
         """Persist the configuration to disk.
@@ -125,6 +136,7 @@ class Config:
             "llm": self.llm.model_dump(),
             "api": self.api.model_dump(),
             "defaults": self.defaults.model_dump(),
+            "reporter": self.reporter.model_dump(),
         }
 
         with path.open("wb") as handle:
@@ -187,4 +199,5 @@ class Config:
             "llm": self.llm.model_dump(),
             "api": self.api.model_dump(),
             "defaults": self.defaults.model_dump(),
+            "reporter": self.reporter.model_dump(),
         }

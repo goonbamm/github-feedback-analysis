@@ -15,8 +15,7 @@ from .utils import limit_items, truncate_patch
 logger = logging.getLogger(__name__)
 
 
-MAX_FILES_IN_PROMPT = 10
-MAX_FILES_WITH_PATCH_SNIPPETS = 5
+# Default values (used when config is not available)
 MAX_PATCH_LINES_PER_FILE = 20
 
 
@@ -27,6 +26,8 @@ class LLMClient:
     endpoint: str
     model: str = ""
     timeout: int = 60
+    max_files_in_prompt: int = 10
+    max_files_with_patch_snippets: int = 5
 
     def _build_messages(self, bundle: PullRequestReviewBundle) -> List[Dict[str, str]]:
         """Create the prompt messages describing the pull request."""
@@ -53,12 +54,12 @@ class LLMClient:
             summary_lines.append("")
 
         summary_lines.append("변경된 파일:")
-        for index, file in enumerate(limit_items(bundle.files, MAX_FILES_IN_PROMPT)):
+        for index, file in enumerate(limit_items(bundle.files, self.max_files_in_prompt)):
             summary_lines.append(
                 f"- {file.filename} ({file.status}, +{file.additions}/-{file.deletions}, 변경={file.changes})"
             )
             if (
-                index < MAX_FILES_WITH_PATCH_SNIPPETS
+                index < self.max_files_with_patch_snippets
                 and file.patch
                 and (snippet := truncate_patch(file.patch, MAX_PATCH_LINES_PER_FILE))
             ):
