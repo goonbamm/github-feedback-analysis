@@ -49,7 +49,7 @@ Necesita un GitHub Personal Access Token (PAT) para usar esta herramienta.
    - ⚠️ **Importante**: No podrá ver este token nuevamente después de salir de la página
 
 5. **Usar Token**
-   - Ingresar el token copiado al ejecutar `gfainit`
+   - Ingresar el token copiado al ejecutar `gfa init`
 
 ### Usar Fine-grained Personal Access Token (Opcional)
 
@@ -75,7 +75,7 @@ Si está usando GitHub Enterprise en su organización:
 
 3. **Especificar Host Enterprise Durante la Configuración Inicial**
    ```bash
-   gfainit --enterprise-host https://github.your-company.com
+   gfa init --enterprise-host https://github.your-company.com
    ```
 
 4. **Contactar al Administrador**
@@ -110,7 +110,7 @@ uv pip install -e .
 ### 1️⃣ Inicializar Configuración
 
 ```bash
-gfainit
+gfa init
 ```
 
 Cuando se le solicite, ingrese la siguiente información:
@@ -141,20 +141,20 @@ cat reports/report.md
 ## 📚 Referencia de Comandos
 
 <details>
-<summary><b>🎯 `gfainit` - Configuración Inicial</b></summary>
+<summary><b>🎯 `gfa init` - Configuración Inicial</b></summary>
 
 Almacena información de acceso a GitHub y configuración de LLM.
 
 #### Uso Básico (Interactivo)
 
 ```bash
-gfainit
+gfa init
 ```
 
 #### Ejemplo: GitHub.com + LLM Local
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -164,7 +164,7 @@ gfainit \
 #### Ejemplo: GitHub Enterprise
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -263,21 +263,21 @@ reports/
 </details>
 
 <details>
-<summary><b>🎯 `gfafeedback` - Revisión Automática de PR</b></summary>
+<summary><b>🎯 `gfa feedback` - Revisión Automática de PR</b></summary>
 
 Revisa automáticamente los PRs del usuario autenticado (propietario del PAT) y genera un informe retrospectivo integrado.
 
 #### Uso Básico
 
 ```bash
-gfafeedback --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### Ejemplos
 
 ```bash
 # Revisar todos los PRs creados por ti
-gfafeedback --repo myusername/my-project
+gfa feedback --repo myusername/my-project
 ```
 
 #### Opciones
@@ -317,16 +317,16 @@ reviews/
 </details>
 
 <details>
-<summary><b>⚙️ `gfaconfig` - Gestión de Configuración</b></summary>
+<summary><b>⚙️ `gfa config` - Gestión de Configuración</b></summary>
 
 Ver o modificar la configuración.
 
-#### `gfaconfig show` - Ver Configuración
+#### `gfa config show` - Ver Configuración
 
 Ver la configuración actualmente almacenada.
 
 ```bash
-gfaconfig show
+gfa config show
 ```
 
 **Ejemplo de Salida:**
@@ -347,72 +347,72 @@ gfaconfig show
 └─────────────┴───────────────────────┘
 ```
 
-> **Nota:** El comando `gfashow-config` está obsoleto y ha sido reemplazado por `gfaconfig show`.
+> **Nota:** El comando `gfa show-config` está obsoleto y ha sido reemplazado por `gfa config show`.
 
-#### `gfaconfig set` - Establecer Valores de Configuración
+#### `gfa config set` - Establecer Valores de Configuración
 
 Modifica valores de configuración individuales.
 
 ```bash
-gfaconfig set <key> <value>
+gfa config set <key> <value>
 ```
 
 **Ejemplos:**
 
 ```bash
 # Cambiar modelo LLM
-gfaconfig set llm.model gpt-4
+gfa config set llm.model gpt-4
 
 # Cambiar endpoint LLM
-gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
+gfa config set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # Cambiar período de análisis predeterminado
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 ```
 
-#### `gfaconfig get` - Obtener Valores de Configuración
+#### `gfa config get` - Obtener Valores de Configuración
 
 Recupera valores de configuración específicos.
 
 ```bash
-gfaconfig get <key>
+gfa config get <key>
 ```
 
 **Ejemplos:**
 
 ```bash
 # Verificar modelo LLM
-gfaconfig get llm.model
+gfa config get llm.model
 
 # Verificar período de análisis predeterminado
-gfaconfig get defaults.months
+gfa config get defaults.months
 ```
 
 </details>
 
 <details>
-<summary><b>🔍 `gfalist-repos` - Listar Repositorios</b></summary>
+<summary><b>🔍 `gfa list-repos` - Listar Repositorios</b></summary>
 
 Lista los repositorios accesibles.
 
 ```bash
-gfalist-repos
+gfa list-repos
 ```
 
 #### Ejemplos
 
 ```bash
 # Listar repositorios (predeterminado: 20 actualizados recientemente)
-gfalist-repos
+gfa list-repos
 
 # Cambiar criterio de ordenamiento
-gfalist-repos --sort stars --limit 10
+gfa list-repos --sort stars --limit 10
 
 # Filtrar por organización específica
-gfalist-repos --org myorganization
+gfa list-repos --org myorganization
 
 # Ordenar por fecha de creación
-gfalist-repos --sort created --limit 50
+gfa list-repos --sort created --limit 50
 ```
 
 #### Opciones
@@ -426,12 +426,12 @@ gfalist-repos --sort created --limit 50
 </details>
 
 <details>
-<summary><b>💡 `gfasuggest-repos` - Sugerencias de Repositorios</b></summary>
+<summary><b>💡 `gfa suggest-repos` - Sugerencias de Repositorios</b></summary>
 
 Sugiere repositorios activos adecuados para análisis.
 
 ```bash
-gfasuggest-repos
+gfa suggest-repos
 ```
 
 Selecciona automáticamente repositorios con actividad reciente. Considera de manera integral estrellas, forks, issues y actualizaciones recientes.
@@ -440,16 +440,16 @@ Selecciona automáticamente repositorios con actividad reciente. Considera de ma
 
 ```bash
 # Sugerencias predeterminadas (dentro de los últimos 90 días, 10 repositorios)
-gfasuggest-repos
+gfa suggest-repos
 
 # Sugerir 5 repositorios activos en los últimos 30 días
-gfasuggest-repos --limit 5 --days 30
+gfa suggest-repos --limit 5 --days 30
 
 # Ordenar por estrellas
-gfasuggest-repos --sort stars
+gfa suggest-repos --sort stars
 
 # Ordenar por puntuación de actividad (evaluación integral)
-gfasuggest-repos --sort activity
+gfa suggest-repos --sort activity
 ```
 
 #### Opciones
@@ -465,7 +465,7 @@ gfasuggest-repos --sort activity
 <details>
 <summary><b>📁 Archivo de Configuración</b></summary>
 
-La configuración se almacena en `~/.config/github_feedback/config.toml` y se crea automáticamente al ejecutar `gfainit`.
+La configuración se almacena en `~/.config/github_feedback/config.toml` y se crea automáticamente al ejecutar `gfa init`.
 
 ### Ejemplo de Archivo de Configuración
 
@@ -494,12 +494,12 @@ months = 12
 
 ### Edición Manual de Configuración
 
-Si es necesario, puede editar el archivo de configuración directamente o usar los comandos `gfaconfig`:
+Si es necesario, puede editar el archivo de configuración directamente o usar los comandos `gfa config`:
 
 ```bash
 # Método 1: Usar comandos config (recomendado)
-gfaconfig set llm.model gpt-4
-gfaconfig show
+gfa config set llm.model gpt-4
+gfa config show
 
 # Método 2: Edición directa
 nano ~/.config/github_feedback/config.toml
@@ -529,7 +529,7 @@ reports/
     └── issue_feedback.txt    # 🐛 Análisis de calidad de issues
 ```
 
-### Salida de `gfafeedback`
+### Salida de `gfa feedback`
 
 ```
 reviews/
@@ -552,10 +552,10 @@ reviews/
 
 ```bash
 # 1. Configuración (solo la primera vez)
-gfainit
+gfa init
 
 # 2. Obtener sugerencias de repositorios
-gfasuggest-repos
+gfa suggest-repos
 
 # 3. Analizar con modo interactivo
 gfa feedback --interactive
@@ -568,7 +568,7 @@ cat reports/report.md
 
 ```bash
 # 1. Configuración (solo la primera vez)
-gfainit
+gfa init
 
 # 2. Analizar proyecto popular de código abierto
 gfa feedback --repo facebook/react
@@ -581,13 +581,13 @@ cat reports/report.md
 
 ```bash
 # Verificar lista de mis repositorios
-gfalist-repos --sort updated --limit 10
+gfa list-repos --sort updated --limit 10
 
 # Analizar mi proyecto
 gfa feedback --repo myname/my-awesome-project
 
 # Revisar automáticamente mis PRs
-gfafeedback --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # Ver informe retrospectivo integrado
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -597,16 +597,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # Verificar lista de repositorios de la organización
-gfalist-repos --org mycompany --limit 20
+gfa list-repos --org mycompany --limit 20
 
 # Establecer período de análisis (últimos 6 meses)
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 
 # Analizar repositorio de la organización
 gfa feedback --repo mycompany/product-service
 
 # Revisar PRs de miembros del equipo (cada uno ejecuta con su propio PAT)
-gfafeedback --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 ```
 
 </details>
@@ -668,8 +668,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **Solución**:
 1. Verifica que el servidor LLM esté en ejecución
-2. Verifica que la URL del endpoint sea correcta (`gfaconfig show`)
-3. Reinicializa la configuración si es necesario: `gfainit`
+2. Verifica que la URL del endpoint sea correcta (`gfa config show`)
+3. Reinicializa la configuración si es necesario: `gfa init`
 
 ### Repositorio No Encontrado
 
@@ -689,7 +689,7 @@ No activity detected during analysis period.
 ```
 
 **Solución**:
-- Intenta aumentar el período de análisis: `gfainit --months 24`
+- Intenta aumentar el período de análisis: `gfa init --months 24`
 - Verifica que el repositorio esté activo
 
 </details>

@@ -51,7 +51,7 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
    - ⚠️ **중요**: 이 페이지를 벗어나면 토큰을 다시 확인할 수 없습니다
 
 5. **토큰 사용**
-   - `gfainit` 실행 시 복사한 토큰을 입력하세요
+   - `gfa init` 실행 시 복사한 토큰을 입력하세요
 
 ### Fine-grained Personal Access Token 사용 (선택사항)
 
@@ -77,7 +77,7 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
 
 3. **초기 설정 시 Enterprise 호스트 지정**
    ```bash
-   gfainit --enterprise-host https://github.your-company.com
+   gfa init --enterprise-host https://github.your-company.com
    ```
 
 4. **관리자 문의**
@@ -112,7 +112,7 @@ uv pip install -e .
 ### 1️⃣ 설정 초기화
 
 ```bash
-gfainit
+gfa init
 ```
 
 대화형 프롬프트가 나타나면 다음 정보를 입력하세요:
@@ -143,20 +143,20 @@ cat reports/report.md
 ## 📚 명령어 상세 가이드
 
 <details>
-<summary><b>🎯 gfainit - 초기 설정</b></summary>
+<summary><b>🎯 gfa init - 초기 설정</b></summary>
 
 GitHub 접속 정보와 LLM 설정을 저장합니다.
 
 #### 기본 사용법 (대화형)
 
 ```bash
-gfainit
+gfa init
 ```
 
 #### 예시: GitHub.com + 로컬 LLM 사용
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -166,7 +166,7 @@ gfainit \
 #### 예시: GitHub Enterprise 사용
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -264,21 +264,21 @@ reports/
 </details>
 
 <details>
-<summary><b>🎯 gfafeedback - PR 자동 리뷰</b></summary>
+<summary><b>🎯 gfa feedback - PR 자동 리뷰</b></summary>
 
 인증된 사용자(PAT 소유자)의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
 
 #### 기본 사용법
 
 ```bash
-gfafeedback --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### 예시
 
 ```bash
 # 내가 작성한 모든 PR 리뷰
-gfafeedback --repo myusername/my-project
+gfa feedback --repo myusername/my-project
 ```
 
 #### 옵션 설명
@@ -318,16 +318,16 @@ reviews/
 </details>
 
 <details>
-<summary><b>⚙️ gfaconfig - 설정 관리</b></summary>
+<summary><b>⚙️ gfa config - 설정 관리</b></summary>
 
 설정을 확인하거나 수정합니다.
 
-#### `gfaconfig show` - 설정 확인
+#### `gfa config show` - 설정 확인
 
 현재 저장된 설정을 확인합니다.
 
 ```bash
-gfaconfig show
+gfa config show
 ```
 
 **출력 예시:**
@@ -348,72 +348,72 @@ gfaconfig show
 └─────────────┴───────────────────────┘
 ```
 
-> **참고:** `gfashow-config` 명령어는 deprecated되었으며 `gfaconfig show`로 대체되었습니다.
+> **참고:** `gfa show-config` 명령어는 deprecated되었으며 `gfa config show`로 대체되었습니다.
 
-#### `gfaconfig set` - 설정 값 변경
+#### `gfa config set` - 설정 값 변경
 
 개별 설정 값을 변경합니다.
 
 ```bash
-gfaconfig set <key> <value>
+gfa config set <key> <value>
 ```
 
 **예시:**
 
 ```bash
 # LLM 모델 변경
-gfaconfig set llm.model gpt-4
+gfa config set llm.model gpt-4
 
 # LLM 엔드포인트 변경
-gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
+gfa config set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # 기본 분석 기간 변경
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 ```
 
-#### `gfaconfig get` - 설정 값 조회
+#### `gfa config get` - 설정 값 조회
 
 특정 설정 값을 조회합니다.
 
 ```bash
-gfaconfig get <key>
+gfa config get <key>
 ```
 
 **예시:**
 
 ```bash
 # LLM 모델 확인
-gfaconfig get llm.model
+gfa config get llm.model
 
 # 기본 분석 기간 확인
-gfaconfig get defaults.months
+gfa config get defaults.months
 ```
 
 </details>
 
 <details>
-<summary><b>🔍 gfalist-repos - 저장소 목록</b></summary>
+<summary><b>🔍 gfa list-repos - 저장소 목록</b></summary>
 
 접근 가능한 저장소 목록을 조회합니다.
 
 ```bash
-gfalist-repos
+gfa list-repos
 ```
 
 #### 예시
 
 ```bash
 # 저장소 목록 조회 (기본: 최근 업데이트순 20개)
-gfalist-repos
+gfa list-repos
 
 # 정렬 기준 변경
-gfalist-repos --sort stars --limit 10
+gfa list-repos --sort stars --limit 10
 
 # 특정 조직 저장소만 조회
-gfalist-repos --org myorganization
+gfa list-repos --org myorganization
 
 # 생성일순으로 정렬
-gfalist-repos --sort created --limit 50
+gfa list-repos --sort created --limit 50
 ```
 
 #### 옵션 설명
@@ -427,12 +427,12 @@ gfalist-repos --sort created --limit 50
 </details>
 
 <details>
-<summary><b>💡 gfasuggest-repos - 저장소 추천</b></summary>
+<summary><b>💡 gfa suggest-repos - 저장소 추천</b></summary>
 
 분석하기 좋은 활성 저장소를 추천합니다.
 
 ```bash
-gfasuggest-repos
+gfa suggest-repos
 ```
 
 최근 활동이 활발한 저장소를 자동으로 선별하여 추천합니다. Stars, forks, 이슈 수, 최근 업데이트 등을 종합적으로 고려합니다.
@@ -441,16 +441,16 @@ gfasuggest-repos
 
 ```bash
 # 기본 추천 (최근 90일 이내 활동, 10개)
-gfasuggest-repos
+gfa suggest-repos
 
 # 최근 30일 이내 활동한 저장소 5개 추천
-gfasuggest-repos --limit 5 --days 30
+gfa suggest-repos --limit 5 --days 30
 
 # Stars 순으로 정렬
-gfasuggest-repos --sort stars
+gfa suggest-repos --sort stars
 
 # 활동 점수 기준으로 정렬 (종합 평가)
-gfasuggest-repos --sort activity
+gfa suggest-repos --sort activity
 ```
 
 #### 옵션 설명
@@ -468,7 +468,7 @@ gfasuggest-repos --sort activity
 <details>
 <summary><b>⚙️ 설정 파일 구조 보기</b></summary>
 
-설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gfainit` 실행 시 자동으로 생성됩니다.
+설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gfa init` 실행 시 자동으로 생성됩니다.
 
 ### 설정 파일 예시
 
@@ -497,12 +497,12 @@ months = 12
 
 ### 수동 설정 편집
 
-필요한 경우 설정 파일을 직접 편집하거나 `gfaconfig` 명령어를 사용할 수 있습니다:
+필요한 경우 설정 파일을 직접 편집하거나 `gfa config` 명령어를 사용할 수 있습니다:
 
 ```bash
 # 방법 1: config 명령어 사용 (권장)
-gfaconfig set llm.model gpt-4
-gfaconfig show
+gfa config set llm.model gpt-4
+gfa config show
 
 # 방법 2: 직접 편집
 nano ~/.config/github_feedback/config.toml
@@ -534,7 +534,7 @@ reports/
     └── issue_feedback.txt    # 🐛 이슈 품질 분석
 ```
 
-### `gfafeedback` 출력
+### `gfa feedback` 출력
 
 ```
 reviews/
@@ -559,10 +559,10 @@ reviews/
 
 ```bash
 # 1. 설정 (최초 1회)
-gfainit
+gfa init
 
 # 2. 저장소 추천 받기
-gfasuggest-repos
+gfa suggest-repos
 
 # 3. 대화형 모드로 분석
 gfa feedback --interactive
@@ -575,7 +575,7 @@ cat reports/report.md
 
 ```bash
 # 1. 설정 (최초 1회)
-gfainit
+gfa init
 
 # 2. 유명 오픈소스 프로젝트 분석
 gfa feedback --repo facebook/react
@@ -588,13 +588,13 @@ cat reports/report.md
 
 ```bash
 # 내 저장소 목록 확인
-gfalist-repos --sort updated --limit 10
+gfa list-repos --sort updated --limit 10
 
 # 내 프로젝트 분석
 gfa feedback --repo myname/my-awesome-project
 
 # 내가 작성한 PR 자동 리뷰
-gfafeedback --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 통합 회고 보고서 확인
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -604,16 +604,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 조직 저장소 목록 확인
-gfalist-repos --org mycompany --limit 20
+gfa list-repos --org mycompany --limit 20
 
 # 분석 기간 설정 (지난 6개월)
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 
 # 조직 저장소 분석
 gfa feedback --repo mycompany/product-service
 
 # 팀원별 PR 리뷰 (각자 PAT로 실행)
-gfafeedback --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 ```
 
 </details>
@@ -679,8 +679,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **해결방법**:
 1. LLM 서버가 실행 중인지 확인
-2. 엔드포인트 URL이 올바른지 확인 (`gfaconfig show`)
-3. 필요시 설정 재초기화: `gfainit`
+2. 엔드포인트 URL이 올바른지 확인 (`gfa config show`)
+3. 필요시 설정 재초기화: `gfa init`
 
 ### 저장소를 찾을 수 없음
 
@@ -700,7 +700,7 @@ Error: Repository not found
 ```
 
 **해결방법**:
-- 분석 기간을 늘려보세요: `gfainit --months 24`
+- 분석 기간을 늘려보세요: `gfa init --months 24`
 - 저장소가 활성화된 저장소인지 확인
 
 </details>

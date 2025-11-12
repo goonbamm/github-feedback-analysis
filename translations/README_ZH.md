@@ -49,7 +49,7 @@
    - ⚠️ **重要**：离开此页面后将无法再次查看令牌
 
 5. **使用令牌**
-   - 运行 `gfainit` 时输入复制的令牌
+   - 运行 `gfa init` 时输入复制的令牌
 
 ### 使用细粒度 Personal Access Token（可选）
 
@@ -75,7 +75,7 @@
 
 3. **初始设置时指定企业主机**
    ```bash
-   gfainit --enterprise-host https://github.your-company.com
+   gfa init --enterprise-host https://github.your-company.com
    ```
 
 4. **联系管理员**
@@ -110,7 +110,7 @@ uv pip install -e .
 ### 1️⃣ 初始化配置
 
 ```bash
-gfainit
+gfa init
 ```
 
 出现提示时，请输入以下信息：
@@ -141,20 +141,20 @@ cat reports/report.md
 ## 📚 命令参考
 
 <details>
-<summary><b>🎯 `gfainit` - 初始化配置</b></summary>
+<summary><b>🎯 `gfa init` - 初始化配置</b></summary>
 
 存储 GitHub 访问信息和 LLM 设置。
 
 #### 基本用法（交互式）
 
 ```bash
-gfainit
+gfa init
 ```
 
 #### 示例：GitHub.com + 本地 LLM
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -164,7 +164,7 @@ gfainit \
 #### 示例：GitHub Enterprise
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -263,21 +263,21 @@ reports/
 </details>
 
 <details>
-<summary><b>🎯 `gfafeedback` - 自动 PR 审查</b></summary>
+<summary><b>🎯 `gfa feedback` - 自动 PR 审查</b></summary>
 
 自动审查已认证用户（PAT 所有者）的 PR 并生成集成回顾报告。
 
 #### 基本用法
 
 ```bash
-gfafeedback --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### 示例
 
 ```bash
 # 审查你创建的所有 PR
-gfafeedback --repo myusername/my-project
+gfa feedback --repo myusername/my-project
 ```
 
 #### 选项说明
@@ -317,16 +317,16 @@ reviews/
 </details>
 
 <details>
-<summary><b>⚙️ `gfaconfig` - 配置管理</b></summary>
+<summary><b>⚙️ `gfa config` - 配置管理</b></summary>
 
 查看或修改配置设置。
 
-#### `gfaconfig show` - 查看配置
+#### `gfa config show` - 查看配置
 
 查看当前存储的配置。
 
 ```bash
-gfaconfig show
+gfa config show
 ```
 
 **示例输出：**
@@ -347,72 +347,72 @@ gfaconfig show
 └─────────────┴───────────────────────┘
 ```
 
-> **注意：**`gfashow-config` 命令已弃用，已被 `gfaconfig show` 替代。
+> **注意：**`gfa show-config` 命令已弃用，已被 `gfa config show` 替代。
 
-#### `gfaconfig set` - 设置配置值
+#### `gfa config set` - 设置配置值
 
 修改单个配置值。
 
 ```bash
-gfaconfig set <key> <value>
+gfa config set <key> <value>
 ```
 
 **示例：**
 
 ```bash
 # 更改 LLM 模型
-gfaconfig set llm.model gpt-4
+gfa config set llm.model gpt-4
 
 # 更改 LLM 端点
-gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
+gfa config set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # 更改默认分析周期
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 ```
 
-#### `gfaconfig get` - 获取配置值
+#### `gfa config get` - 获取配置值
 
 检索特定配置值。
 
 ```bash
-gfaconfig get <key>
+gfa config get <key>
 ```
 
 **示例：**
 
 ```bash
 # 检查 LLM 模型
-gfaconfig get llm.model
+gfa config get llm.model
 
 # 检查默认分析周期
-gfaconfig get defaults.months
+gfa config get defaults.months
 ```
 
 </details>
 
 <details>
-<summary><b>🔍 `gfalist-repos` - 仓库列表</b></summary>
+<summary><b>🔍 `gfa list-repos` - 仓库列表</b></summary>
 
 列出可访问的仓库。
 
 ```bash
-gfalist-repos
+gfa list-repos
 ```
 
 #### 示例
 
 ```bash
 # 列出仓库（默认：最近更新的 20 个）
-gfalist-repos
+gfa list-repos
 
 # 更改排序标准
-gfalist-repos --sort stars --limit 10
+gfa list-repos --sort stars --limit 10
 
 # 按特定组织筛选
-gfalist-repos --org myorganization
+gfa list-repos --org myorganization
 
 # 按创建日期排序
-gfalist-repos --sort created --limit 50
+gfa list-repos --sort created --limit 50
 ```
 
 #### 选项说明
@@ -426,12 +426,12 @@ gfalist-repos --sort created --limit 50
 </details>
 
 <details>
-<summary><b>💡 `gfasuggest-repos` - 仓库推荐</b></summary>
+<summary><b>💡 `gfa suggest-repos` - 仓库推荐</b></summary>
 
 推荐适合分析的活跃仓库。
 
 ```bash
-gfasuggest-repos
+gfa suggest-repos
 ```
 
 自动选择具有最近活动的仓库。综合考虑星标、分支、议题和最近更新。
@@ -440,16 +440,16 @@ gfasuggest-repos
 
 ```bash
 # 默认推荐（最近 90 天内，10 个仓库）
-gfasuggest-repos
+gfa suggest-repos
 
 # 推荐最近 30 天内活跃的 5 个仓库
-gfasuggest-repos --limit 5 --days 30
+gfa suggest-repos --limit 5 --days 30
 
 # 按星标排序
-gfasuggest-repos --sort stars
+gfa suggest-repos --sort stars
 
 # 按活动分数排序（综合评估）
-gfasuggest-repos --sort activity
+gfa suggest-repos --sort activity
 ```
 
 #### 选项说明
@@ -465,7 +465,7 @@ gfasuggest-repos --sort activity
 <details>
 <summary><b>📁 配置文件</b></summary>
 
-配置存储在 `~/.config/github_feedback/config.toml` 中，运行 `gfainit` 时自动创建。
+配置存储在 `~/.config/github_feedback/config.toml` 中，运行 `gfa init` 时自动创建。
 
 ### 配置文件示例
 
@@ -494,12 +494,12 @@ months = 12
 
 ### 手动配置编辑
 
-如需要，可以直接编辑配置文件或使用 `gfaconfig` 命令：
+如需要，可以直接编辑配置文件或使用 `gfa config` 命令：
 
 ```bash
 # 方法 1：使用 config 命令（推荐）
-gfaconfig set llm.model gpt-4
-gfaconfig show
+gfa config set llm.model gpt-4
+gfa config show
 
 # 方法 2：直接编辑
 nano ~/.config/github_feedback/config.toml
@@ -529,7 +529,7 @@ reports/
     └── issue_feedback.txt    # 🐛 议题质量分析
 ```
 
-### `gfafeedback` 输出
+### `gfa feedback` 输出
 
 ```
 reviews/
@@ -552,10 +552,10 @@ reviews/
 
 ```bash
 # 1. 配置（仅首次）
-gfainit
+gfa init
 
 # 2. 获取仓库推荐
-gfasuggest-repos
+gfa suggest-repos
 
 # 3. 使用交互模式分析
 gfa feedback --interactive
@@ -568,7 +568,7 @@ cat reports/report.md
 
 ```bash
 # 1. 配置（仅首次）
-gfainit
+gfa init
 
 # 2. 分析热门开源项目
 gfa feedback --repo facebook/react
@@ -581,13 +581,13 @@ cat reports/report.md
 
 ```bash
 # 查看我的仓库列表
-gfalist-repos --sort updated --limit 10
+gfa list-repos --sort updated --limit 10
 
 # 分析我的项目
 gfa feedback --repo myname/my-awesome-project
 
 # 自动审查我的 PR
-gfafeedback --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 查看集成回顾报告
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -597,16 +597,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 查看组织仓库列表
-gfalist-repos --org mycompany --limit 20
+gfa list-repos --org mycompany --limit 20
 
 # 设置分析周期（最近 6 个月）
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 
 # 分析组织仓库
 gfa feedback --repo mycompany/product-service
 
 # 审查团队成员 PR（每人使用自己的 PAT 运行）
-gfafeedback --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 ```
 
 </details>
@@ -668,8 +668,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **解决方案**：
 1. 验证 LLM 服务器正在运行
-2. 验证端点 URL 正确（`gfaconfig show`）
-3. 如需要，重新初始化配置：`gfainit`
+2. 验证端点 URL 正确（`gfa config show`）
+3. 如需要，重新初始化配置：`gfa init`
 
 ### 仓库未找到
 
@@ -689,7 +689,7 @@ No activity detected during analysis period.
 ```
 
 **解决方案**：
-- 尝试增加分析周期：`gfainit --months 24`
+- 尝试增加分析周期：`gfa init --months 24`
 - 验证仓库是否活跃
 
 </details>

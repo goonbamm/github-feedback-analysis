@@ -51,7 +51,7 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
    - ⚠️ **重要**：このページを離れると、トークンを再度確認できません
 
 5. **トークンを使用**
-   - `gfainit` 実行時にコピーしたトークンを入力してください
+   - `gfa init` 実行時にコピーしたトークンを入力してください
 
 ### Fine-grained Personal Access Token の使用（オプション）
 
@@ -77,7 +77,7 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
 
 3. **初期設定時にEnterpriseホストを指定**
    ```bash
-   gfainit --enterprise-host https://github.your-company.com
+   gfa init --enterprise-host https://github.your-company.com
    ```
 
 4. **管理者に問い合わせ**
@@ -112,7 +112,7 @@ uv pip install -e .
 ### 1️⃣ 設定の初期化
 
 ```bash
-gfainit
+gfa init
 ```
 
 プロンプトが表示されたら、以下の情報を入力してください：
@@ -143,20 +143,20 @@ cat reports/report.md
 ## 📚 コマンドリファレンス
 
 <details>
-<summary><b>🎯 `gfainit` - 初期設定</b></summary>
+<summary><b>🎯 `gfa init` - 初期設定</b></summary>
 
 GitHubアクセス情報とLLM設定を保存します。
 
 #### 基本的な使い方（インタラクティブ）
 
 ```bash
-gfainit
+gfa init
 ```
 
 #### 例：GitHub.com + ローカルLLM
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -166,7 +166,7 @@ gfainit \
 #### 例：GitHub Enterprise
 
 ```bash
-gfainit \
+gfa init \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -265,21 +265,21 @@ reports/
 </details>
 
 <details>
-<summary><b>🎯 `gfafeedback` - 自動PRレビュー</b></summary>
+<summary><b>🎯 `gfa feedback` - 自動PRレビュー</b></summary>
 
 認証ユーザー（PATオーナー）のPRを自動レビューし、統合振り返りレポートを生成します。
 
 #### 基本的な使い方
 
 ```bash
-gfafeedback --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### 例
 
 ```bash
 # あなたが作成したすべてのPRをレビュー
-gfafeedback --repo myusername/my-project
+gfa feedback --repo myusername/my-project
 ```
 
 #### オプション説明
@@ -319,16 +319,16 @@ reviews/
 </details>
 
 <details>
-<summary><b>⚙️ `gfaconfig` - 設定管理</b></summary>
+<summary><b>⚙️ `gfa config` - 設定管理</b></summary>
 
 設定を確認または変更します。
 
-#### `gfaconfig show` - 設定を表示
+#### `gfa config show` - 設定を表示
 
 現在保存されている設定を表示します。
 
 ```bash
-gfaconfig show
+gfa config show
 ```
 
 **出力例：**
@@ -349,72 +349,72 @@ gfaconfig show
 └─────────────┴───────────────────────┘
 ```
 
-> **注：**`gfashow-config`コマンドは非推奨となり、`gfaconfig show`に置き換えられました。
+> **注：**`gfa show-config`コマンドは非推奨となり、`gfa config show`に置き換えられました。
 
-#### `gfaconfig set` - 設定値を変更
+#### `gfa config set` - 設定値を変更
 
 個別の設定値を変更します。
 
 ```bash
-gfaconfig set <key> <value>
+gfa config set <key> <value>
 ```
 
 **例：**
 
 ```bash
 # LLMモデルを変更
-gfaconfig set llm.model gpt-4
+gfa config set llm.model gpt-4
 
 # LLMエンドポイントを変更
-gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
+gfa config set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # デフォルト分析期間を変更
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 ```
 
-#### `gfaconfig get` - 設定値を取得
+#### `gfa config get` - 設定値を取得
 
 特定の設定値を取得します。
 
 ```bash
-gfaconfig get <key>
+gfa config get <key>
 ```
 
 **例：**
 
 ```bash
 # LLMモデルを確認
-gfaconfig get llm.model
+gfa config get llm.model
 
 # デフォルト分析期間を確認
-gfaconfig get defaults.months
+gfa config get defaults.months
 ```
 
 </details>
 
 <details>
-<summary><b>🔍 `gfalist-repos` - リポジトリ一覧</b></summary>
+<summary><b>🔍 `gfa list-repos` - リポジトリ一覧</b></summary>
 
 アクセス可能なリポジトリをリストします。
 
 ```bash
-gfalist-repos
+gfa list-repos
 ```
 
 #### 例
 
 ```bash
 # リポジトリをリスト（デフォルト：最近更新された20件）
-gfalist-repos
+gfa list-repos
 
 # ソート基準を変更
-gfalist-repos --sort stars --limit 10
+gfa list-repos --sort stars --limit 10
 
 # 特定の組織でフィルタ
-gfalist-repos --org myorganization
+gfa list-repos --org myorganization
 
 # 作成日順にソート
-gfalist-repos --sort created --limit 50
+gfa list-repos --sort created --limit 50
 ```
 
 #### オプション説明
@@ -428,12 +428,12 @@ gfalist-repos --sort created --limit 50
 </details>
 
 <details>
-<summary><b>💡 `gfasuggest-repos` - リポジトリ推奨</b></summary>
+<summary><b>💡 `gfa suggest-repos` - リポジトリ推奨</b></summary>
 
 分析に適したアクティブなリポジトリを推奨します。
 
 ```bash
-gfasuggest-repos
+gfa suggest-repos
 ```
 
 最近のアクティビティがあるリポジトリを自動選択します。スター、フォーク、イシュー、最近の更新を総合的に考慮します。
@@ -442,16 +442,16 @@ gfasuggest-repos
 
 ```bash
 # デフォルト推奨（過去90日以内、10リポジトリ）
-gfasuggest-repos
+gfa suggest-repos
 
 # 過去30日以内にアクティブな5リポジトリを推奨
-gfasuggest-repos --limit 5 --days 30
+gfa suggest-repos --limit 5 --days 30
 
 # スター順でソート
-gfasuggest-repos --sort stars
+gfa suggest-repos --sort stars
 
 # アクティビティスコア順でソート（総合評価）
-gfasuggest-repos --sort activity
+gfa suggest-repos --sort activity
 ```
 
 #### オプション説明
@@ -469,7 +469,7 @@ gfasuggest-repos --sort activity
 <details>
 <summary><b>📁 設定ファイル</b></summary>
 
-設定は`~/.config/github_feedback/config.toml`に保存され、`gfainit`実行時に自動作成されます。
+設定は`~/.config/github_feedback/config.toml`に保存され、`gfa init`実行時に自動作成されます。
 
 ### 設定ファイル例
 
@@ -498,12 +498,12 @@ months = 12
 
 ### 手動設定編集
 
-必要に応じて、設定ファイルを直接編集するか、`gfaconfig`コマンドを使用できます：
+必要に応じて、設定ファイルを直接編集するか、`gfa config`コマンドを使用できます：
 
 ```bash
 # 方法1：configコマンドを使用（推奨）
-gfaconfig set llm.model gpt-4
-gfaconfig show
+gfa config set llm.model gpt-4
+gfa config show
 
 # 方法2：直接編集
 nano ~/.config/github_feedback/config.toml
@@ -535,7 +535,7 @@ reports/
     └── issue_feedback.txt    # 🐛 イシュー品質分析
 ```
 
-### `gfafeedback`の出力
+### `gfa feedback`の出力
 
 ```
 reviews/
@@ -560,10 +560,10 @@ reviews/
 
 ```bash
 # 1. 設定（初回のみ）
-gfainit
+gfa init
 
 # 2. リポジトリ推奨を取得
-gfasuggest-repos
+gfa suggest-repos
 
 # 3. インタラクティブモードで分析
 gfa feedback --interactive
@@ -576,7 +576,7 @@ cat reports/report.md
 
 ```bash
 # 1. 設定（初回のみ）
-gfainit
+gfa init
 
 # 2. 人気のオープンソースプロジェクトを分析
 gfa feedback --repo facebook/react
@@ -589,13 +589,13 @@ cat reports/report.md
 
 ```bash
 # 自分のリポジトリリストを確認
-gfalist-repos --sort updated --limit 10
+gfa list-repos --sort updated --limit 10
 
 # 自分のプロジェクトを分析
 gfa feedback --repo myname/my-awesome-project
 
 # 自分のPRを自動レビュー
-gfafeedback --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 統合振り返りレポートを表示
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -605,16 +605,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 組織のリポジトリリストを確認
-gfalist-repos --org mycompany --limit 20
+gfa list-repos --org mycompany --limit 20
 
 # 分析期間を設定（過去6ヶ月）
-gfaconfig set defaults.months 6
+gfa config set defaults.months 6
 
 # 組織のリポジトリを分析
 gfa feedback --repo mycompany/product-service
 
 # チームメンバーのPRをレビュー（各自のPATで実行）
-gfafeedback --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 ```
 
 </details>
@@ -680,8 +680,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **解決方法**：
 1. LLMサーバーが実行中であることを確認
-2. エンドポイントURLが正しいことを確認（`gfaconfig show`）
-3. 必要に応じて設定を再初期化：`gfainit`
+2. エンドポイントURLが正しいことを確認（`gfa config show`）
+3. 必要に応じて設定を再初期化：`gfa init`
 
 ### リポジトリが見つからない
 
@@ -701,7 +701,7 @@ No activity detected during analysis period.
 ```
 
 **解決方法**：
-- 分析期間を増やしてみる：`gfainit --months 24`
+- 分析期間を増やしてみる：`gfa init --months 24`
 - リポジトリがアクティブであることを確認
 
 </details>
