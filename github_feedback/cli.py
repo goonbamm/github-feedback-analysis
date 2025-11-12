@@ -366,9 +366,9 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
 
     header = Panel(
         Group(
-            Align.center(Text("Insights Ready", style="title")),
+            Align.center(Text("인사이트 준비 완료", style="title")),
             Align.center(Text(metrics.repo, style="repo")),
-            Align.center(Text(f"{metrics.months} month retrospection", style="muted")),
+            Align.center(Text(f"{metrics.months}개월 회고", style="muted")),
         ),
         border_style="accent",
         padding=(1, 4),
@@ -377,7 +377,7 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
     console.print(header)
     console.print(
         Rule(
-            title=f"[{status_style}]Status • {metrics.status.value.upper()}[/]",
+            title=f"[{status_style}]상태 • {metrics.status.value.upper()}[/]",
             style="divider",
             characters="━",
             align="center",
@@ -393,7 +393,7 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
 
         summary_panel = Panel(summary_grid, border_style="frame", title="핵심 지표", title_align="left")
     else:
-        summary_panel = Panel(Text("No summary metrics available", style="muted"), border_style="frame")
+        summary_panel = Panel(Text("사용 가능한 요약 지표가 없습니다", style="muted"), border_style="frame")
 
     stat_panels = []
     for domain, domain_stats in metrics.stats.items():
@@ -403,8 +403,8 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
             pad_edge=False,
             expand=True,
         )
-        stat_table.add_column("Metric", style="label")
-        stat_table.add_column("Value", style="value")
+        stat_table.add_column("지표", style="label")
+        stat_table.add_column("값", style="value")
         for stat_name, stat_value in domain_stats.items():
             if isinstance(stat_value, (int, float)):
                 formatted = f"{stat_value:.2f}" if not isinstance(stat_value, int) else f"{stat_value:,}"
@@ -428,7 +428,7 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
 
     if metrics.highlights:
         highlights_text = Text("\n".join(f"• {item}" for item in metrics.highlights), style="value")
-        highlights_panel = Panel(highlights_text, title="Momentum Highlights", border_style="frame")
+        highlights_panel = Panel(highlights_text, title="주요 하이라이트", border_style="frame")
         console.print(highlights_panel)
 
     if metrics.spotlight_examples:
@@ -447,7 +447,7 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
 
     if metrics.awards:
         awards_text = Text("\n".join(f"🏆 {award}" for award in metrics.awards), style="value")
-        console.print(Panel(awards_text, title="Awards Cabinet", border_style="accent"))
+        console.print(Panel(awards_text, title="수상 내역", border_style="accent"))
 
     if metrics.evidence:
         evidence_panels = []
