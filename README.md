@@ -124,8 +124,10 @@ gfa init
 ### 2️⃣ 저장소 분석
 
 ```bash
-gfa feedback --repo goonbamm/github-feedback-analysis
+gfa feedback
 ```
+
+추천 저장소 목록에서 선택하거나 직접 입력하여 분석할 수 있습니다.
 
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
 - `metrics.json` - 분석 데이터
