@@ -118,7 +118,7 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             title="Suggested Repositories",
             box=box.ROUNDED,
             show_header=True,
-            header_style="bold accent",
+            header_style="bold cyan",
         )
 
         table.add_column("#", justify="right", style="dim", width=3)
@@ -1225,7 +1225,7 @@ def list_repos(
             title=f"{'Organization' if org else 'Your'} Repositories",
             box=box.ROUNDED,
             show_header=True,
-            header_style="bold accent",
+            header_style="bold cyan",
         )
 
         table.add_column("Repository", style="info", no_wrap=True)
@@ -1337,7 +1337,7 @@ def suggest_repos(
             title="Suggested Repositories for Analysis",
             box=box.ROUNDED,
             show_header=True,
-            header_style="bold accent",
+            header_style="bold cyan",
         )
 
         table.add_column("Rank", justify="right", style="dim", width=4)
