@@ -1,6 +1,6 @@
 # 🚀 GitHub フィードバック分析
 
-GitHubリポジトリのアクティビティを分析し、インサイトに富んだレポートを自動生成するCLIツールです。GitHub.comとGitHub Enterpriseの両方をサポートし、LLMベースの自動レビュー機能を提供します。
+開発者としてフィードバックが欲しいのに、年末の振り返りをしたいのに、どこから始めればいいかわからない？GitHubリポジトリのアクティビティを分析し、インサイトに富んだレポートを自動生成するCLIツールです。GitHub.comとGitHub Enterpriseの両方をサポートし、LLMベースの自動レビュー機能を提供します。
 
 日本語 | [한국어](../README.md) | [English](README_EN.md) | [简体中文](README_ZH.md) | [Español](README_ES.md)
 
@@ -95,7 +95,7 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
 ## 🔧 インストール
 
 ```bash
-# リポジトリをクローン
+# リポジトリをコピー
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
@@ -124,8 +124,10 @@ gfa init
 ### 2️⃣ リポジトリを分析
 
 ```bash
-gfa feedback --repo goonbamm/github-feedback-analysis
+gfa feedback
 ```
+
+推奨リポジトリのリストから選択するか、直接入力することができます。
 
 分析完了後、`reports/`ディレクトリに以下のファイルが生成されます：
 - `metrics.json` - 分析データ
@@ -714,7 +716,7 @@ No activity detected during analysis period.
 ### 開発環境セットアップ
 
 ```bash
-# リポジトリをクローン
+# リポジトリをコピー
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
