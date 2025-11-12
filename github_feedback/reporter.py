@@ -159,6 +159,10 @@ class Reporter:
         if metrics.detailed_feedback:
             sections.append(("💡 Detailed Feedback", "상세 피드백"))
 
+        # Add retrospective section
+        if metrics.retrospective:
+            sections.append(("🔍 Deep Retrospective", "심층 회고 분석"))
+
         sections.extend([
             ("🎯 Spotlight Examples", "주요 기여 사례"),
             ("💻 Tech Stack", "기술 스택 분석"),
@@ -642,6 +646,280 @@ class Reporter:
         lines.append("")
         return lines
 
+    def _build_retrospective_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build comprehensive retrospective analysis section."""
+        if not metrics.retrospective:
+            return []
+
+        retro = metrics.retrospective
+        lines = ["## 🔍 Deep Retrospective Analysis", ""]
+        lines.append("> 데이터 기반의 심층적인 회고와 인사이트")
+        lines.append("")
+
+        # Executive Summary
+        if retro.executive_summary:
+            lines.append("### 📋 회고 요약")
+            lines.append("")
+            lines.append(retro.executive_summary)
+            lines.append("")
+
+        # Key Wins
+        if retro.key_wins:
+            lines.append("### 🎉 주요 성과")
+            lines.append("")
+            lines.append("> 이번 기간 동안 달성한 핵심 성과들입니다")
+            lines.append("")
+            for i, win in enumerate(retro.key_wins, 1):
+                lines.append(f"{i}. **{win}**")
+            lines.append("")
+
+        # Time Comparisons
+        if retro.time_comparisons:
+            lines.append("### 📊 기간 비교 분석")
+            lines.append("")
+            lines.append("> 전반기와 후반기의 변화 추이를 비교합니다")
+            lines.append("")
+            lines.append("| 지표 | 전반기 | 후반기 | 변화량 | 변화율 | 의미 |")
+            lines.append("|------|--------|--------|--------|--------|------|")
+
+            for tc in retro.time_comparisons:
+                direction_emoji = "📈" if tc.direction == "increasing" else "📉" if tc.direction == "decreasing" else "➡️"
+                significance_text = {
+                    "major": "큰 변화",
+                    "moderate": "중간 변화",
+                    "minor": "작은 변화"
+                }.get(tc.significance, tc.significance)
+
+                lines.append(
+                    f"| {tc.metric_name} | {tc.previous_value:.1f} | {tc.current_value:.1f} | "
+                    f"{tc.change_absolute:+.1f} | {tc.change_percentage:+.1f}% | "
+                    f"{direction_emoji} {significance_text} |"
+                )
+            lines.append("")
+
+        # Behavior Patterns
+        if retro.behavior_patterns:
+            lines.append("### 🧠 행동 패턴 분석")
+            lines.append("")
+            lines.append("> 작업 패턴과 습관에서 발견된 인사이트")
+            lines.append("")
+
+            for pattern in retro.behavior_patterns:
+                impact_emoji = "✅" if pattern.impact == "positive" else "⚠️" if pattern.impact == "negative" else "ℹ️"
+                lines.append(f"#### {impact_emoji} {pattern.description}")
+                lines.append("")
+
+                if pattern.evidence:
+                    lines.append("**근거:**")
+                    for evidence in pattern.evidence:
+                        lines.append(f"- {evidence}")
+                    lines.append("")
+
+                if pattern.recommendation:
+                    lines.append(f"**제안:** {pattern.recommendation}")
+                    lines.append("")
+            lines.append("")
+
+        # Learning Insights
+        if retro.learning_insights:
+            lines.append("### 📚 학습 및 성장 분석")
+            lines.append("")
+            lines.append("> 기술 역량과 학습 궤적을 분석합니다")
+            lines.append("")
+
+            for learning in retro.learning_insights:
+                expertise_emoji = {"expert": "👑", "proficient": "⭐", "developing": "🌱", "exploring": "🔍"}.get(
+                    learning.expertise_level, "📖"
+                )
+                lines.append(f"#### {expertise_emoji} {learning.domain}")
+                lines.append("")
+                lines.append(f"**기술:** {', '.join(learning.technologies)}")
+                lines.append(f"**전문성 수준:** {learning.expertise_level}")
+                lines.append("")
+
+                if learning.growth_indicators:
+                    lines.append("**성장 지표:**")
+                    for indicator in learning.growth_indicators:
+                        lines.append(f"- {indicator}")
+                    lines.append("")
+            lines.append("")
+
+        # Impact Assessments
+        if retro.impact_assessments:
+            lines.append("### 💎 영향도 평가")
+            lines.append("")
+            lines.append("> 기여의 비즈니스 및 팀 영향을 평가합니다")
+            lines.append("")
+
+            for impact in retro.impact_assessments:
+                impact_emoji = {"high": "🔥", "medium": "✨", "low": "💡"}.get(impact.estimated_impact, "📊")
+                lines.append(f"#### {impact_emoji} {impact.category}")
+                lines.append("")
+                lines.append(f"**기여 횟수:** {impact.contribution_count:,}건")
+                lines.append(f"**영향도:** {impact.estimated_impact}")
+                lines.append(f"**설명:** {impact.impact_description}")
+                lines.append("")
+
+                if impact.key_achievements:
+                    lines.append("**핵심 성과:**")
+                    for achievement in impact.key_achievements:
+                        lines.append(f"- {achievement}")
+                    lines.append("")
+            lines.append("")
+
+        # Collaboration Insights
+        if retro.collaboration_insights:
+            collab = retro.collaboration_insights
+            lines.append("### 🤝 협업 심층 분석")
+            lines.append("")
+            lines.append(f"**협업 강도:** {collab.collaboration_strength}")
+            lines.append(f"**협업 품질:** {collab.collaboration_quality}")
+            lines.append("")
+
+            if collab.key_partnerships:
+                lines.append("**주요 협업 파트너:**")
+                lines.append("")
+                lines.append("| 협업자 | 리뷰 횟수 | 관계 |")
+                lines.append("|--------|-----------|------|")
+                for person, count, rel_type in collab.key_partnerships:
+                    lines.append(f"| @{person} | {count}회 | {rel_type} |")
+                lines.append("")
+
+            if collab.mentorship_indicators:
+                lines.append("**멘토링 활동:**")
+                for indicator in collab.mentorship_indicators:
+                    lines.append(f"- {indicator}")
+                lines.append("")
+
+            if collab.improvement_areas:
+                lines.append("**개선 영역:**")
+                for area in collab.improvement_areas:
+                    lines.append(f"- {area}")
+                lines.append("")
+            lines.append("")
+
+        # Balance Metrics
+        if retro.balance_metrics:
+            balance = retro.balance_metrics
+            lines.append("### ⚖️ 업무 밸런스 분석")
+            lines.append("")
+
+            risk_emoji = {"low": "✅", "moderate": "⚠️", "high": "🚨"}.get(balance.burnout_risk_level, "❓")
+            lines.append(f"**번아웃 위험도:** {risk_emoji} {balance.burnout_risk_level}")
+            lines.append(f"**지속가능성 점수:** {balance.sustainability_score:.0f}/100")
+            lines.append(f"**활동 변동성:** {balance.activity_variance:.2f}")
+            lines.append("")
+
+            if balance.positive_patterns:
+                lines.append("**긍정적 패턴:**")
+                for pattern in balance.positive_patterns:
+                    lines.append(f"- ✅ {pattern}")
+                lines.append("")
+
+            if balance.burnout_indicators:
+                lines.append("**주의 사항:**")
+                for indicator in balance.burnout_indicators:
+                    lines.append(f"- ⚠️ {indicator}")
+                lines.append("")
+
+            if balance.health_recommendations:
+                lines.append("**권장 사항:**")
+                for rec in balance.health_recommendations:
+                    lines.append(f"- 💡 {rec}")
+                lines.append("")
+            lines.append("")
+
+        # Code Health
+        if retro.code_health:
+            health = retro.code_health
+            lines.append("### 🏥 코드 건강도 분석")
+            lines.append("")
+            lines.append(f"**유지보수 부담:** {health.maintenance_burden}")
+            lines.append(f"**테스트 커버리지 추세:** {health.test_coverage_trend}")
+            lines.append("")
+
+            if health.code_quality_trends:
+                lines.append("**품질 트렌드:**")
+                for trend in health.code_quality_trends:
+                    lines.append(f"- {trend}")
+                lines.append("")
+
+            if health.quality_improvement_suggestions:
+                lines.append("**개선 제안:**")
+                for suggestion in health.quality_improvement_suggestions:
+                    lines.append(f"- 💡 {suggestion}")
+                lines.append("")
+            lines.append("")
+
+        # Actionable Insights
+        if retro.actionable_insights:
+            lines.append("### 🎯 실행 가능한 인사이트")
+            lines.append("")
+            lines.append("> 구체적이고 측정 가능한 개선 방안")
+            lines.append("")
+
+            # Group by priority
+            high_priority = [ai for ai in retro.actionable_insights if ai.priority == "high"]
+            medium_priority = [ai for ai in retro.actionable_insights if ai.priority == "medium"]
+
+            if high_priority:
+                lines.append("#### 🔴 높은 우선순위")
+                lines.append("")
+                for insight in high_priority:
+                    lines.append(f"**{insight.title}**")
+                    lines.append("")
+                    lines.append(f"*{insight.description}*")
+                    lines.append("")
+                    lines.append(f"**왜 중요한가:** {insight.why_it_matters}")
+                    lines.append("")
+                    lines.append("**구체적 행동:**")
+                    for action in insight.concrete_actions:
+                        lines.append(f"1. {action}")
+                    lines.append("")
+                    lines.append(f"**기대 효과:** {insight.expected_outcome}")
+                    lines.append(f"**측정 방법:** {insight.measurement}")
+                    lines.append("")
+                    lines.append("---")
+                    lines.append("")
+
+            if medium_priority:
+                lines.append("#### 🟡 중간 우선순위")
+                lines.append("")
+                for insight in medium_priority[:3]:  # Limit to top 3 for readability
+                    lines.append(f"**{insight.title}**")
+                    lines.append("")
+                    lines.append(f"*{insight.description}*")
+                    lines.append("")
+                    lines.append("**구체적 행동:**")
+                    for action in insight.concrete_actions:
+                        lines.append(f"- {action}")
+                    lines.append("")
+            lines.append("")
+
+        # Areas for Growth
+        if retro.areas_for_growth:
+            lines.append("### 🌱 성장 기회")
+            lines.append("")
+            lines.append("> 다음 단계로 나아가기 위한 영역")
+            lines.append("")
+            for i, area in enumerate(retro.areas_for_growth, 1):
+                lines.append(f"{i}. {area}")
+            lines.append("")
+
+        # Narrative
+        if retro.retrospective_narrative:
+            lines.append("### 📖 회고 스토리")
+            lines.append("")
+            lines.append("> 당신의 여정을 이야기로 풀어냅니다")
+            lines.append("")
+            for paragraph in retro.retrospective_narrative:
+                lines.append(paragraph)
+                lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        return lines
+
     def generate_markdown(self, metrics: MetricSnapshot) -> Path:
         """Create a markdown report for the provided metrics.
 
@@ -682,19 +960,21 @@ class Reporter:
             self._build_monthly_trends_section(metrics),
             # 7. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 8. Spotlight Examples - Concrete evidence
+            # 8. Deep Retrospective - Comprehensive analysis NEW!
+            self._build_retrospective_section(metrics),
+            # 9. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 9. Tech Stack - Technical breadth
+            # 10. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
-            # 10. Collaboration - Teamwork
+            # 11. Collaboration - Teamwork
             self._build_collaboration_section(metrics),
-            # 11. Year in Review - Complete story (merged with year-end review)
+            # 12. Year in Review - Complete story (merged with year-end review)
             self._build_year_in_review_section(metrics),
-            # 12. Reflection Prompts - Think deeper
+            # 13. Reflection Prompts - Think deeper
             self._build_reflection_prompts_section(metrics),
-            # 13. Detailed Metrics - For those who want numbers
+            # 14. Detailed Metrics - For those who want numbers
             self._build_metrics_section(metrics),
-            # 14. Evidence Links - Verification
+            # 15. Evidence Links - Verification
             self._build_evidence_section_improved(metrics),
         ]
 

@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from .retrospective import RetrospectiveSnapshot
 
 
 @dataclass(slots=True)
@@ -447,5 +450,6 @@ class MetricSnapshot:
     collaboration: Optional[CollaborationNetwork] = None
     reflection_prompts: Optional[ReflectionPrompts] = None
     year_end_review: Optional[YearEndReview] = None
+    retrospective: Optional[Any] = None  # RetrospectiveSnapshot for deep analysis
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date
