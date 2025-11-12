@@ -201,14 +201,8 @@ ghf feedback --repo owner/repo-name
 #### Ejemplos
 
 ```bash
-# Revisar todos los PR (abiertos + cerrados)
-ghf feedback --repo myusername/my-project --state all
-
-# Revisar solo PRs abiertos
-ghf feedback --repo myusername/my-project --state open
-
-# Revisar solo PRs cerrados
-ghf feedback --repo myusername/my-project --state closed
+# Revisar todos los PRs creados por ti
+ghf feedback --repo myusername/my-project
 ```
 
 #### Opciones
@@ -216,7 +210,6 @@ ghf feedback --repo myusername/my-project --state closed
 | Opción | Descripción | Requerido | Predeterminado |
 |--------|-------------|-----------|----------------|
 | `--repo` | Repositorio (owner/name) | ✅ | - |
-| `--state` | Estado del PR (`open`, `closed`, `all`) | ❌ | `all` |
 
 #### Proceso de Ejecución
 
@@ -501,7 +494,7 @@ ghf list-repos --sort updated --limit 10
 ghf brief --repo myname/my-awesome-project
 
 # Revisar automáticamente mis PRs
-ghf feedback --repo myname/my-awesome-project --state all
+ghf feedback --repo myname/my-awesome-project
 
 # Ver informe retrospectivo integrado
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -520,7 +513,7 @@ ghf config set defaults.months 6
 ghf brief --repo mycompany/product-service
 
 # Revisar PRs de miembros del equipo (cada uno ejecuta con su propio PAT)
-ghf feedback --repo mycompany/product-service --state closed
+ghf feedback --repo mycompany/product-service
 ```
 
 ## 🎯 Sistema de Premios

@@ -200,14 +200,8 @@ ghf feedback --repo owner/repo-name
 #### 예시
 
 ```bash
-# 모든 PR 리뷰 (열린 것 + 닫힌 것)
-ghf feedback --repo myusername/my-project --state all
-
-# 열린 PR만 리뷰
-ghf feedback --repo myusername/my-project --state open
-
-# 닫힌 PR만 리뷰
-ghf feedback --repo myusername/my-project --state closed
+# 내가 작성한 모든 PR 리뷰
+ghf feedback --repo myusername/my-project
 ```
 
 #### 옵션 설명
@@ -215,7 +209,6 @@ ghf feedback --repo myusername/my-project --state closed
 | 옵션 | 설명 | 필수 | 기본값 |
 |------|------|------|--------|
 | `--repo` | 저장소 (owner/name) | ✅ | - |
-| `--state` | PR 상태 (`open`, `closed`, `all`) | ❌ | `all` |
 
 #### 실행 과정
 
@@ -494,7 +487,7 @@ ghf list-repos --sort updated --limit 10
 ghf brief --repo myname/my-awesome-project
 
 # 내가 작성한 PR 자동 리뷰
-ghf feedback --repo myname/my-awesome-project --state all
+ghf feedback --repo myname/my-awesome-project
 
 # 통합 회고 보고서 확인
 cat reviews/myname_my-awesome-project/integrated_report.md

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
-from typer.models import OptionInfo
 
 try:  # pragma: no cover - optional rich dependency
     from rich import box
@@ -881,12 +880,6 @@ def feedback(
         "-r",
         help="Repository in owner/name format (e.g. facebook/react)",
     ),
-    state: str = typer.Option(
-        "all",
-        "--state",
-        "-s",
-        help="PR state filter: 'open', 'closed', or 'all' (default: all)",
-    ),
     output_dir: Path = typer.Option(
         Path("reviews"),
         "--output",
@@ -902,7 +895,6 @@ def feedback(
 
     Examples:
         ghf feedback --repo myorg/myrepo
-        ghf feedback --repo myorg/myrepo --state open
         ghf feedback --repo myorg/myrepo --output custom_reviews/
     """
 
@@ -934,8 +926,6 @@ def feedback(
         console.print("[info]Example:[/] [accent]ghf feedback --repo myname/myproject[/]")
         raise typer.Exit(code=1) from exc
 
-    state_value = state.default if isinstance(state, OptionInfo) else state
-
     def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
         console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
         console.print(
@@ -954,10 +944,8 @@ def feedback(
     # Step 1: Generate PR reviews
     console.rule("Step 1: Generating PR Reviews")
 
-    state_normalised = (state_value or "").lower().strip() or "all"
-    if state_normalised not in {"open", "closed", "all"}:
-        console.print("State must be one of: open, closed, all.")
-        raise typer.Exit(code=1)
+    # State is always fixed to "all"
+    state_normalised = "all"
 
     with console.status(
         "[accent]Retrieving authenticated user...", spinner="dots"

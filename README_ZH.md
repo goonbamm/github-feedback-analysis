@@ -201,14 +201,8 @@ ghf feedback --repo owner/repo-name
 #### 示例
 
 ```bash
-# 审查所有 PR（开放 + 关闭）
-ghf feedback --repo myusername/my-project --state all
-
-# 仅审查开放的 PR
-ghf feedback --repo myusername/my-project --state open
-
-# 仅审查已关闭的 PR
-ghf feedback --repo myusername/my-project --state closed
+# 审查你创建的所有 PR
+ghf feedback --repo myusername/my-project
 ```
 
 #### 选项说明
@@ -216,7 +210,6 @@ ghf feedback --repo myusername/my-project --state closed
 | 选项 | 描述 | 必需 | 默认值 |
 |------|------|------|--------|
 | `--repo` | 仓库（owner/name） | ✅ | - |
-| `--state` | PR 状态（`open`、`closed`、`all`） | ❌ | `all` |
 
 #### 执行过程
 
@@ -501,7 +494,7 @@ ghf list-repos --sort updated --limit 10
 ghf brief --repo myname/my-awesome-project
 
 # 自动审查我的 PR
-ghf feedback --repo myname/my-awesome-project --state all
+ghf feedback --repo myname/my-awesome-project
 
 # 查看集成回顾报告
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -520,7 +513,7 @@ ghf config set defaults.months 6
 ghf brief --repo mycompany/product-service
 
 # 审查团队成员 PR（每人使用自己的 PAT 运行）
-ghf feedback --repo mycompany/product-service --state closed
+ghf feedback --repo mycompany/product-service
 ```
 
 ## 🎯 奖项系统
