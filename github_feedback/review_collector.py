@@ -109,6 +109,7 @@ class ReviewCollector(BaseCollector):
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect review comments for tone analysis.
 
@@ -117,6 +118,7 @@ class ReviewCollector(BaseCollector):
             since: Start date for review collection
             filters: Optional analysis filters
             limit: Maximum number of comments to collect
+            author: Optional GitHub username to filter PRs by author
 
         Returns:
             List of review comment dictionaries
@@ -125,15 +127,29 @@ class ReviewCollector(BaseCollector):
         review_comments: List[Dict[str, str]] = []
 
         # Get pull requests first
-        params: Dict[str, Any] = {
-            "state": "all",
-            "sort": "created",
-            "direction": "desc",
-            "per_page": 50,
-        }
-
-        prs = self.api_client.request_list(f"repos/{repo}/pulls", params)
+        # If author is specified, use Issues API for efficient filtering
+        if author:
+            params: Dict[str, Any] = {
+                "creator": author,
+                "state": "all",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": 50,
+            }
+            prs = self.api_client.request_list(f"repos/{repo}/issues", params)
+        else:
+            params: Dict[str, Any] = {
+                "state": "all",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": 50,
+            }
+            prs = self.api_client.request_list(f"repos/{repo}/pulls", params)
         for pr in prs:
+            # Skip non-PRs when using Issues API
+            if author and "pull_request" not in pr:
+                continue
+
             if len(review_comments) >= limit:
                 break
 

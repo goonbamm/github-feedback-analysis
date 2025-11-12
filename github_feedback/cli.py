@@ -471,6 +471,7 @@ def _collect_detailed_feedback(
     repo: str,
     since: datetime,
     filters: AnalysisFilters,
+    author: Optional[str] = None,
 ) -> Optional[DetailedFeedbackSnapshot]:
     """Collect and analyze detailed feedback data."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -481,10 +482,10 @@ def _collect_detailed_feedback(
     try:
         # Collect detailed data in parallel
         data_collection_tasks = {
-            "commits": (collector.collect_commit_messages, (repo, since, filters), {"limit": 100}, "commit messages"),
-            "pr_titles": (collector.collect_pr_titles, (repo, since, filters), {"limit": 100}, "PR titles"),
-            "review_comments": (collector.collect_review_comments_detailed, (repo, since, filters), {"limit": 100}, "review comments"),
-            "issues": (collector.collect_issue_details, (repo, since, filters), {"limit": 100}, "issues"),
+            "commits": (collector.collect_commit_messages, (repo, since, filters), {"limit": 100, "author": author}, "commit messages"),
+            "pr_titles": (collector.collect_pr_titles, (repo, since, filters), {"limit": 100, "author": author}, "PR titles"),
+            "review_comments": (collector.collect_review_comments_detailed, (repo, since, filters), {"limit": 100, "author": author}, "review comments"),
+            "issues": (collector.collect_issue_details, (repo, since, filters), {"limit": 100, "author": author}, "issues"),
         }
 
         collected_data = {}
@@ -697,6 +698,7 @@ def _collect_yearend_data(
     repo_input: str,
     since: datetime,
     filters: AnalysisFilters,
+    author: Optional[str] = None,
 ) -> tuple[Optional[Any], Optional[Any], Optional[Any]]:
     """Collect year-end review data in parallel.
 
@@ -705,6 +707,7 @@ def _collect_yearend_data(
         repo_input: Repository name
         since: Start date for data collection
         filters: Analysis filters
+        author: Optional GitHub username to filter by author
 
     Returns:
         Tuple of (monthly_trends_data, tech_stack_data, collaboration_data)
@@ -714,7 +717,7 @@ def _collect_yearend_data(
     console.print("[accent]Collecting year-end review data in parallel...", style="accent")
 
     # Get PR metadata once for reuse
-    _, pr_metadata = collector.list_pull_requests(repo_input, since, filters)
+    _, pr_metadata = collector.list_pull_requests(repo_input, since, filters, author)
 
     yearend_tasks = {
         "monthly_trends": (
@@ -1013,25 +1016,45 @@ def feedback(
         console.print("[info]Example:[/] [accent]gfa feedback --repo torvalds/linux[/]")
         raise typer.Exit(code=1) from exc
 
-    # Phase 1: Collect repository data
+    # Phase 0: Get authenticated user
+    console.print()
+    console.rule("Phase 0: Authentication")
+    with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
+        try:
+            author = collector.get_authenticated_user()
+            console.print(f"[success]✓ Authenticated as: {author}[/]")
+        except (ValueError, PermissionError) as exc:
+            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
+            raise typer.Exit(code=1) from exc
+
+    # Phase 1: Collect personal activity data
+    console.print()
+    console.rule("Phase 1: Personal Activity Collection")
+    console.print(f"[accent]Collecting personal activity for {author}...[/]")
     with console.status("[accent]Collecting repository data...", spinner="bouncingBar"):
-        collection = collector.collect(repo=repo_input, months=months, filters=filters)
+        collection = collector.collect(repo=repo_input, months=months, filters=filters, author=author)
 
     # Check if repository has any activity
     _check_repository_activity(collection, repo_input, months)
 
     # Phase 2: Collect detailed feedback
+    console.print()
+    console.rule("Phase 2: Detailed Feedback Analysis")
     since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
     detailed_feedback_snapshot = _collect_detailed_feedback(
-        collector, analyzer, config, repo_input, since, filters
+        collector, analyzer, config, repo_input, since, filters, author
     )
 
     # Phase 2.5: Collect year-end review data in parallel
+    console.print()
+    console.rule("Phase 2.5: Year-End Review Data")
     monthly_trends_data, tech_stack_data, collaboration_data = _collect_yearend_data(
-        collector, repo_input, since, filters
+        collector, repo_input, since, filters, author
     )
 
     # Phase 3: Compute metrics
+    console.print()
+    console.rule("Phase 3: Metrics Computation")
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
         metrics = analyzer.compute_metrics(
             collection,
@@ -1040,69 +1063,32 @@ def feedback(
             tech_stack_data=tech_stack_data,
             collaboration_data=collaboration_data,
         )
+    console.print("[success]✓ Metrics computed successfully[/]")
 
     # Phase 4: Generate reports
+    console.print()
+    console.rule("Phase 4: Report Generation")
     metrics_payload = _prepare_metrics_payload(metrics)
     artifacts = _generate_artifacts(metrics, reporter, output_dir, metrics_payload)
 
-    # Phase 5: Display brief results
+    # Phase 5: Display results
+    console.print()
     console.rule("Analysis Summary")
     _render_metrics(metrics)
     console.rule("Artifacts")
     for label, path in artifacts:
         console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
     console.print()
-    console.print("[success]✓ Repository analysis complete![/]")
-
-    # Phase 6: Run feedback analysis
-    console.print()
-    console.rule("Phase 6: PR Feedback Analysis")
-    console.print("[accent]Running feedback analysis for your PRs...[/]")
-    console.print()
-
-    reviews_output_dir = Path("reviews")
-    feedback_report_path, pr_results = _run_feedback_analysis(
-        config=config,
-        repo_input=repo_input,
-        output_dir=reviews_output_dir,
-    )
-
-    if pr_results:
-        console.print()
-        console.print("[success]✓ Feedback analysis complete![/]")
-        console.print(f"[success]Analyzed {len(pr_results)} pull request(s)[/]")
-    else:
-        console.print()
-        console.print("[warning]No PRs found or feedback analysis failed.[/]")
-
-    # Phase 7: Generate integrated full report
-    if feedback_report_path:
-        console.print()
-        console.rule("Phase 7: Generating Integrated Report")
-
-        integrated_report_path = _generate_integrated_full_report(
-            output_dir=output_dir_resolved,
-            repo_name=repo_input,
-            brief_report_path=output_dir_resolved / "report.md",
-            feedback_report_path=feedback_report_path,
-        )
-
-        console.print()
-        console.print("[success]✓ Integrated report generated![/]")
-        console.print(f"[success]Full report:[/] [value]{integrated_report_path}[/]")
+    console.print("[success]✓ Personal activity analysis complete![/]")
 
     # Final summary
     console.print()
     console.rule("Summary")
-    console.print("[success]✓ All tasks complete![/]")
+    console.print(f"[success]✓ Analyzed personal activity for {author}[/]")
     console.print()
     console.print("[info]Next steps:[/]")
-    if feedback_report_path:
-        console.print("  • View the integrated report: [accent]cat {}[/]".format(
-            output_dir_resolved / "integrated_full_report.md"
-        ))
-    else:
-        console.print("  • View the report: [accent]cat reports/report.md[/]")
+    console.print("  • View the report: [accent]cat reports/report.md[/]")
+    console.print("  • View the HTML report: [accent]open reports/report.html[/]")
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:

@@ -16,7 +16,7 @@ class CommitCollector(BaseCollector):
     """Collector specialized for commit-related operations."""
 
     def count_commits(
-        self, repo: str, since: datetime, filters: AnalysisFilters
+        self, repo: str, since: datetime, filters: AnalysisFilters, author: Optional[str] = None
     ) -> int:
         """Count commits matching filters.
 
@@ -24,6 +24,7 @@ class CommitCollector(BaseCollector):
             repo: Repository name (owner/repo)
             since: Start date for commit collection
             filters: Analysis filters to apply
+            author: Optional GitHub username to filter commits by author
 
         Returns:
             Number of commits matching filters
@@ -49,6 +50,8 @@ class CommitCollector(BaseCollector):
                     base_params["sha"] = branch
                 if path_filter:
                     base_params["path"] = path_filter
+                if author:
+                    base_params["author"] = author
 
                 while True:
                     page_params = base_params | {"page": page}
@@ -84,6 +87,7 @@ class CommitCollector(BaseCollector):
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect commit messages for quality analysis.
 
@@ -92,6 +96,7 @@ class CommitCollector(BaseCollector):
             since: Start date for commit collection
             filters: Optional analysis filters
             limit: Maximum number of commits to collect
+            author: Optional GitHub username to filter commits by author
 
         Returns:
             List of commit message dictionaries
@@ -114,6 +119,8 @@ class CommitCollector(BaseCollector):
             }
             if branch:
                 params["sha"] = branch
+            if author:
+                params["author"] = author
 
             data = self.api_client.request_list(f"repos/{repo}/commits", params)
             for item in data:

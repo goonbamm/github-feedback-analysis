@@ -13,13 +13,14 @@ from .models import AnalysisFilters
 class IssueCollector(BaseCollector):
     """Collector specialized for issue operations."""
 
-    def count_issues(self, repo: str, since: datetime, filters: AnalysisFilters) -> int:
+    def count_issues(self, repo: str, since: datetime, filters: AnalysisFilters, author: Optional[str] = None) -> int:
         """Count issues matching filters.
 
         Args:
             repo: Repository name (owner/repo)
             since: Start date for issue collection
             filters: Analysis filters to apply
+            author: Optional GitHub username to filter issues by creator
 
         Returns:
             Number of issues matching filters
@@ -29,6 +30,8 @@ class IssueCollector(BaseCollector):
             "per_page": 100,
             "since": since.isoformat(),
         }
+        if author:
+            params["creator"] = author
 
         all_issues = self.api_client.paginate(
             f"repos/{repo}/issues", base_params=params, per_page=100
@@ -54,6 +57,7 @@ class IssueCollector(BaseCollector):
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect issue details for quality analysis.
 
@@ -62,6 +66,7 @@ class IssueCollector(BaseCollector):
             since: Start date for issue collection
             filters: Optional analysis filters
             limit: Maximum number of issues to collect
+            author: Optional GitHub username to filter issues by creator
 
         Returns:
             List of issue detail dictionaries
@@ -76,6 +81,8 @@ class IssueCollector(BaseCollector):
             "per_page": limit,
             "since": since.isoformat(),
         }
+        if author:
+            params["creator"] = author
 
         data = self.api_client.request_list(f"repos/{repo}/issues", params)
         for issue in data:
