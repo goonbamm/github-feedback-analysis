@@ -1,6 +1,6 @@
 # 🚀 GitHub 反馈分析工具
 
-一个用于分析 GitHub 仓库活动并自动生成深度洞察报告的命令行工具。支持 GitHub.com 和 GitHub Enterprise，具备基于 LLM 的自动审查功能。
+作为开发者，想要获得反馈，想要年终回顾，却不知道从哪里开始？一个用于分析 GitHub 仓库活动并自动生成深度洞察报告的命令行工具。支持 GitHub.com 和 GitHub Enterprise，具备基于 LLM 的自动审查功能。
 
 简体中文 | [한국어](../README.md) | [English](README_EN.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
@@ -93,7 +93,7 @@
 ## 🔧 安装
 
 ```bash
-# 克隆仓库
+# 复制仓库
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
@@ -122,8 +122,10 @@ gfa init
 ### 2️⃣ 分析仓库
 
 ```bash
-gfa feedback --repo goonbamm/github-feedback-analysis
+gfa feedback
 ```
+
+您可以从推荐仓库列表中选择或直接输入仓库。
 
 分析完成后，将在 `reports/` 目录中生成以下文件：
 - `metrics.json` - 分析数据
@@ -700,7 +702,7 @@ No activity detected during analysis period.
 ### 开发环境设置
 
 ```bash
-# 克隆仓库
+# 复制仓库
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 

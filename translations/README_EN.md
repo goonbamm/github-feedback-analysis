@@ -1,6 +1,6 @@
 # 🚀 GitHub Feedback Analysis
 
-A CLI tool that analyzes GitHub repository activity and automatically generates insightful reports. Supports both GitHub.com and GitHub Enterprise, with LLM-powered automated review capabilities.
+As a developer, do you want feedback but don't know where to start with your year-end retrospective? A CLI tool that analyzes GitHub repository activity and automatically generates insightful reports. Supports both GitHub.com and GitHub Enterprise, with LLM-powered automated review capabilities.
 
 English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
@@ -95,7 +95,7 @@ If you're using GitHub Enterprise in your organization:
 ## 🔧 Installation
 
 ```bash
-# Clone the repository
+# Copy the repository
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
@@ -124,8 +124,10 @@ When prompted, enter the following information:
 ### 2️⃣ Analyze Repository
 
 ```bash
-gfa feedback --repo goonbamm/github-feedback-analysis
+gfa feedback
 ```
+
+You can choose from a list of recommended repositories or enter one directly.
 
 After analysis completes, the following files are generated in the `reports/` directory:
 - `metrics.json` - Analysis data
@@ -714,7 +716,7 @@ No activity detected during analysis period.
 ### Development Environment Setup
 
 ```bash
-# Clone repository
+# Copy repository
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 

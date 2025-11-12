@@ -1,6 +1,6 @@
 # 🚀 GitHub Feedback Analysis
 
-GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
+개발자로서 피드백 받고 싶은데, 연말을 회고하고 싶은데 어떻게 해야 할지 모르겠다면? GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
 
 한국어 | [English](translations/README_EN.md) | [简体中文](translations/README_ZH.md) | [日本語](translations/README_JA.md) | [Español](translations/README_ES.md)
 
@@ -95,7 +95,7 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
 ## 🔧 설치
 
 ```bash
-# 저장소 클론
+# 저장소 복사
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
@@ -124,8 +124,10 @@ gfa init
 ### 2️⃣ 저장소 분석
 
 ```bash
-gfa feedback --repo goonbamm/github-feedback-analysis
+gfa feedback
 ```
+
+추천 저장소 목록에서 선택하거나 직접 입력하여 분석할 수 있습니다.
 
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
 - `metrics.json` - 분석 데이터
@@ -713,7 +715,7 @@ Error: Repository not found
 ### 개발 환경 설정
 
 ```bash
-# 저장소 클론
+# 저장소 복사
 git clone https://github.com/goonbamm/github-feedback-analysis.git
 cd github-feedback-analysis
 
