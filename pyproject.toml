@@ -28,5 +28,8 @@ test = ["pytest>=7.4"]
 [project.scripts]
 gfa = "github_feedback.cli:app"
 
+[tool.setuptools]
+packages = ["github_feedback"]
+
 [tool.pytest.ini_options]
 addopts = "-ra"
