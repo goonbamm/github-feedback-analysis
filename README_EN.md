@@ -10,6 +10,8 @@ A CLI tool that analyzes GitHub repository activity and automatically generates 
 - 🤖 **LLM-Based Feedback**: Detailed analysis of commit messages, PR titles, review tone, and issue quality
 - 🎯 **Automated PR Reviews**: Automatically review authenticated user's PRs and generate integrated retrospective reports
 - 🏆 **Achievement Visualization**: Automatically generate awards and highlights based on contributions
+- 💡 **Repository Discovery**: List accessible repositories and suggest active ones
+- 🎨 **Interactive Mode**: User-friendly interface for direct repository selection
 
 ## 📋 Prerequisites
 
@@ -58,6 +60,8 @@ ghf brief --repo goonbamm/github-feedback-analysis
 After analysis completes, the following files are generated in the `reports/` directory:
 - `metrics.json` - Analysis data
 - `report.md` - Markdown report
+- `report.html` - HTML report (with visualization charts)
+- `charts/` - SVG chart files
 - `prompts/` - LLM prompt files
 
 ### 3️⃣ View Results
@@ -118,6 +122,20 @@ Analyze repository and generate detailed feedback reports.
 ghf brief --repo owner/repo-name
 ```
 
+#### Interactive Mode
+
+Select repository from recommended list without specifying repository directly.
+
+```bash
+ghf brief --interactive
+```
+
+Or
+
+```bash
+ghf brief  # Run without --repo option
+```
+
 #### Examples
 
 ```bash
@@ -129,7 +147,18 @@ ghf brief --repo myusername/my-private-repo
 
 # Analyze organization repository
 ghf brief --repo microsoft/vscode
+
+# Interactive mode for repository selection
+ghf brief --interactive
 ```
+
+#### Options
+
+| Option | Description | Required | Default |
+|--------|-------------|----------|---------|
+| `--repo`, `-r` | Repository (owner/name) | ❌ | - |
+| `--output`, `-o` | Output directory | ❌ | reports |
+| `--interactive`, `-i` | Interactive repository selection | ❌ | false |
 
 #### Generated Reports
 
@@ -137,13 +166,19 @@ After analysis completes, the following files are created in the `reports/` dire
 
 ```
 reports/
-├── metrics.json              # Raw data (JSON)
-├── report.md                 # Analysis report (Markdown)
+├── metrics.json              # 📈 Raw analysis data
+├── report.md                 # 📄 Markdown report
+├── report.html               # 🎨 HTML report (with visualization charts)
+├── charts/                   # 📊 Visualization charts (SVG)
+│   ├── quality.svg          # Quality metrics chart
+│   ├── activity.svg         # Activity metrics chart
+│   ├── engagement.svg       # Engagement chart
+│   └── ...                  # Other domain-specific charts
 └── prompts/
-    ├── commit_feedback.txt   # Commit message feedback
-    ├── pr_feedback.txt       # PR title feedback
-    ├── review_feedback.txt   # Review tone feedback
-    └── issue_feedback.txt    # Issue quality feedback
+    ├── commit_feedback.txt   # 💬 Commit message quality analysis
+    ├── pr_feedback.txt       # 🔀 PR title analysis
+    ├── review_feedback.txt   # 👀 Review tone analysis
+    └── issue_feedback.txt    # 🐛 Issue quality analysis
 ```
 
 #### Analysis Content
@@ -211,15 +246,19 @@ reviews/
     └── integrated_report.md        # Integrated retrospective report
 ```
 
-### ⚙️ `ghf show-config` - View Configuration
+### ⚙️ `ghf config` - Configuration Management
+
+View or modify configuration settings.
+
+#### `ghf config show` - View Configuration
 
 View currently stored configuration.
 
 ```bash
-ghf show-config
+ghf config show
 ```
 
-#### Example Output
+**Example Output:**
 
 ```
 ┌─────────────────────────────────────┐
@@ -236,6 +275,113 @@ ghf show-config
 │             │ model = gpt-4         │
 └─────────────┴───────────────────────┘
 ```
+
+> **Note:** The `ghf show-config` command is deprecated and has been replaced with `ghf config show`.
+
+#### `ghf config set` - Set Configuration Values
+
+Modify individual configuration values.
+
+```bash
+ghf config set <key> <value>
+```
+
+**Examples:**
+
+```bash
+# Change LLM model
+ghf config set llm.model gpt-4
+
+# Change LLM endpoint
+ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+
+# Change default analysis period
+ghf config set defaults.months 6
+```
+
+#### `ghf config get` - Get Configuration Values
+
+Retrieve specific configuration values.
+
+```bash
+ghf config get <key>
+```
+
+**Examples:**
+
+```bash
+# Check LLM model
+ghf config get llm.model
+
+# Check default analysis period
+ghf config get defaults.months
+```
+
+### 🔍 `ghf list-repos` - List Repositories
+
+List accessible repositories.
+
+```bash
+ghf list-repos
+```
+
+#### Examples
+
+```bash
+# List repositories (default: 20 most recently updated)
+ghf list-repos
+
+# Change sort criteria
+ghf list-repos --sort stars --limit 10
+
+# Filter by specific organization
+ghf list-repos --org myorganization
+
+# Sort by creation date
+ghf list-repos --sort created --limit 50
+```
+
+#### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--sort`, `-s` | Sort criteria (updated, created, pushed, full_name) | updated |
+| `--limit`, `-l` | Maximum number to display | 20 |
+| `--org`, `-o` | Filter by organization name | - |
+
+### 💡 `ghf suggest-repos` - Repository Suggestions
+
+Suggest active repositories suitable for analysis.
+
+```bash
+ghf suggest-repos
+```
+
+Automatically selects repositories with recent activity. Comprehensively considers stars, forks, issues, and recent updates.
+
+#### Examples
+
+```bash
+# Default suggestions (within last 90 days, 10 repositories)
+ghf suggest-repos
+
+# Suggest 5 repositories active within last 30 days
+ghf suggest-repos --limit 5 --days 30
+
+# Sort by stars
+ghf suggest-repos --sort stars
+
+# Sort by activity score (comprehensive evaluation)
+ghf suggest-repos --sort activity
+```
+
+#### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--limit`, `-l` | Maximum number of suggestions | 10 |
+| `--days`, `-d` | Recent activity period (days) | 90 |
+| `--sort`, `-s` | Sort criteria (updated, stars, activity) | activity |
 
 ## 📁 Configuration File
 
@@ -268,14 +414,113 @@ months = 12
 
 ### Manual Configuration Editing
 
-If needed, you can edit the configuration file directly:
+If needed, you can edit the configuration file directly or use the `ghf config` commands:
 
 ```bash
-# Check configuration file location
-ghf show-config
+# Method 1: Use config commands (recommended)
+ghf config set llm.model gpt-4
+ghf config show
 
-# Open in editor
+# Method 2: Direct editing
 nano ~/.config/github_feedback/config.toml
+```
+
+## 📊 Generated File Structure
+
+### `ghf brief` Output
+
+```
+reports/
+├── metrics.json              # 📈 Raw analysis data
+├── report.md                 # 📄 Markdown report
+├── report.html               # 🎨 HTML report (with visualization charts)
+├── charts/                   # 📊 Visualization charts (SVG)
+│   ├── quality.svg          # Quality metrics chart
+│   ├── activity.svg         # Activity metrics chart
+│   ├── engagement.svg       # Engagement chart
+│   └── ...                  # Other domain-specific charts
+└── prompts/
+    ├── commit_feedback.txt   # 💬 Commit message quality analysis
+    ├── pr_feedback.txt       # 🔀 PR title analysis
+    ├── review_feedback.txt   # 👀 Review tone analysis
+    └── issue_feedback.txt    # 🐛 Issue quality analysis
+```
+
+### `ghf feedback` Output
+
+```
+reviews/
+└── owner_repo/
+    ├── pr-123/
+    │   ├── artefacts.json          # 📦 PR raw data (code, reviews, etc.)
+    │   ├── review_summary.json     # 🤖 LLM analysis results (structured data)
+    │   └── review.md               # 📝 Markdown review report
+    ├── pr-456/
+    │   └── ...
+    └── integrated_report.md        # 🎯 Integrated retrospective report (all PRs combined)
+```
+
+## 💡 Usage Examples
+
+### Example 1: Quick Start - Interactive Mode
+
+```bash
+# 1. Configuration (first time only)
+ghf init
+
+# 2. Get repository suggestions
+ghf suggest-repos
+
+# 3. Analyze with interactive mode
+ghf brief --interactive
+
+# 4. View report
+cat reports/report.md
+```
+
+### Example 2: Open Source Project Analysis
+
+```bash
+# 1. Configuration (first time only)
+ghf init
+
+# 2. Analyze popular open source project
+ghf brief --repo facebook/react
+
+# 3. View report
+cat reports/report.md
+```
+
+### Example 3: Personal Project Retrospective
+
+```bash
+# Check my repository list
+ghf list-repos --sort updated --limit 10
+
+# Analyze my project
+ghf brief --repo myname/my-awesome-project
+
+# Auto-review my PRs
+ghf feedback --repo myname/my-awesome-project --state all
+
+# View integrated retrospective report
+cat reviews/myname_my-awesome-project/integrated_report.md
+```
+
+### Example 4: Team Project Performance Review
+
+```bash
+# Check organization repository list
+ghf list-repos --org mycompany --limit 20
+
+# Set analysis period (last 6 months)
+ghf config set defaults.months 6
+
+# Analyze organization repository
+ghf brief --repo mycompany/product-service
+
+# Review team member PRs (each runs with their own PAT)
+ghf feedback --repo mycompany/product-service --state closed
 ```
 
 ## 🎯 Award System
@@ -331,7 +576,7 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **Solution**:
 1. Verify LLM server is running
-2. Verify endpoint URL is correct (`ghf show-config`)
+2. Verify endpoint URL is correct (`ghf config show`)
 3. Reinitialize configuration if needed: `ghf init`
 
 ### Repository Not Found
