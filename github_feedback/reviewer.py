@@ -19,6 +19,11 @@ from .utils import truncate_patch
 console = Console()
 logger = logging.getLogger(__name__)
 
+# Review file constants
+ARTEFACTS_FILENAME = "artefacts.json"
+REVIEW_SUMMARY_FILENAME = "review_summary.json"
+REVIEW_MARKDOWN_FILENAME = "review.md"
+
 
 @dataclass(slots=True)
 class Reviewer:
@@ -32,16 +37,35 @@ class Reviewer:
         safe_repo = repo.replace("/", "__")
         return self.output_dir / safe_repo / f"pr-{number}"
 
+    def _ensure_target_dir(self, repo: str, number: int) -> Path:
+        """Create and return the target directory for PR review files."""
+
+        target_dir = self._target_dir(repo, number)
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError) as exc:
+            logger.error(f"Failed to create directory {target_dir}: {exc}")
+            raise
+        return target_dir
+
+    def _write_json(self, path: Path, data: dict) -> None:
+        """Write JSON data to a file with consistent formatting."""
+
+        try:
+            path.write_text(
+                json.dumps(data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except (OSError, PermissionError) as exc:
+            logger.error(f"Failed to write JSON to {path}: {exc}")
+            raise
+
     def persist_bundle(self, bundle: PullRequestReviewBundle) -> Path:
         """Persist collected artefacts to disk for later reuse."""
 
-        target_dir = self._target_dir(bundle.repo, bundle.number)
-        target_dir.mkdir(parents=True, exist_ok=True)
-        artefact_path = target_dir / "artefacts.json"
-        artefact_path.write_text(
-            json.dumps(bundle.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
+        artefact_path = target_dir / ARTEFACTS_FILENAME
+        self._write_json(artefact_path, bundle.to_dict())
         return artefact_path
 
     def persist_summary(
@@ -49,13 +73,9 @@ class Reviewer:
     ) -> Path:
         """Store the structured LLM response for traceability."""
 
-        target_dir = self._target_dir(bundle.repo, bundle.number)
-        target_dir.mkdir(parents=True, exist_ok=True)
-        summary_path = target_dir / "review_summary.json"
-        summary_path.write_text(
-            json.dumps(summary.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
+        summary_path = target_dir / REVIEW_SUMMARY_FILENAME
+        self._write_json(summary_path, summary.to_dict())
         return summary_path
 
     def _fallback_summary(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
@@ -127,14 +147,8 @@ class Reviewer:
 
         return summary
 
-    def create_markdown(
-        self, bundle: PullRequestReviewBundle, summary: ReviewSummary
-    ) -> Path:
-        """Create a high readability markdown review with generous spacing."""
-
-        target_dir = self._target_dir(bundle.repo, bundle.number)
-        target_dir.mkdir(parents=True, exist_ok=True)
-        markdown_path = target_dir / "review.md"
+    def _render_markdown_header(self, bundle: PullRequestReviewBundle) -> List[str]:
+        """Render the markdown header section with PR metadata."""
 
         lines: List[str] = []
         lines.append("# Pull Request 리뷰")
@@ -147,31 +161,43 @@ class Reviewer:
         lines.append("")
         lines.append("---")
         lines.append("")
+        return lines
+
+    def _render_markdown_overview(self, summary: ReviewSummary) -> List[str]:
+        """Render the overview section of the markdown."""
+
+        lines: List[str] = []
         lines.append("## 개요")
         lines.append("")
         lines.append(summary.overview)
         lines.append("")
+        return lines
 
-        def _render_points(title: str, points: Iterable[ReviewPoint]) -> None:
-            lines.append(f"## {title}")
-            lines.append("")
-            has_points = False
-            for point in points:
-                has_points = True
-                lines.append(f"- {point.message}")
-                if point.example:
-                    lines.append("")
-                    lines.append(f"  _예시:_ {point.example}")
-                    lines.append("")
-                else:
-                    lines.append("")
-            if not has_points:
-                lines.append("- 기록된 항목이 없습니다.")
+    def _render_markdown_points(self, title: str, points: Iterable[ReviewPoint]) -> List[str]:
+        """Render a section of review points (strengths or improvements)."""
+
+        lines: List[str] = []
+        lines.append(f"## {title}")
+        lines.append("")
+        has_points = False
+        for point in points:
+            has_points = True
+            lines.append(f"- {point.message}")
+            if point.example:
                 lines.append("")
+                lines.append(f"  _예시:_ {point.example}")
+                lines.append("")
+            else:
+                lines.append("")
+        if not has_points:
+            lines.append("- 기록된 항목이 없습니다.")
+            lines.append("")
+        return lines
 
-        _render_points("장점", summary.strengths)
-        _render_points("개선할 부분", summary.improvements)
+    def _render_markdown_code_highlights(self, bundle: PullRequestReviewBundle) -> List[str]:
+        """Render the code highlights section with file changes."""
 
+        lines: List[str] = []
         lines.append("## 코드 하이라이트")
         lines.append("")
         if not bundle.files:
@@ -189,25 +215,73 @@ class Reviewer:
                     lines.append("")
                 else:
                     lines.append("")
-
         lines.append("")
+        return lines
+
+    def _render_markdown_footer(self) -> List[str]:
+        """Render the footer section with saved files information."""
+
+        lines: List[str] = []
         lines.append("## 저장된 파일")
         lines.append("")
-        lines.append("- `artefacts.json` 파일에 원본 Pull Request 데이터가 포함되어 있습니다.")
-        lines.append("- `review_summary.json` 파일에 구조화된 LLM 응답이 저장되어 있습니다.")
+        lines.append(f"- `{ARTEFACTS_FILENAME}` 파일에 원본 Pull Request 데이터가 포함되어 있습니다.")
+        lines.append(f"- `{REVIEW_SUMMARY_FILENAME}` 파일에 구조화된 LLM 응답이 저장되어 있습니다.")
         lines.append("")
+        return lines
 
-        markdown_path.write_text("\n".join(lines), encoding="utf-8")
+    def create_markdown(
+        self, bundle: PullRequestReviewBundle, summary: ReviewSummary
+    ) -> Path:
+        """Create a high readability markdown review with generous spacing."""
+
+        target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
+        markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
+
+        lines: List[str] = []
+        lines.extend(self._render_markdown_header(bundle))
+        lines.extend(self._render_markdown_overview(summary))
+        lines.extend(self._render_markdown_points("장점", summary.strengths))
+        lines.extend(self._render_markdown_points("개선할 부분", summary.improvements))
+        lines.extend(self._render_markdown_code_highlights(bundle))
+        lines.extend(self._render_markdown_footer())
+
+        try:
+            markdown_path.write_text("\n".join(lines), encoding="utf-8")
+        except (OSError, PermissionError) as exc:
+            logger.error(f"Failed to write markdown to {markdown_path}: {exc}")
+            raise
         return markdown_path
 
     def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
         """End-to-end review helper used by the CLI command."""
 
         bundle = self.collector.collect_pull_request_details(repo=repo, number=number)
-        artefact_path = self.persist_bundle(bundle)
+        # Create target directory once at the start for better performance
+        target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
+
+        # Write all review files
+        artefact_path = target_dir / ARTEFACTS_FILENAME
+        self._write_json(artefact_path, bundle.to_dict())
+
         summary = self.generate_summary(bundle)
-        summary_path = self.persist_summary(bundle, summary)
-        markdown_path = self.create_markdown(bundle, summary)
+        summary_path = target_dir / REVIEW_SUMMARY_FILENAME
+        self._write_json(summary_path, summary.to_dict())
+
+        markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
+        lines: List[str] = []
+        lines.extend(self._render_markdown_header(bundle))
+        lines.extend(self._render_markdown_overview(summary))
+        lines.extend(self._render_markdown_points("장점", summary.strengths))
+        lines.extend(self._render_markdown_points("개선할 부분", summary.improvements))
+        lines.extend(self._render_markdown_code_highlights(bundle))
+        lines.extend(self._render_markdown_footer())
+
+        try:
+            markdown_path.write_text("\n".join(lines), encoding="utf-8")
+        except (OSError, PermissionError) as exc:
+            logger.error(f"Failed to write markdown to {markdown_path}: {exc}")
+            raise
+
         return artefact_path, summary_path, markdown_path
 
 

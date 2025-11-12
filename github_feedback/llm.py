@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Default values (used when config is not available)
 MAX_PATCH_LINES_PER_FILE = 20
+MAX_FILES_WITH_PATCH_SNIPPETS = 5  # Default value, matches LLMClient default
 
 
 @dataclass(slots=True)
