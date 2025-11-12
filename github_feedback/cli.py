@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+import requests
 import typer
 
 try:  # pragma: no cover - optional rich dependency
@@ -33,6 +34,13 @@ from .analyzer import Analyzer
 from .collector import Collector
 from .config import Config
 from .console import Console
+from .constants import (
+    ERROR_MESSAGES,
+    INFO_MESSAGES,
+    SPINNERS,
+    SUCCESS_MESSAGES,
+    TABLE_CONFIG,
+)
 from .llm import LLMClient
 from .models import (
     AnalysisFilters,
@@ -95,9 +103,9 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
     Returns:
         Selected repository in owner/repo format, or None if cancelled
     """
-    console.print("[info]Fetching repository suggestions...[/]")
+    console.print(f"[info]{INFO_MESSAGES['fetching_repos']}[/]")
 
-    with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
+    with console.status(f"[accent]{INFO_MESSAGES['analyzing_repos']}", spinner=SPINNERS['bouncing']):
         try:
             suggestions = collector.suggest_repositories(limit=10, min_activity_days=90)
         except KeyboardInterrupt:
@@ -107,8 +115,8 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             return None
 
     if not suggestions:
-        console.print("[warning]No repository suggestions found.[/]")
-        console.print("[info]Try manually specifying a repository with [accent]--repo[/]")
+        console.print(f"[warning]{ERROR_MESSAGES['no_suggestions']}[/]")
+        console.print(f"[info]{INFO_MESSAGES['try_manual_repo']}[/]")
         return None
 
     # Display suggestions in a table
@@ -116,21 +124,22 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
         console.print()
         table = Table(
             title="Suggested Repositories",
-            box=box.ROUNDED,
+            box=getattr(box, TABLE_CONFIG['box_style']),
             show_header=True,
-            header_style="bold cyan",
+            header_style=TABLE_CONFIG['header_style'],
         )
 
-        table.add_column("#", justify="right", style="dim", width=3)
+        table.add_column("#", justify="right", style=TABLE_CONFIG['index_style'], width=TABLE_CONFIG['index_width'])
         table.add_column("Repository", style="cyan", no_wrap=True)
         table.add_column("Description", style="dim")
-        table.add_column("Activity", justify="right", style="success")
+        table.add_column("Activity", justify="right", style=TABLE_CONFIG['activity_style'])
 
         for i, repo in enumerate(suggestions, 1):
             full_name = repo.get("full_name", "unknown/repo")
             description = repo.get("description") or "No description"
-            if len(description) > 50:
-                description = description[:47] + "..."
+            max_len = TABLE_CONFIG['description_max_length']
+            if len(description) > max_len:
+                description = description[:max_len-3] + "..."
 
             stars = repo.get("stargazers_count", 0)
             forks = repo.get("forks_count", 0)
