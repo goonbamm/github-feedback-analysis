@@ -87,6 +87,105 @@ def _load_config() -> Config:
         raise typer.Exit(code=1) from exc
 
 
+def _select_repository_interactive(collector: Collector) -> Optional[str]:
+    """Interactively select a repository from suggestions.
+
+    Args:
+        collector: Collector instance for fetching repositories
+
+    Returns:
+        Selected repository in owner/repo format, or None if cancelled
+    """
+    console.print("[info]Fetching repository suggestions...[/]")
+
+    with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
+        try:
+            suggestions = collector.suggest_repositories(limit=10, min_activity_days=90)
+        except Exception as exc:
+            console.print(f"[danger]Error fetching suggestions:[/] {exc}")
+            return None
+
+    if not suggestions:
+        console.print("[warning]No repository suggestions found.[/]")
+        console.print("[info]Try manually specifying a repository with [accent]--repo[/]")
+        return None
+
+    # Display suggestions in a table
+    if Table:
+        console.print()
+        table = Table(
+            title="Suggested Repositories",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold accent",
+        )
+
+        table.add_column("#", justify="right", style="dim", width=3)
+        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Description", style="dim")
+        table.add_column("Activity", justify="right", style="success")
+
+        for i, repo in enumerate(suggestions, 1):
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            if len(description) > 50:
+                description = description[:47] + "..."
+
+            stars = repo.get("stargazers_count", 0)
+            forks = repo.get("forks_count", 0)
+            activity = f"⭐{stars} 🍴{forks}"
+
+            table.add_row(str(i), full_name, description, activity)
+
+        console.print(table)
+    else:
+        # Fallback if rich is not available
+        console.print("\nSuggested Repositories:\n")
+        for i, repo in enumerate(suggestions, 1):
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            stars = repo.get("stargazers_count", 0)
+            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
+
+    console.print()
+    console.print("[info]Select a repository by number (1-{}) or enter owner/repo format[/]".format(len(suggestions)))
+    console.print("[info]Press Ctrl+C or enter 'q' to quit[/]")
+    console.print()
+
+    # Prompt for selection
+    while True:
+        try:
+            selection = typer.prompt("Repository", default="").strip()
+
+            if not selection or selection.lower() == 'q':
+                return None
+
+            # Check if it's a number selection
+            if selection.isdigit():
+                index = int(selection) - 1
+                if 0 <= index < len(suggestions):
+                    selected_repo = suggestions[index].get("full_name")
+                    console.print(f"[success]Selected:[/] {selected_repo}")
+                    return selected_repo
+                else:
+                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {len(suggestions)}")
+                    continue
+
+            # Otherwise, treat it as owner/repo format
+            try:
+                validate_repo_format(selection)
+                console.print(f"[success]Selected:[/] {selection}")
+                return selection
+            except ValueError as exc:
+                console.print(f"[danger]Invalid format:[/] {exc}")
+                console.print("[info]Enter a number (1-{}) or owner/repo format[/]".format(len(suggestions)))
+                continue
+
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[warning]Selection cancelled.[/]")
+            return None
+
+
 @app.command()
 def init(
     pat: Optional[str] = typer.Option(
@@ -552,8 +651,8 @@ def _generate_artifacts(
 
 @app.command()
 def brief(
-    repo: str = typer.Option(
-        ...,
+    repo: Optional[str] = typer.Option(
+        None,
         "--repo",
         "-r",
         help="Repository in owner/name format (e.g. microsoft/vscode)",
@@ -563,6 +662,12 @@ def brief(
         "--output",
         "-o",
         help="Output directory for reports",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactively select repository from suggestions",
     ),
 ) -> None:
     """Analyze repository activity and generate detailed reports.
@@ -574,6 +679,7 @@ def brief(
     Examples:
         ghf brief --repo torvalds/linux
         ghf brief --repo myorg/myrepo --output custom_reports/
+        ghf brief --interactive
     """
     from datetime import datetime, timedelta, timezone
 
@@ -595,11 +701,18 @@ def brief(
         console.print("[info]Hint:[/] Check your GitHub token with [accent]ghf show-config[/]")
         raise typer.Exit(code=1) from exc
 
+    # Handle interactive mode or no repo specified
+    if interactive or repo is None:
+        repo_input = _select_repository_interactive(collector)
+        if not repo_input:
+            console.print("[warning]No repository selected.[/]")
+            raise typer.Exit(code=0)
+    else:
+        repo_input = repo.strip()
+
     analyzer = Analyzer(web_base_url=config.server.web_url)
     output_dir_resolved = _resolve_output_dir(output_dir)
     reporter = Reporter(output_dir=output_dir_resolved)
-
-    repo_input = repo.strip()
 
     try:
         validate_repo_format(repo_input)
@@ -1003,6 +1116,240 @@ def config_get(
     except ValueError as exc:
         console.print(f"[danger]Error:[/] {exc}")
         raise typer.Exit(code=1) from exc
+
+
+@app.command(name="list-repos")
+def list_repos(
+    sort: str = typer.Option(
+        "updated",
+        "--sort",
+        "-s",
+        help="Sort field (updated, created, pushed, full_name)",
+    ),
+    limit: int = typer.Option(
+        20,
+        "--limit",
+        "-l",
+        help="Maximum number of repositories to display",
+    ),
+    org: Optional[str] = typer.Option(
+        None,
+        "--org",
+        "-o",
+        help="Filter by organization name",
+    ),
+) -> None:
+    """List repositories accessible to the authenticated user.
+
+    This command fetches repositories from GitHub and displays them in a
+    formatted table. You can filter by organization and sort by various
+    criteria.
+
+    Examples:
+        ghf list-repos
+        ghf list-repos --sort stars --limit 10
+        ghf list-repos --org myorganization
+    """
+    config = _load_config()
+
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    with console.status("[accent]Fetching repositories...", spinner="bouncingBar"):
+        if org:
+            repos = collector.list_org_repositories(org, sort)
+        else:
+            repos = collector.list_user_repositories(sort)
+
+    if not repos:
+        console.print("[warning]No repositories found.[/]")
+        if org:
+            console.print(f"[info]Organization:[/] {org}")
+        raise typer.Exit(code=0)
+
+    # Limit the results
+    repos = repos[:limit]
+
+    # Create a rich table
+    if Table:
+        table = Table(
+            title=f"{'Organization' if org else 'Your'} Repositories",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold accent",
+        )
+
+        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Description", style="dim")
+        table.add_column("Stars", justify="right", style="warning")
+        table.add_column("Forks", justify="right", style="success")
+        table.add_column("Updated", justify="right", style="dim")
+
+        for repo in repos:
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            if len(description) > 50:
+                description = description[:47] + "..."
+
+            stars = str(repo.get("stargazers_count", 0))
+            forks = str(repo.get("forks_count", 0))
+
+            # Format updated date
+            updated_at = repo.get("updated_at", "")
+            updated_str = ""
+            if updated_at:
+                try:
+                    from datetime import datetime
+
+                    updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                    updated_dt = updated_dt.replace(tzinfo=None)
+                    days_ago = (datetime.now() - updated_dt).days
+
+                    if days_ago == 0:
+                        updated_str = "today"
+                    elif days_ago == 1:
+                        updated_str = "yesterday"
+                    elif days_ago < 30:
+                        updated_str = f"{days_ago}d ago"
+                    elif days_ago < 365:
+                        updated_str = f"{days_ago // 30}mo ago"
+                    else:
+                        updated_str = f"{days_ago // 365}y ago"
+                except (ValueError, AttributeError):
+                    updated_str = "unknown"
+
+            table.add_row(full_name, description, stars, forks, updated_str)
+
+        console.print(table)
+    else:
+        # Fallback if rich is not available
+        for i, repo in enumerate(repos, 1):
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            stars = repo.get("stargazers_count", 0)
+            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
+
+
+@app.command(name="suggest-repos")
+def suggest_repos(
+    limit: int = typer.Option(
+        10,
+        "--limit",
+        "-l",
+        help="Maximum number of suggestions",
+    ),
+    days: int = typer.Option(
+        90,
+        "--days",
+        "-d",
+        help="Filter repos updated within this many days",
+    ),
+    sort: str = typer.Option(
+        "activity",
+        "--sort",
+        "-s",
+        help="Sort criteria (updated, stars, activity)",
+    ),
+) -> None:
+    """Suggest repositories for analysis based on activity and recency.
+
+    This command recommends repositories that are actively maintained and
+    likely to benefit from analysis. Suggestions are based on recent updates,
+    stars, forks, and overall activity.
+
+    Examples:
+        ghf suggest-repos
+        ghf suggest-repos --limit 5 --days 30
+        ghf suggest-repos --sort stars
+    """
+    config = _load_config()
+
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
+        suggestions = collector.suggest_repositories(
+            limit=limit, min_activity_days=days, sort_by=sort
+        )
+
+    if not suggestions:
+        console.print("[warning]No repository suggestions found.[/]")
+        console.print(
+            f"[info]Try increasing the activity window with [accent]--days[/] (current: {days})"
+        )
+        raise typer.Exit(code=0)
+
+    # Create a rich table
+    if Table:
+        table = Table(
+            title="Suggested Repositories for Analysis",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold accent",
+        )
+
+        table.add_column("Rank", justify="right", style="dim", width=4)
+        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Description", style="dim")
+        table.add_column("Activity", justify="right", style="success")
+        table.add_column("Updated", justify="right", style="warning")
+
+        for i, repo in enumerate(suggestions, 1):
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            if len(description) > 45:
+                description = description[:42] + "..."
+
+            # Activity indicator
+            stars = repo.get("stargazers_count", 0)
+            forks = repo.get("forks_count", 0)
+            issues = repo.get("open_issues_count", 0)
+            activity = f"⭐{stars} 🍴{forks} 📋{issues}"
+
+            # Format updated date
+            updated_at = repo.get("updated_at", "")
+            updated_str = ""
+            if updated_at:
+                try:
+                    from datetime import datetime
+
+                    updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                    updated_dt = updated_dt.replace(tzinfo=None)
+                    days_ago = (datetime.now() - updated_dt).days
+
+                    if days_ago == 0:
+                        updated_str = "today"
+                    elif days_ago == 1:
+                        updated_str = "yesterday"
+                    elif days_ago < 30:
+                        updated_str = f"{days_ago}d ago"
+                    else:
+                        updated_str = f"{days_ago // 30}mo ago"
+                except (ValueError, AttributeError):
+                    updated_str = "unknown"
+
+            rank_str = f"#{i}"
+            table.add_row(rank_str, full_name, description, activity, updated_str)
+
+        console.print(table)
+        console.print()
+        console.print(
+            "[info]To analyze a repository, use:[/] [accent]ghf brief --repo <owner/name>[/]"
+        )
+    else:
+        # Fallback if rich is not available
+        console.print("Suggested Repositories for Analysis:\n")
+        for i, repo in enumerate(suggestions, 1):
+            full_name = repo.get("full_name", "unknown/repo")
+            description = repo.get("description") or "No description"
+            stars = repo.get("stargazers_count", 0)
+            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
 
 
 # Keep show-config as a deprecated alias for backward compatibility
