@@ -75,9 +75,32 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "당신은 경험이 풍부한 소프트웨어 리뷰어입니다. 구체적인 장점과 개선 기회를 강조하며 균형 잡히고 실행 가능한 "
-                    "피드백을 제공하세요. 반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: overview, strengths, improvements. "
-                    "각 strengths/improvements 항목은 message와 example을 포함해야 합니다. 모든 응답은 한국어로 작성하세요."
+                    "당신은 시니어 소프트웨어 엔지니어로서 코드 리뷰를 수행합니다.\n\n"
+                    "다음 원칙을 따르세요:\n"
+                    "1. 보안, 성능, 가독성, 유지보수성 순으로 우선순위 평가\n"
+                    "2. 각 피드백에 구체적 근거와 개선 방법 제시\n"
+                    "3. 긍정적 피드백과 개선점을 균형있게 제공 (최소 1:1 비율)\n"
+                    "4. 코드 컨텍스트가 제한적이면 \"전체 컨텍스트 확인 필요\" 명시\n\n"
+                    "응답은 반드시 다음 JSON 형식을 따르세요:\n\n"
+                    "{\n"
+                    '  "overview": "PR의 전반적 평가 (2-3문장)",\n'
+                    '  "strengths": [\n'
+                    "    {\n"
+                    '      "message": "장점 설명",\n'
+                    '      "example": "관련 코드나 파일명",\n'
+                    '      "impact": "high|medium|low"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "improvements": [\n'
+                    "    {\n"
+                    '      "message": "개선 제안",\n'
+                    '      "example": "구체적 코드 예시나 위치",\n'
+                    '      "priority": "critical|important|nice-to-have",\n'
+                    '      "category": "security|performance|readability|maintainability|testing"\n'
+                    "    }\n"
+                    "  ]\n"
+                    "}\n\n"
+                    "각 배열은 최소 1개, 최대 5개 항목을 포함하세요. 모든 응답은 한국어로 작성하세요."
                 ),
             },
             {
@@ -129,7 +152,7 @@ class LLMClient:
         base_payload = {
             "model": self.model or "default-model",
             "messages": self._build_messages(bundle),
-            "temperature": 0.2,
+            "temperature": 0.3,
         }
 
         request_payloads: List[Dict[str, Any]] = [
@@ -281,8 +304,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample commits for analysis (limit to 50)
-        sample_commits = commits[:50]
+        # Sample commits for analysis (limit to 20)
+        sample_commits = commits[:20]
 
         commit_list = "\n".join([
             f"{i+1}. {commit['message'][:100]} (SHA: {commit['sha'][:7]})"
@@ -293,12 +316,46 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "당신은 코드 리뷰 전문가입니다. 커밋 메시지의 품질을 평가하세요. "
-                    "좋은 커밋 메시지는 명확하고, 간결하며, 변경 사항의 이유를 설명합니다. "
-                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
-                    "good_count (좋은 메시지 수), poor_count (개선이 필요한 메시지 수), "
-                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
-                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                    "당신은 Git 커밋 메시지 품질을 평가하는 전문가입니다.\n\n"
+                    "다음 기준으로 평가하세요:\n\n"
+                    "**좋은 커밋 메시지 기준:**\n"
+                    "1. 첫 줄: 50자 이내, 명령형 동사 시작 (Add, Fix, Update, Refactor 등)\n"
+                    "2. 본문: 왜(why) 변경했는지 설명 (무엇을 변경했는지는 코드로 알 수 있음)\n"
+                    "3. Conventional Commits 형식 권장: `type(scope): subject`\n"
+                    "4. Issue/PR 번호 참조 포함\n"
+                    "5. 여러 변경사항은 여러 커밋으로 분리\n\n"
+                    "**나쁜 커밋 메시지 예:**\n"
+                    '- "fix", "update", "wip", "tmp" 같은 단어만 사용\n'
+                    "- 변경 내용 나열만 하고 이유 없음\n"
+                    "- 너무 길거나 (100자+) 짧음 (10자-)\n\n"
+                    "응답 형식:\n"
+                    "{\n"
+                    '  "good_count": 숫자,\n'
+                    '  "poor_count": 숫자,\n'
+                    '  "suggestions": [\n'
+                    '    "구체적이고 실행 가능한 개선 제안"\n'
+                    "  ],\n"
+                    '  "examples_good": [\n'
+                    "    {\n"
+                    '      "sha": "커밋 해시",\n'
+                    '      "message": "커밋 메시지",\n'
+                    '      "reason": "왜 좋은지 설명"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "examples_poor": [\n'
+                    "    {\n"
+                    '      "sha": "커밋 해시",\n'
+                    '      "message": "커밋 메시지",\n'
+                    '      "reason": "왜 개선이 필요한지",\n'
+                    '      "suggestion": "개선 방법"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "trends": {\n'
+                    '    "common_patterns": ["발견된 패턴"],\n'
+                    '    "improvement_areas": ["개선 영역"]\n'
+                    "  }\n"
+                    "}\n\n"
+                    "최대 20개 샘플만 분석하고, 대표적인 예시를 선정하세요. 모든 응답은 한국어로 작성하세요."
                 ),
             },
             {
@@ -308,7 +365,7 @@ class LLMClient:
         ]
 
         try:
-            response = self.complete(messages, temperature=0.2)
+            response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
             return {
@@ -334,8 +391,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample PR titles for analysis (limit to 50)
-        sample_prs = pr_titles[:50]
+        # Sample PR titles for analysis (limit to 20)
+        sample_prs = pr_titles[:20]
 
         pr_list = "\n".join([
             f"{i+1}. #{pr['number']}: {pr['title']}"
@@ -346,12 +403,51 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "당신은 코드 리뷰 전문가입니다. Pull Request 제목의 품질을 평가하세요. "
-                    "좋은 PR 제목은 변경 사항을 명확하게 설명하고, 간결하며, 이해하기 쉽습니다. "
-                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
-                    "clear_count (명확한 제목 수), vague_count (모호한 제목 수), "
-                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
-                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                    "당신은 Pull Request 제목 품질을 평가하는 전문가입니다.\n\n"
+                    "**좋은 PR 제목 기준:**\n"
+                    "1. 길이: 15-80자 (너무 짧거나 길지 않게)\n"
+                    "2. 형식: `[타입] 명확한 변경 내용 설명`\n"
+                    "   - 타입 예: Feature, Fix, Refactor, Docs, Test, Chore\n"
+                    "3. 변경의 범위와 영향 명시\n"
+                    "4. 단순 파일명 나열 금지\n"
+                    "5. Issue 번호 참조 권장\n\n"
+                    "**명확성 체크리스트:**\n"
+                    "- [ ] 제목만 읽고도 변경 내용 이해 가능한가?\n"
+                    "- [ ] 구체적인 동사 사용했는가?\n"
+                    "- [ ] 사용자 관점의 가치가 드러나는가?\n\n"
+                    "**나쁜 예:**\n"
+                    '- "Update code" (무엇을 왜?)\n'
+                    '- "fix" (무엇을 수정?)\n'
+                    '- "Implement feature/login/api/..." (구체성 부족)\n\n'
+                    "응답 형식:\n"
+                    "{\n"
+                    '  "clear_count": 숫자,\n'
+                    '  "vague_count": 숫자,\n'
+                    '  "suggestions": [\n'
+                    '    "팀 전체에 적용 가능한 구체적 가이드라인"\n'
+                    "  ],\n"
+                    '  "examples_good": [\n'
+                    "    {\n"
+                    '      "number": PR 번호,\n'
+                    '      "title": "제목",\n'
+                    '      "reason": "왜 명확한지",\n'
+                    '      "score": 1-10\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "examples_poor": [\n'
+                    "    {\n"
+                    '      "number": PR 번호,\n'
+                    '      "title": "제목",\n'
+                    '      "reason": "왜 모호한지",\n'
+                    '      "suggestion": "개선된 제목 예시"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "patterns": {\n'
+                    '    "common_types": ["발견된 타입들"],\n'
+                    '    "naming_conventions": ["사용중인 컨벤션"]\n'
+                    "  }\n"
+                    "}\n\n"
+                    "모든 응답은 한국어로 작성하세요."
                 ),
             },
             {
@@ -361,7 +457,7 @@ class LLMClient:
         ]
 
         try:
-            response = self.complete(messages, temperature=0.2)
+            response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
             return {
@@ -390,8 +486,8 @@ class LLMClient:
                 "examples_improve": [],
             }
 
-        # Sample review comments (limit to 30)
-        sample_reviews = review_comments[:30]
+        # Sample review comments (limit to 15)
+        sample_reviews = review_comments[:15]
 
         review_list = "\n".join([
             f"{i+1}. (PR #{review['pr_number']}, {review['author']}): {review['body'][:200]}"
@@ -402,13 +498,59 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "당신은 팀 협업 전문가입니다. 코드 리뷰 코멘트의 톤과 스타일을 평가하세요. "
-                    "건설적인 리뷰는 존중하고, 명확하며, 구체적인 개선 제안을 포함합니다. "
-                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
-                    "constructive_count (건설적인 리뷰 수), harsh_count (가혹한 리뷰 수), "
-                    "neutral_count (중립적인 리뷰 수), suggestions (개선 제안 목록), "
-                    "examples_good (좋은 예시 최대 3개), examples_improve (개선이 필요한 예시 최대 3개). "
-                    "모든 응답은 한국어로 작성하세요."
+                    "당신은 팀 협업과 커뮤니케이션 전문가입니다.\n"
+                    "코드 리뷰 코멘트의 톤을 분석하고 개선 방안을 제시하세요.\n\n"
+                    "**평가 기준:**\n\n"
+                    "건설적인 리뷰 (Constructive):\n"
+                    "- 구체적 문제 지적 + 해결 방법 제안\n"
+                    '- 존중하는 표현 사용 ("~하면 어떨까요?", "~를 고려해보세요")\n'
+                    "- 코드에 집중, 사람 비판 X\n"
+                    "- 긍정적 피드백 포함\n"
+                    '- 예: "이 부분을 함수로 분리하면 테스트하기 쉬울 것 같아요."\n\n'
+                    "가혹한 리뷰 (Harsh):\n"
+                    '- 명령형/단정적 표현 ("이건 잘못됐어요", "다시 해야 합니다")\n'
+                    "- 근거 없는 비판\n"
+                    "- 작성자 능력 폄하\n"
+                    '- 예: "이건 완전히 잘못된 접근입니다."\n\n'
+                    "중립적 리뷰 (Neutral):\n"
+                    "- 단순 사실 지적, 개선 방안 없음\n"
+                    "- 감정적 톤 없음\n"
+                    '- 예: "이 함수는 너무 깁니다."\n\n'
+                    "**한국 개발 문화 고려사항:**\n"
+                    "- 직접적 표현도 맥락에 따라 건설적일 수 있음\n"
+                    "- 높임말 사용 여부보다 내용의 구체성이 중요\n"
+                    "- 이모지 사용은 긍정적 신호일 수 있음\n\n"
+                    "응답 형식:\n"
+                    "{\n"
+                    '  "constructive_count": 숫자,\n'
+                    '  "harsh_count": 숫자,\n'
+                    '  "neutral_count": 숫자,\n'
+                    '  "suggestions": [\n'
+                    '    "팀 전체 커뮤니케이션 개선 제안"\n'
+                    "  ],\n"
+                    '  "examples_good": [\n'
+                    "    {\n"
+                    '      "pr_number": PR 번호,\n'
+                    '      "author": "작성자",\n'
+                    '      "comment": "코멘트 내용",\n'
+                    '      "strengths": ["좋은 점들"]\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "examples_improve": [\n'
+                    "    {\n"
+                    '      "pr_number": PR 번호,\n'
+                    '      "author": "작성자",\n'
+                    '      "comment": "원본 코멘트",\n'
+                    '      "issues": ["문제점들"],\n'
+                    '      "improved_version": "개선된 표현 예시"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "team_culture_insights": {\n'
+                    '    "positive_patterns": ["발견된 긍정적 패턴"],\n'
+                    '    "areas_for_growth": ["개선 영역"]\n'
+                    "  }\n"
+                    "}\n\n"
+                    "각 카테고리에 명확히 분류하고, 경계선상의 경우 맥락을 고려하세요. 모든 응답은 한국어로 작성하세요."
                 ),
             },
             {
@@ -418,7 +560,7 @@ class LLMClient:
         ]
 
         try:
-            response = self.complete(messages, temperature=0.2)
+            response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
             return {
@@ -445,8 +587,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample issues (limit to 30)
-        sample_issues = issues[:30]
+        # Sample issues (limit to 15)
+        sample_issues = issues[:15]
 
         issue_list = "\n".join([
             f"{i+1}. #{issue['number']}: {issue['title']}\n   본문: {issue['body'][:150]}"
@@ -457,12 +599,64 @@ class LLMClient:
             {
                 "role": "system",
                 "content": (
-                    "당신은 프로젝트 관리 전문가입니다. GitHub 이슈의 품질을 평가하세요. "
-                    "좋은 이슈는 명확한 제목, 상세한 설명, 재현 단계, 예상 결과를 포함합니다. "
-                    "반드시 JSON 형식으로 응답하며, 다음 키를 포함해야 합니다: "
-                    "well_described_count (잘 작성된 이슈 수), poorly_described_count (개선이 필요한 이슈 수), "
-                    "suggestions (개선 제안 목록), examples_good (좋은 예시 최대 3개), "
-                    "examples_poor (개선이 필요한 예시 최대 3개). 모든 응답은 한국어로 작성하세요."
+                    "당신은 프로젝트 관리 전문가로서 GitHub 이슈 품질을 평가합니다.\n\n"
+                    "**이슈 타입별 기준:**\n\n"
+                    "Bug Report:\n"
+                    "- [ ] 명확한 재현 단계\n"
+                    "- [ ] 예상 결과 vs 실제 결과\n"
+                    "- [ ] 환경 정보 (OS, 버전 등)\n"
+                    "- [ ] 에러 메시지나 스크린샷\n"
+                    "- [ ] 영향 범위\n\n"
+                    "Feature Request:\n"
+                    "- [ ] 해결하려는 문제 설명\n"
+                    "- [ ] 제안하는 솔루션\n"
+                    "- [ ] 대안 고려사항\n"
+                    "- [ ] 사용자 시나리오\n"
+                    "- [ ] 우선순위 근거\n\n"
+                    "일반 이슈:\n"
+                    "- [ ] 명확한 제목 (타입 포함)\n"
+                    "- [ ] 상세한 설명 (단순 요청 이상)\n"
+                    "- [ ] 라벨이나 마일스톤 설정 가능성\n"
+                    "- [ ] 관련 이슈/PR 링크\n\n"
+                    "**품질 평가:**\n"
+                    "- 잘 작성됨: 위 체크리스트 70% 이상 충족\n"
+                    "- 개선 필요: 체크리스트 50% 미만 또는 핵심 정보 누락\n\n"
+                    "응답 형식:\n"
+                    "{\n"
+                    '  "well_described_count": 숫자,\n'
+                    '  "poorly_described_count": 숫자,\n'
+                    '  "type_breakdown": {\n'
+                    '    "bug": 숫자,\n'
+                    '    "feature": 숫자,\n'
+                    '    "question": 숫자,\n'
+                    '    "other": 숫자\n'
+                    "  },\n"
+                    '  "suggestions": [\n'
+                    '    "이슈 템플릿 개선 제안",\n'
+                    '    "작성 가이드라인"\n'
+                    "  ],\n"
+                    '  "examples_good": [\n'
+                    "    {\n"
+                    '      "number": 이슈 번호,\n'
+                    '      "title": "제목",\n'
+                    '      "type": "bug|feature|other",\n'
+                    '      "strengths": ["잘된 점들"],\n'
+                    '      "completeness_score": 1-10\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "examples_poor": [\n'
+                    "    {\n"
+                    '      "number": 이슈 번호,\n'
+                    '      "title": "제목",\n'
+                    '      "missing_elements": ["누락된 요소들"],\n'
+                    '      "suggestion": "개선 방법"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "template_recommendations": [\n'
+                    '    "프로젝트에 권장하는 이슈 템플릿 형식"\n'
+                    "  ]\n"
+                    "}\n\n"
+                    "모든 응답은 한국어로 작성하세요."
                 ),
             },
             {
@@ -472,7 +666,7 @@ class LLMClient:
         ]
 
         try:
-            response = self.complete(messages, temperature=0.2)
+            response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
             return {
