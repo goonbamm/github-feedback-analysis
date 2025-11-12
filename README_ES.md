@@ -22,6 +22,71 @@ Español | [한국어](README.md) | [English](README_EN.md) | [简体中文](REA
   - Repositorios públicos: permiso `public_repo`
 - Endpoint de API LLM (formato compatible con OpenAI)
 
+## 🔑 Generar GitHub Personal Access Token
+
+Necesita un GitHub Personal Access Token (PAT) para usar esta herramienta.
+
+### Cómo Generar
+
+1. **Acceder a Configuración de GitHub**
+   - Ir a [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+   - O: Perfil de GitHub → Settings → Developer settings → Personal access tokens
+
+2. **Generar Nuevo Token**
+   - Hacer clic en "Generate new token" → "Generate new token (classic)"
+   - Note: Ingrese el propósito del token (ej: "GitHub Feedback Analysis")
+   - Expiration: Establecer período de expiración (recomendado: 90 días o Custom)
+
+3. **Seleccionar Permisos**
+   - **Solo repositorios públicos**: Marcar `public_repo`
+   - **Incluyendo repositorios privados**: Marcar todo `repo`
+   - No se requieren otros permisos
+
+4. **Generar y Copiar Token**
+   - Hacer clic en "Generate token"
+   - Copiar el token generado (comienza con ghp_) y guardarlo de forma segura
+   - ⚠️ **Importante**: No podrá ver este token nuevamente después de salir de la página
+
+5. **Usar Token**
+   - Ingresar el token copiado al ejecutar `ghf init`
+
+### Usar Fine-grained Personal Access Token (Opcional)
+
+Para usar los tokens de grano fino más nuevos:
+1. Ir a [Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)
+2. Repository access: Seleccionar repositorios a analizar
+3. Configurar Permisos:
+   - **Contents**: Read-only (requerido)
+   - **Metadata**: Read-only (seleccionado automáticamente)
+   - **Pull requests**: Read-only (requerido)
+   - **Issues**: Read-only (requerido)
+
+### Para Usuarios de GitHub Enterprise
+
+Si está usando GitHub Enterprise en su organización:
+1. **Acceder a la Página de Tokens del Servidor Enterprise**
+   - `https://github.your-company.com/settings/tokens` (reemplazar con el dominio de su empresa)
+   - O: Perfil → Settings → Developer settings → Personal access tokens
+
+2. **La Configuración de Permisos es la Misma**
+   - Repositorios privados: permiso `repo`
+   - Repositorios públicos: permiso `public_repo`
+
+3. **Especificar Host Enterprise Durante la Configuración Inicial**
+   ```bash
+   ghf init --enterprise-host https://github.your-company.com
+   ```
+
+4. **Contactar al Administrador**
+   - La generación de PAT puede estar restringida en algunos entornos Enterprise
+   - Contacte a su administrador de GitHub si encuentra problemas
+
+### Referencias
+
+- [Documentación de GitHub: Gestión de Personal Access Tokens](https://docs.github.com/es/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [Documentación de GitHub: Fine-grained PAT](https://docs.github.com/es/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
+- [Documentación de GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
 ## 🔧 Instalación
 
 ```bash

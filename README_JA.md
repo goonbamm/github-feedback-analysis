@@ -22,6 +22,71 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
   - パブリックリポジトリ：`public_repo`権限
 - LLM APIエンドポイント（OpenAI互換形式）
 
+## 🔑 GitHub Personal Access Token の発行
+
+このツールを使用するには、GitHub Personal Access Token（PAT）が必要です。
+
+### 発行手順
+
+1. **GitHub設定にアクセス**
+   - [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens) にアクセス
+   - または：GitHubプロフィール → Settings → Developer settings → Personal access tokens
+
+2. **新しいトークンを生成**
+   - "Generate new token" → "Generate new token (classic)" をクリック
+   - Note：トークンの用途を入力（例：「GitHub Feedback Analysis」）
+   - Expiration：有効期限を設定（推奨：90日またはカスタム）
+
+3. **権限を選択**
+   - **パブリックリポジトリのみ**：`public_repo` をチェック
+   - **プライベートリポジトリを含む**：`repo` 全体をチェック
+   - その他の権限は不要です
+
+4. **トークンを生成してコピー**
+   - "Generate token" をクリック
+   - 生成されたトークン（ghp_ で始まる）をコピーして安全に保管
+   - ⚠️ **重要**：このページを離れると、トークンを再度確認できません
+
+5. **トークンを使用**
+   - `ghf init` 実行時にコピーしたトークンを入力してください
+
+### Fine-grained Personal Access Token の使用（オプション）
+
+新しい細粒度トークンを使用する場合：
+1. [Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new) にアクセス
+2. Repository access：分析するリポジトリを選択
+3. 権限を設定：
+   - **Contents**：Read-only（必須）
+   - **Metadata**：Read-only（自動選択）
+   - **Pull requests**：Read-only（必須）
+   - **Issues**：Read-only（必須）
+
+### GitHub Enterprise ユーザー向けガイド
+
+組織でGitHub Enterpriseを使用している場合：
+1. **Enterpriseサーバーのトークンページにアクセス**
+   - `https://github.your-company.com/settings/tokens`（会社のドメインに置き換え）
+   - または：プロフィール → Settings → Developer settings → Personal access tokens
+
+2. **権限設定は同じ**
+   - プライベートリポジトリ：`repo`権限
+   - パブリックリポジトリ：`public_repo`権限
+
+3. **初期設定時にEnterpriseホストを指定**
+   ```bash
+   ghf init --enterprise-host https://github.your-company.com
+   ```
+
+4. **管理者に問い合わせ**
+   - 一部のEnterprise環境ではPAT生成が制限されている場合があります
+   - 問題が発生した場合は、GitHub管理者にお問い合わせください
+
+### 参考資料
+
+- [GitHub公式ドキュメント：Personal Access Token の管理](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [GitHub公式ドキュメント：Fine-grained PAT](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
+- [GitHub Enterprise Server ドキュメント](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
 ## 🔧 インストール
 
 ```bash

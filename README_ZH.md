@@ -22,6 +22,71 @@
   - 公共仓库：需要 `public_repo` 权限
 - LLM API 端点（OpenAI 兼容格式）
 
+## 🔑 生成 GitHub Personal Access Token
+
+使用本工具需要 GitHub Personal Access Token（PAT）。
+
+### 生成步骤
+
+1. **访问 GitHub 设置**
+   - 前往 [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+   - 或：GitHub 个人资料 → Settings → Developer settings → Personal access tokens
+
+2. **生成新令牌**
+   - 点击 "Generate new token" → "Generate new token (classic)"
+   - Note：输入令牌用途（例如："GitHub Feedback Analysis"）
+   - Expiration：设置过期时间（建议：90天或自定义）
+
+3. **选择权限**
+   - **仅公共仓库**：勾选 `public_repo`
+   - **包含私有仓库**：勾选整个 `repo`
+   - 其他权限不需要
+
+4. **生成并复制令牌**
+   - 点击 "Generate token"
+   - 复制生成的令牌（以 ghp_ 开头）并安全保存
+   - ⚠️ **重要**：离开此页面后将无法再次查看令牌
+
+5. **使用令牌**
+   - 运行 `ghf init` 时输入复制的令牌
+
+### 使用细粒度 Personal Access Token（可选）
+
+使用更新的细粒度令牌：
+1. 前往 [Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)
+2. Repository access：选择要分析的仓库
+3. 设置权限：
+   - **Contents**：Read-only（必需）
+   - **Metadata**：Read-only（自动选择）
+   - **Pull requests**：Read-only（必需）
+   - **Issues**：Read-only（必需）
+
+### 面向 GitHub Enterprise 用户
+
+如果您在组织中使用 GitHub Enterprise：
+1. **访问企业服务器令牌页面**
+   - `https://github.your-company.com/settings/tokens`（替换为您公司的域名）
+   - 或：个人资料 → Settings → Developer settings → Personal access tokens
+
+2. **权限设置相同**
+   - 私有仓库：`repo` 权限
+   - 公共仓库：`public_repo` 权限
+
+3. **初始设置时指定企业主机**
+   ```bash
+   ghf init --enterprise-host https://github.your-company.com
+   ```
+
+4. **联系管理员**
+   - 某些企业环境可能限制 PAT 生成
+   - 如遇问题，请联系您的 GitHub 管理员
+
+### 参考资料
+
+- [GitHub 文档：管理 Personal Access Tokens](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [GitHub 文档：细粒度 PAT](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
+- [GitHub Enterprise Server 文档](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
 ## 🔧 安装
 
 ```bash
