@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -45,6 +47,9 @@ from .reviewer import Reviewer
 from .utils import validate_pat_format, validate_url, validate_repo_format, validate_months
 
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")
+config_app = typer.Typer(help="Manage configuration settings")
+app.add_typer(config_app, name="config")
+
 console = Console()
 
 
@@ -67,44 +72,93 @@ def _load_config() -> Config:
         config.validate_required_fields()
         return config
     except ValueError as exc:
-        console.print(f"[danger]Configuration error:[/] {exc}")
-        console.print("[info]Hint:[/] Run [accent]ghf init[/] to set up your configuration")
+        error_msg = str(exc)
+        # Check if it's a multi-line error with bullet points
+        if "\n" in error_msg:
+            lines = error_msg.split("\n")
+            console.print(f"[danger]{lines[0]}[/]")
+            for line in lines[1:]:
+                if line.strip():
+                    console.print(f"  {line}")
+        else:
+            console.print(f"[danger]Configuration error:[/] {error_msg}")
+        console.print()
+        console.print("[info]Run [accent]ghf init[/] to set up your configuration")
         raise typer.Exit(code=1) from exc
 
 
 @app.command()
 def init(
-    pat: str = typer.Option(
-        ...,
-        prompt="GitHub Personal Access Token",
-        hide_input=True,
+    pat: Optional[str] = typer.Option(
+        None,
+        "--pat",
         help="GitHub Personal Access Token (requires 'repo' scope for private repos)",
+        hide_input=True,
     ),
-    months: int = typer.Option(12, help="Default analysis window in months"),
+    months: int = typer.Option(12, "--months", help="Default analysis window in months"),
     enterprise_host: Optional[str] = typer.Option(
-        "",
-        prompt="GitHub Enterprise host (leave empty for github.com)",
+        None,
+        "--enterprise-host",
         help=(
             "Base URL of your GitHub Enterprise host (e.g. https://github.example.com). "
             "When provided, API, GraphQL, and web URLs are derived automatically."
         ),
     ),
-    llm_endpoint: str = typer.Option(
-        ...,
-        prompt="LLM API endpoint (OpenAI-compatible format)",
+    llm_endpoint: Optional[str] = typer.Option(
+        None,
+        "--llm-endpoint",
         help="LLM endpoint URL (e.g. http://localhost:8000/v1/chat/completions)",
     ),
-    llm_model: str = typer.Option(
-        ...,
-        prompt="LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)",
+    llm_model: Optional[str] = typer.Option(
+        None,
+        "--llm-model",
         help="Model identifier for the LLM",
+    ),
+    test_connection: bool = typer.Option(
+        True,
+        "--test/--no-test",
+        help="Test LLM connection after configuration",
     ),
 ) -> None:
     """Initialize configuration and store credentials securely.
 
     This command sets up your GitHub access token, LLM endpoint, and other
     configuration options. Run this once before using other commands.
+
+    Interactive mode: Run without options to be prompted for each value.
+    Non-interactive mode: Provide all required options for scripting.
     """
+
+    # Determine if we're in interactive mode
+    is_interactive = sys.stdin.isatty()
+
+    # Prompt for missing required values only in interactive mode
+    if pat is None:
+        if is_interactive:
+            pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
+        else:
+            console.print("[danger]Error:[/] --pat is required in non-interactive mode")
+            raise typer.Exit(code=1)
+
+    if llm_endpoint is None:
+        if is_interactive:
+            llm_endpoint = typer.prompt("LLM API endpoint (OpenAI-compatible format)")
+        else:
+            console.print("[danger]Error:[/] --llm-endpoint is required in non-interactive mode")
+            raise typer.Exit(code=1)
+
+    if llm_model is None:
+        if is_interactive:
+            llm_model = typer.prompt("LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)")
+        else:
+            console.print("[danger]Error:[/] --llm-model is required in non-interactive mode")
+            raise typer.Exit(code=1)
+
+    if enterprise_host is None and is_interactive:
+        enterprise_host = typer.prompt(
+            "GitHub Enterprise host (leave empty for github.com)",
+            default="",
+        )
 
     # Validate inputs
     try:
@@ -143,9 +197,29 @@ def init(
     config.llm.endpoint = llm_endpoint
     config.llm.model = llm_model
     config.defaults.months = months
+
+    # Test LLM connection if requested
+    if test_connection:
+        console.print()
+        with console.status("[accent]Testing LLM connection...", spinner="dots"):
+            try:
+                from .llm import LLMClient
+                test_client = LLMClient(
+                    endpoint=llm_endpoint,
+                    model=llm_model,
+                    timeout=10,
+                )
+                test_client.test_connection()
+                console.print("[success]✓ LLM connection successful[/]")
+            except Exception as exc:
+                console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
+                if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
+                    console.print("[info]Configuration not saved[/]")
+                    raise typer.Exit(code=1)
+
     config.dump()
-    console.print("[success]Configuration saved successfully.[/]")
-    console.print("[success]GitHub token stored securely in system keyring.[/]")
+    console.print("[success]✓ Configuration saved successfully[/]")
+    console.print("[success]✓ GitHub token stored securely in system keyring[/]")
 
     console.print()
     show_config()
@@ -479,17 +553,27 @@ def _generate_artifacts(
 @app.command()
 def brief(
     repo: str = typer.Option(
-        "",
+        ...,
         "--repo",
-        prompt="Repository to analyze (e.g. torvalds/linux)",
+        "-r",
         help="Repository in owner/name format (e.g. microsoft/vscode)",
+    ),
+    output_dir: Path = typer.Option(
+        Path("reports"),
+        "--output",
+        "-o",
+        help="Output directory for reports",
     ),
 ) -> None:
     """Analyze repository activity and generate detailed reports.
 
     This command collects commits, PRs, reviews, and issues from a GitHub
     repository, then generates comprehensive reports with insights and
-    recommendations. Reports are saved to the 'reports/' directory.
+    recommendations.
+
+    Examples:
+        ghf brief --repo torvalds/linux
+        ghf brief --repo myorg/myrepo --output custom_reports/
     """
     from datetime import datetime, timedelta, timezone
 
@@ -512,15 +596,10 @@ def brief(
         raise typer.Exit(code=1) from exc
 
     analyzer = Analyzer(web_base_url=config.server.web_url)
-    output_dir = _resolve_output_dir(Path("reports"))
-    reporter = Reporter(output_dir=output_dir)
+    output_dir_resolved = _resolve_output_dir(output_dir)
+    reporter = Reporter(output_dir=output_dir_resolved)
 
     repo_input = repo.strip()
-    if not repo_input:
-        console.print("[danger]Error:[/] Repository value cannot be empty")
-        console.print("[info]Expected format:[/] [accent]owner/repository[/]")
-        console.print("[info]Example:[/] [accent]ghf brief --repo torvalds/linux[/]")
-        raise typer.Exit(code=1)
 
     try:
         validate_repo_format(repo_input)
@@ -530,7 +609,7 @@ def brief(
         raise typer.Exit(code=1) from exc
 
     # Phase 1: Collect repository data
-    with console.status("[accent]Collecting repository signals...", spinner="bouncingBar"):
+    with console.status("[accent]Collecting repository data...", spinner="bouncingBar"):
         collection = collector.collect(repo=repo_input, months=months, filters=filters)
 
     # Check if repository has any activity
@@ -646,35 +725,72 @@ def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metri
 
 
 @app.callback()
-def main_callback() -> None:
+def main_callback(
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output for debugging",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress non-essential output",
+    ),
+    no_color: bool = typer.Option(
+        False,
+        "--no-color",
+        help="Disable colored output",
+    ),
+) -> None:
     """CLI entry-point callback for shared initialisation."""
     from .christmas_theme import is_christmas_season, get_christmas_banner
 
-    # Display Christmas decorations if in season (Nov 1 - Dec 31)
-    if is_christmas_season():
+    # Set console modes
+    console.set_verbose(verbose)
+    console.set_quiet(quiet)
+
+    if no_color:
+        os.environ["NO_COLOR"] = "1"
+
+    # Display Christmas decorations if in season (Nov 1 - Dec 31) and not in quiet mode
+    disable_theme = os.getenv("GHF_NO_THEME", "").lower() in ("1", "true", "yes")
+    if is_christmas_season() and not disable_theme and not quiet:
         console.print(get_christmas_banner())
 
 
 @app.command()
 def feedback(
     repo: str = typer.Option(
-        "",
+        ...,
         "--repo",
-        prompt="Repository to review (e.g. myname/myproject)",
+        "-r",
         help="Repository in owner/name format (e.g. facebook/react)",
     ),
     state: str = typer.Option(
         "all",
         "--state",
+        "-s",
         help="PR state filter: 'open', 'closed', or 'all' (default: all)",
+    ),
+    output_dir: Path = typer.Option(
+        Path("reviews"),
+        "--output",
+        "-o",
+        help="Output directory for reviews",
     ),
 ) -> None:
     """Generate AI-powered reviews for your pull requests.
 
     This command reviews all PRs authored by you (based on your GitHub token)
     in the specified repository. It analyzes code changes, comments, and
-    creates an integrated retrospective report. Reviews are saved to the
-    'reviews/' directory.
+    creates an integrated retrospective report.
+
+    Examples:
+        ghf feedback --repo myorg/myrepo
+        ghf feedback --repo myorg/myrepo --state open
+        ghf feedback --repo myorg/myrepo --output custom_reviews/
     """
 
     config = _load_config()
@@ -697,11 +813,6 @@ def feedback(
     reviewer = Reviewer(collector=collector, llm=llm_client)
 
     repo_input = repo.strip()
-    if not repo_input:
-        console.print("[danger]Error:[/] Repository value cannot be empty")
-        console.print("[info]Expected format:[/] [accent]owner/repository[/]")
-        console.print("[info]Example:[/] [accent]ghf feedback --repo myname/myproject[/]")
-        raise typer.Exit(code=1)
 
     try:
         validate_repo_format(repo_input)
@@ -736,7 +847,7 @@ def feedback(
         raise typer.Exit(code=1)
 
     with console.status(
-        "[accent]Retrieving authenticated user from PAT...", spinner="dots"
+        "[accent]Retrieving authenticated user...", spinner="dots"
     ):
         try:
             author = collector.get_authenticated_user()
@@ -745,7 +856,7 @@ def feedback(
             raise typer.Exit(code=1) from exc
 
     with console.status(
-        "[accent]Discovering authored pull requests...", spinner="dots"
+        "[accent]Finding your pull requests...", spinner="dots"
     ):
         numbers = collector.list_authored_pull_requests(
             repo=repo_input,
@@ -764,7 +875,7 @@ def feedback(
 
     for idx, pr_number in enumerate(pr_numbers, 1):
         with console.status(
-            f"[accent]Curating context for PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
+            f"[accent]Analyzing PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
         ):
             artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
                 repo=repo_input,
@@ -788,8 +899,9 @@ def feedback(
     # Step 2: Generate integrated report
     console.rule("Step 2: Generating Integrated Report")
 
+    output_dir_resolved = _resolve_output_dir(output_dir)
     review_reporter = ReviewReporter(
-        output_dir=Path("reviews"),
+        output_dir=output_dir_resolved,
         llm=llm_client,
     )
 
@@ -814,7 +926,7 @@ def feedback(
     console.print("  • Analyze the repository: [accent]ghf brief --repo {}[/]".format(repo_input))
 
 
-@app.command()
+@config_app.command("show")
 def show_config() -> None:
     """Display current configuration settings.
 
@@ -850,3 +962,53 @@ def show_config() -> None:
         table.add_row(f"[accent]{section}[/]", rendered_values)
 
     console.print(table)
+
+
+@config_app.command("set")
+def config_set(
+    key: str = typer.Argument(..., help="Configuration key in dot notation (e.g. llm.model)"),
+    value: str = typer.Argument(..., help="Value to set"),
+) -> None:
+    """Set a configuration value.
+
+    Examples:
+        ghf config set llm.model gpt-4
+        ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+        ghf config set defaults.months 6
+    """
+    try:
+        config = Config.load()
+        config.set_value(key, value)
+        config.dump()
+        console.print(f"[success]✓ Configuration updated:[/] {key} = {value}")
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+@config_app.command("get")
+def config_get(
+    key: str = typer.Argument(..., help="Configuration key in dot notation (e.g. llm.model)"),
+) -> None:
+    """Get a configuration value.
+
+    Examples:
+        ghf config get llm.model
+        ghf config get defaults.months
+    """
+    try:
+        config = Config.load()
+        value = config.get_value(key)
+        console.print(f"{key} = {value}")
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+# Keep show-config as a deprecated alias for backward compatibility
+@app.command(name="show-config", hidden=True, deprecated=True)
+def show_config_deprecated() -> None:
+    """Display current configuration settings (deprecated: use 'ghf config show')."""
+    console.print("[warning]Note:[/] 'ghf show-config' is deprecated. Use 'ghf config show' instead.")
+    console.print()
+    show_config()
