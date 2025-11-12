@@ -461,6 +461,10 @@ def _generate_artifacts(
     markdown_path = reporter.generate_markdown(metrics)
     artifacts.append(("Markdown report", markdown_path))
 
+    # Generate HTML report with charts
+    html_path = reporter.generate_html(metrics)
+    artifacts.append(("HTML report", html_path))
+
     # Generate prompt packets
     prompt_artifacts = reporter.generate_prompt_packets(metrics)
     for prompt_request, prompt_path in prompt_artifacts:
