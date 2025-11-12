@@ -15,12 +15,78 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older runtimes
 from pydantic import BaseModel, ValidationError, field_validator
 from tomli_w import dump as toml_dump
 import keyring
+from keyring.errors import KeyringError
 
 CONFIG_DIR = Path.home() / ".config" / "github_feedback"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 CONFIG_VERSION = "1.0.0"
 KEYRING_SERVICE = "github-feedback"
 KEYRING_USERNAME = "github-pat"
+
+
+def _setup_keyring_fallback() -> None:
+    """Set up a fallback keyring backend if the default backend fails.
+
+    This is particularly useful on Linux systems where the D-Bus secrets service
+    may not have a 'login' collection or may not be accessible.
+    """
+    import sys
+    import warnings
+
+    try:
+        # Try to use a file-based keyring instead
+        try:
+            # First try encrypted file backend if keyrings.alt is available
+            from keyrings.alt.file import EncryptedKeyring
+            keyring.set_keyring(EncryptedKeyring())
+        except ImportError:
+            # If keyrings.alt is not available, try other available backends
+            from keyring.backends import fail
+
+            # Get all available backends
+            available = keyring.backend.get_all_keyring()
+
+            # Filter out fail/null backends and sort by priority
+            viable = [
+                b for b in available
+                if not isinstance(b, fail.Keyring) and b.priority > 0
+            ]
+
+            if viable:
+                # Sort by priority (highest first) and use the best one
+                viable.sort(key=lambda x: x.priority, reverse=True)
+
+                # Skip SecretService backend if we're on Linux and it's failing
+                for backend in viable:
+                    try:
+                        # Test the backend
+                        keyring.set_keyring(backend)
+                        keyring.get_password(KEYRING_SERVICE, "test")
+                        # If we get here, it works
+                        break
+                    except Exception:
+                        continue
+                else:
+                    # No working backend found
+                    warnings.warn(
+                        "System keyring is not accessible. "
+                        "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+                        UserWarning
+                    )
+            else:
+                warnings.warn(
+                    "No secure keyring backend available. "
+                    "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+                    UserWarning
+                )
+
+    except Exception as e:
+        # If all else fails, warn the user
+        warnings.warn(
+            f"Failed to set up keyring fallback: {e}. "
+            "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+            UserWarning
+        )
 
 
 class ServerConfig(BaseModel):
@@ -187,24 +253,60 @@ class Config:
 
         Args:
             pat: GitHub Personal Access Token to store securely.
+
+        Raises:
+            RuntimeError: If unable to store credentials in any keyring backend.
         """
-        keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
+        try:
+            keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
+        except Exception as e:
+            # Try to set up fallback and retry
+            _setup_keyring_fallback()
+            try:
+                keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
+            except Exception as fallback_error:
+                raise RuntimeError(
+                    f"Failed to store credentials securely. "
+                    f"Original error: {e}. Fallback error: {fallback_error}. "
+                    f"Please ensure your system keyring is properly configured or install 'keyrings.alt': "
+                    f"pip install keyrings.alt"
+                ) from fallback_error
 
     def get_pat(self) -> Optional[str]:
         """Retrieve the stored PAT from system keyring.
 
         Returns:
             The stored PAT, or None if not set.
+
+        Raises:
+            RuntimeError: If unable to access the keyring backend.
         """
-        return keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+        try:
+            return keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+        except Exception as e:
+            # Try to set up fallback and retry
+            _setup_keyring_fallback()
+            try:
+                return keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+            except Exception as fallback_error:
+                raise RuntimeError(
+                    f"Failed to retrieve credentials from keyring. "
+                    f"Original error: {e}. Fallback error: {fallback_error}. "
+                    f"Please ensure your system keyring is properly configured or install 'keyrings.alt': "
+                    f"pip install keyrings.alt"
+                ) from fallback_error
 
     def has_pat(self) -> bool:
         """Check if a PAT is stored in the keyring.
 
         Returns:
-            True if PAT is set, False otherwise.
+            True if PAT is set, False otherwise or if keyring is inaccessible.
         """
-        return self.get_pat() is not None
+        try:
+            return self.get_pat() is not None
+        except RuntimeError:
+            # If we can't access the keyring, assume no PAT is stored
+            return False
 
     def validate_required_fields(self) -> None:
         """Validate that all required configuration fields are set.
