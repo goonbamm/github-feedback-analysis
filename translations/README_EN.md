@@ -1,15 +1,15 @@
 # 🚀 GitHub Feedback Analysis
 
-As a developer, do you want feedback but don't know where to start with your year-end retrospective? A CLI tool that analyzes GitHub repository activity and automatically generates insightful reports. Supports both GitHub.com and GitHub Enterprise, with LLM-powered automated review capabilities.
+As a developer, do you want feedback but don't know where to start with your year-end retrospective? A CLI tool that analyzes **your activity** on GitHub and automatically generates insightful reports. Supports both GitHub.com and GitHub Enterprise, with LLM-powered automated review capabilities.
 
 English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
 ## ✨ Key Features
 
-- 📊 **Repository Analysis**: Aggregate and analyze commits, issues, and review activity by period
-- 🤖 **LLM-Based Feedback**: Detailed analysis of commit messages, PR titles, review tone, and issue quality
-- 🎯 **Automated PR Reviews**: Automatically review authenticated user's PRs and generate integrated retrospective reports
-- 🏆 **Achievement Visualization**: Automatically generate awards and highlights based on contributions
+- 📊 **Personal Activity Analysis**: Aggregate and analyze **your** commits, issues, and review activity in specific repositories by period
+- 🤖 **LLM-Based Feedback**: Detailed analysis of your commit messages, PR titles, review tone, and issue quality
+- 🎯 **Integrated Retrospective Report**: Comprehensive insights with personal activity metrics
+- 🏆 **Achievement Visualization**: Automatically generate awards and highlights based on your contributions
 - 💡 **Repository Discovery**: List accessible repositories and suggest active ones
 - 🎨 **Interactive Mode**: User-friendly interface for direct repository selection
 
@@ -121,13 +121,13 @@ When prompted, enter the following information:
 - LLM model (e.g., `gpt-4`)
 - GitHub Enterprise host (optional, only if not using github.com)
 
-### 2️⃣ Analyze Repository
+### 2️⃣ Analyze Your Activity
 
 ```bash
 gfa feedback
 ```
 
-You can choose from a list of recommended repositories or enter one directly.
+You can choose from a list of recommended repositories or enter one directly to analyze **your activity** in that repository.
 
 After analysis completes, the following files are generated in the `reports/` directory:
 - `metrics.json` - Analysis data
@@ -188,9 +188,11 @@ gfa init \
 </details>
 
 <details>
-<summary><b>📊 gfa feedback - Repository Analysis</b></summary>
+<summary><b>📊 gfa feedback - Personal Activity Analysis</b></summary>
 
-Analyze repository and generate detailed feedback reports.
+Analyze **your activity** in a specific repository and generate detailed feedback reports.
+
+> **Important**: This command analyzes only the authenticated user's (PAT owner's) personal activity. It collects and analyzes only **your** commits, PRs, reviews, and issues, not the entire repository.
 
 #### Basic Usage
 
@@ -215,13 +217,13 @@ gfa feedback  # Run without --repo option
 #### Examples
 
 ```bash
-# Analyze public repository
+# Analyze public repository you contributed to
 gfa feedback --repo torvalds/linux
 
-# Analyze personal repository
+# Analyze personal repository you contributed to
 gfa feedback --repo myusername/my-private-repo
 
-# Analyze organization repository
+# Analyze organization repository you contributed to
 gfa feedback --repo microsoft/vscode
 
 # Interactive mode for repository selection
@@ -242,81 +244,28 @@ After analysis completes, the following files are created in the `reports/` dire
 
 ```
 reports/
-├── metrics.json              # 📈 Raw analysis data
-├── report.md                 # 📄 Markdown report
-├── report.html               # 🎨 HTML report (with visualization charts)
-├── charts/                   # 📊 Visualization charts (SVG)
+├── metrics.json              # Raw analysis data (JSON)
+├── report.md                 # Analysis report (Markdown)
+├── report.html               # Analysis report (HTML, with charts)
+├── charts/                   # Visualization charts
 │   ├── quality.svg          # Quality metrics chart
 │   ├── activity.svg         # Activity metrics chart
-│   ├── engagement.svg       # Engagement chart
 │   └── ...                  # Other domain-specific charts
 └── prompts/
-    ├── commit_feedback.txt   # 💬 Commit message quality analysis
-    ├── pr_feedback.txt       # 🔀 PR title analysis
-    ├── review_feedback.txt   # 👀 Review tone analysis
-    └── issue_feedback.txt    # 🐛 Issue quality analysis
+    ├── commit_feedback.txt   # Commit message feedback
+    ├── pr_feedback.txt       # PR title feedback
+    ├── review_feedback.txt   # Review tone feedback
+    └── issue_feedback.txt    # Issue quality feedback
 ```
 
 #### Analysis Content
 
-- ✅ **Activity Aggregation**: Count commits, PRs, reviews, and issues
-- 🎯 **Quality Analysis**: Commit messages, PR titles, review tone, issue description quality
-- 🏆 **Awards**: Automatic awards based on contributions
-- 📈 **Trends**: Monthly activity trends and velocity analysis
-
-</details>
-
-<details>
-<summary><b>🎯 gfa feedback - Automated PR Review</b></summary>
-
-Automatically review authenticated user's (PAT owner's) PRs and generate integrated retrospective report.
-
-#### Basic Usage
-
-```bash
-gfa feedback --repo owner/repo-name
-```
-
-#### Examples
-
-```bash
-# Review all PRs authored by you
-gfa feedback --repo myusername/my-project
-```
-
-#### Options
-
-| Option | Description | Required | Default |
-|--------|-------------|----------|---------|
-| `--repo` | Repository (owner/name) | ✅ | - |
-
-#### Execution Process
-
-1. **PR Search** 🔍
-   - Retrieve list of PRs authored by PAT-authenticated user
-
-2. **Generate Individual Reviews** 📝
-   - Collect code changes and review comments for each PR
-   - Generate detailed reviews using LLM
-   - Save to `reviews/owner_repo/pr-{number}/` directory
-
-3. **Integrated Retrospective Report** 📊
-   - Generate insights combining all PRs
-   - Save to `reviews/owner_repo/integrated_report.md`
-
-#### Generated Files
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # PR raw data
-    │   ├── review_summary.json     # LLM analysis results
-    │   └── review.md               # Markdown review
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # Integrated retrospective report
-```
+- ✅ **Activity Aggregation**: Count your commits, PRs, reviews, and issues
+- 🎯 **Quality Analysis**: Your commit messages, PR titles, review tone, and issue description quality
+- 🏆 **Awards**: Automatic awards based on your contributions
+- 📈 **Trends**: Your monthly activity trends and velocity analysis
+- 🤝 **Collaboration Analysis**: Collaborator network who worked with you
+- 💻 **Tech Stack**: Languages and technologies in files you worked on
 
 </details>
 
@@ -522,7 +471,7 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 Raw analysis data
+├── metrics.json              # 📈 Personal activity analysis data (JSON)
 ├── report.md                 # 📄 Markdown report
 ├── report.html               # 🎨 HTML report (with visualization charts)
 ├── charts/                   # 📊 Visualization charts (SVG)
@@ -535,20 +484,6 @@ reports/
     ├── pr_feedback.txt       # 🔀 PR title analysis
     ├── review_feedback.txt   # 👀 Review tone analysis
     └── issue_feedback.txt    # 🐛 Issue quality analysis
-```
-
-### `gfa feedback` Output
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # 📦 PR raw data (code, reviews, etc.)
-    │   ├── review_summary.json     # 🤖 LLM analysis results (structured data)
-    │   └── review.md               # 📝 Markdown review report
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 🎯 Integrated retrospective report (all PRs combined)
 ```
 
 </details>
@@ -567,23 +502,23 @@ gfa init
 # 2. Get repository suggestions
 gfa suggest-repos
 
-# 3. Analyze with interactive mode
+# 3. Analyze your activity in interactive mode
 gfa feedback --interactive
 
 # 4. View report
 cat reports/report.md
 ```
 
-### Example 2: Open Source Project Analysis
+### Example 2: Open Source Contribution Analysis
 
 ```bash
 # 1. Configuration (first time only)
 gfa init
 
-# 2. Analyze popular open source project
+# 2. Analyze your contributions to open source project
 gfa feedback --repo facebook/react
 
-# 3. View report
+# 3. View report (only your contributions are shown)
 cat reports/report.md
 ```
 
@@ -593,14 +528,11 @@ cat reports/report.md
 # Check my repository list
 gfa list-repos --sort updated --limit 10
 
-# Analyze my project
+# Analyze your activity in your project
 gfa feedback --repo myname/my-awesome-project
 
-# Auto-review my PRs
-gfa feedback --repo myname/my-awesome-project
-
-# View integrated retrospective report
-cat reviews/myname_my-awesome-project/integrated_report.md
+# View report
+cat reports/report.md
 ```
 
 ### Example 4: Team Project Performance Review
@@ -612,11 +544,11 @@ gfa list-repos --org mycompany --limit 20
 # Set analysis period (last 6 months)
 gfa config set defaults.months 6
 
-# Analyze organization repository
+# Analyze your activity in organization repository
 gfa feedback --repo mycompany/product-service
 
-# Review team member PRs (each runs with their own PAT)
-gfa feedback --repo mycompany/product-service
+# View report (only your activity is shown)
+cat reports/report.md
 ```
 
 </details>

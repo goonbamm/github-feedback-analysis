@@ -1,15 +1,15 @@
 # 🚀 GitHub Feedback Analysis
 
-개발자로서 피드백 받고 싶은데, 연말을 회고하고 싶은데 어떻게 해야 할지 모르겠다면? GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
+개발자로서 피드백 받고 싶은데, 연말을 회고하고 싶은데 어떻게 해야 할지 모르겠다면? GitHub에서 **나의 활동**을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
 
 한국어 | [English](translations/README_EN.md) | [简体中文](translations/README_ZH.md) | [日本語](translations/README_JA.md) | [Español](translations/README_ES.md)
 
 ## ✨ 주요 기능
 
-- 📊 **저장소 분석**: 커밋, 이슈, 리뷰 활동을 기간별로 집계하고 분석
-- 🤖 **LLM 기반 피드백**: 커밋 메시지, PR 제목, 리뷰 톤, 이슈 품질에 대한 상세 분석
-- 🎯 **PR 자동 리뷰**: 인증된 사용자의 PR을 자동으로 리뷰하고 통합 회고 보고서 생성
-- 🏆 **성과 시각화**: 기여도에 따른 어워드 및 하이라이트 자동 생성
+- 📊 **개인 활동 분석**: 특정 저장소에서 **나의** 커밋, 이슈, 리뷰 활동을 기간별로 집계하고 분석
+- 🤖 **LLM 기반 피드백**: 나의 커밋 메시지, PR 제목, 리뷰 톤, 이슈 품질에 대한 상세 분석
+- 🎯 **통합 회고 보고서**: 개인 활동 지표와 함께 종합적인 인사이트 제공
+- 🏆 **성과 시각화**: 나의 기여도에 따른 어워드 및 하이라이트 자동 생성
 - 💡 **저장소 탐색**: 접근 가능한 저장소 목록 조회 및 활성 저장소 추천
 - 🎨 **대화형 모드**: 저장소를 직접 선택할 수 있는 사용자 친화적 인터페이스
 
@@ -121,13 +121,13 @@ gfa init
 - LLM 모델 (예: `gpt-4`)
 - GitHub Enterprise 호스트 (선택사항, github.com이 아닌 경우만)
 
-### 2️⃣ 저장소 분석
+### 2️⃣ 개인 활동 분석
 
 ```bash
 gfa feedback
 ```
 
-추천 저장소 목록에서 선택하거나 직접 입력하여 분석할 수 있습니다.
+추천 저장소 목록에서 선택하거나 직접 입력하여 **나의 활동**을 분석할 수 있습니다.
 
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
 - `metrics.json` - 분석 데이터
@@ -188,9 +188,11 @@ gfa init \
 </details>
 
 <details>
-<summary><b>📊 gfa feedback - 저장소 분석</b></summary>
+<summary><b>📊 gfa feedback - 개인 활동 분석</b></summary>
 
-저장소를 분석하고 상세 피드백 보고서를 생성합니다.
+특정 저장소에서 **나의 활동**을 분석하고 상세 피드백 보고서를 생성합니다.
+
+> **중요**: 이 명령어는 인증된 사용자(PAT 소유자)의 개인 활동만 분석합니다. 저장소 전체가 아닌, **나의** 커밋, PR, 리뷰, 이슈만 수집하고 분석합니다.
 
 #### 기본 사용법
 
@@ -215,13 +217,13 @@ gfa feedback  # --repo 옵션 없이 실행
 #### 예시
 
 ```bash
-# 공개 저장소 분석
+# 내가 기여한 공개 저장소 분석
 gfa feedback --repo torvalds/linux
 
-# 개인 저장소 분석
+# 내가 기여한 개인 저장소 분석
 gfa feedback --repo myusername/my-private-repo
 
-# 조직 저장소 분석
+# 내가 기여한 조직 저장소 분석
 gfa feedback --repo microsoft/vscode
 
 # 대화형 모드로 저장소 선택
@@ -258,64 +260,12 @@ reports/
 
 #### 분석 내용
 
-- ✅ **활동 집계**: 커밋, PR, 리뷰, 이슈 수 계산
-- 🎯 **품질 분석**: 커밋 메시지, PR 제목, 리뷰 톤, 이슈 설명 품질
-- 🏆 **어워드**: 기여도에 따른 자동 어워드 부여
-- 📈 **트렌드**: 월별 활동 추이 및 속도 분석
-
-</details>
-
-<details>
-<summary><b>🎯 gfa feedback - PR 자동 리뷰</b></summary>
-
-인증된 사용자(PAT 소유자)의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
-
-#### 기본 사용법
-
-```bash
-gfa feedback --repo owner/repo-name
-```
-
-#### 예시
-
-```bash
-# 내가 작성한 모든 PR 리뷰
-gfa feedback --repo myusername/my-project
-```
-
-#### 옵션 설명
-
-| 옵션 | 설명 | 필수 | 기본값 |
-|------|------|------|--------|
-| `--repo` | 저장소 (owner/name) | ✅ | - |
-
-#### 실행 과정
-
-1. **PR 검색** 🔍
-   - PAT로 인증된 사용자가 작성한 PR 목록 조회
-
-2. **개별 리뷰 생성** 📝
-   - 각 PR의 코드 변경사항, 리뷰 코멘트 수집
-   - LLM을 사용한 상세 리뷰 생성
-   - `reviews/owner_repo/pr-{번호}/` 디렉터리에 저장
-
-3. **통합 회고 보고서** 📊
-   - 모든 PR을 종합한 인사이트 생성
-   - `reviews/owner_repo/integrated_report.md` 저장
-
-#### 생성되는 파일
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # PR 원본 데이터
-    │   ├── review_summary.json     # LLM 분석 결과
-    │   └── review.md               # 마크다운 리뷰
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 통합 회고 보고서
-```
+- ✅ **활동 집계**: 나의 커밋, PR, 리뷰, 이슈 수 계산
+- 🎯 **품질 분석**: 나의 커밋 메시지, PR 제목, 리뷰 톤, 이슈 설명 품질
+- 🏆 **어워드**: 나의 기여도에 따른 자동 어워드 부여
+- 📈 **트렌드**: 나의 월별 활동 추이 및 속도 분석
+- 🤝 **협업 분석**: 나와 함께 작업한 협업자 네트워크
+- 💻 **기술 스택**: 내가 작업한 파일의 언어 및 기술 분석
 
 </details>
 
@@ -521,7 +471,7 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 분석 지표 원본 데이터
+├── metrics.json              # 📈 개인 활동 분석 데이터 (JSON)
 ├── report.md                 # 📄 마크다운 보고서
 ├── report.html               # 🎨 HTML 보고서 (시각화 차트 포함)
 ├── charts/                   # 📊 시각화 차트 (SVG)
@@ -534,20 +484,6 @@ reports/
     ├── pr_feedback.txt       # 🔀 PR 제목 분석
     ├── review_feedback.txt   # 👀 리뷰 톤 분석
     └── issue_feedback.txt    # 🐛 이슈 품질 분석
-```
-
-### `gfa feedback` 출력
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # 📦 PR 원본 데이터 (코드, 리뷰 등)
-    │   ├── review_summary.json     # 🤖 LLM 분석 결과 (구조화된 데이터)
-    │   └── review.md               # 📝 마크다운 리뷰 보고서
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 🎯 통합 회고 보고서 (모든 PR 종합)
 ```
 
 </details>
@@ -566,23 +502,23 @@ gfa init
 # 2. 저장소 추천 받기
 gfa suggest-repos
 
-# 3. 대화형 모드로 분석
+# 3. 대화형 모드로 나의 활동 분석
 gfa feedback --interactive
 
 # 4. 보고서 확인
 cat reports/report.md
 ```
 
-### 예시 2: 오픈소스 프로젝트 분석
+### 예시 2: 오픈소스 기여 활동 분석
 
 ```bash
 # 1. 설정 (최초 1회)
 gfa init
 
-# 2. 유명 오픈소스 프로젝트 분석
+# 2. 내가 기여한 오픈소스 프로젝트 활동 분석
 gfa feedback --repo facebook/react
 
-# 3. 보고서 확인
+# 3. 보고서 확인 (나의 기여 활동만 표시됨)
 cat reports/report.md
 ```
 
@@ -592,17 +528,14 @@ cat reports/report.md
 # 내 저장소 목록 확인
 gfa list-repos --sort updated --limit 10
 
-# 내 프로젝트 분석
+# 내 프로젝트에서 나의 활동 분석
 gfa feedback --repo myname/my-awesome-project
 
-# 내가 작성한 PR 자동 리뷰
-gfa feedback --repo myname/my-awesome-project
-
-# 통합 회고 보고서 확인
-cat reviews/myname_my-awesome-project/integrated_report.md
+# 보고서 확인
+cat reports/report.md
 ```
 
-### 예시 4: 팀 프로젝트 성과 리뷰
+### 예시 4: 팀 프로젝트에서 나의 성과 리뷰
 
 ```bash
 # 조직 저장소 목록 확인
@@ -611,11 +544,11 @@ gfa list-repos --org mycompany --limit 20
 # 분석 기간 설정 (지난 6개월)
 gfa config set defaults.months 6
 
-# 조직 저장소 분석
+# 조직 저장소에서 나의 활동 분석
 gfa feedback --repo mycompany/product-service
 
-# 팀원별 PR 리뷰 (각자 PAT로 실행)
-gfa feedback --repo mycompany/product-service
+# 보고서 확인 (나의 활동만 표시됨)
+cat reports/report.md
 ```
 
 </details>
