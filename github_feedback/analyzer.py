@@ -384,70 +384,54 @@ class Analyzer:
             )
         return trends
 
-    def _build_monthly_insights(
-        self, monthly_trends: List[MonthlyTrend]
-    ) -> Optional[MonthlyTrendInsights]:
-        """Analyze monthly trends and generate insights."""
-        if not monthly_trends or len(monthly_trends) < 2:
-            return None
+    def _calculate_trend_direction(self, monthly_activities: List[tuple]) -> str:
+        """Calculate trend direction from monthly activities."""
+        if len(monthly_activities) < 3:
+            return "stable"
 
-        # Calculate total activity per month
-        monthly_activities = [
-            (trend.month, trend.commits + trend.pull_requests + trend.reviews + trend.issues)
-            for trend in monthly_trends
-        ]
+        recent_half = monthly_activities[len(monthly_activities)//2:]
+        early_half = monthly_activities[:len(monthly_activities)//2]
 
-        # Find peak and quiet months
-        peak_month_data = max(monthly_activities, key=lambda x: x[1])
-        peak_month = peak_month_data[0] if peak_month_data[1] > 0 else None
+        recent_avg = sum(act for _, act in recent_half) / len(recent_half) if recent_half else 0
+        early_avg = sum(act for _, act in early_half) / len(early_half) if early_half else 0
 
-        non_zero_activities = [(month, activity) for month, activity in monthly_activities if activity > 0]
-        quiet_month = None
-        if non_zero_activities:
-            quiet_month_data = min(non_zero_activities, key=lambda x: x[1])
-            quiet_month = quiet_month_data[0]
-
-        # Calculate active months
-        total_active_months = sum(1 for _, activity in monthly_activities if activity > 0)
-
-        # Calculate trend direction (simple linear regression approach)
-        if len(monthly_trends) >= 3:
-            recent_half = monthly_activities[len(monthly_activities)//2:]
-            early_half = monthly_activities[:len(monthly_activities)//2]
-
-            recent_avg = sum(act for _, act in recent_half) / len(recent_half) if recent_half else 0
-            early_avg = sum(act for _, act in early_half) / len(early_half) if early_half else 0
-
-            if recent_avg > early_avg * 1.2:
-                trend_direction = "increasing"
-            elif recent_avg < early_avg * 0.8:
-                trend_direction = "decreasing"
-            else:
-                trend_direction = "stable"
+        if recent_avg > early_avg * 1.2:
+            return "increasing"
+        elif recent_avg < early_avg * 0.8:
+            return "decreasing"
         else:
-            trend_direction = "stable"
+            return "stable"
 
-        # Calculate consistency score (coefficient of variation)
+    def _calculate_consistency_score(self, monthly_activities: List[tuple]) -> float:
+        """Calculate consistency score from monthly activities."""
         activities = [act for _, act in monthly_activities if act > 0]
-        if activities and len(activities) >= 2:
-            import math
-            mean_activity = sum(activities) / len(activities)
-            variance = sum((act - mean_activity) ** 2 for act in activities) / len(activities)
-            std_dev = math.sqrt(variance)
+        if not activities or len(activities) < 2:
+            return 0.0
 
-            # Coefficient of variation (lower is more consistent)
-            cv = std_dev / mean_activity if mean_activity > 0 else 1.0
-            # Convert to 0-1 score (1 = perfect consistency, 0 = highly variable)
-            # Cap cv at 1.0 for scoring purposes
-            consistency_score = max(0.0, 1.0 - min(cv, 1.0))
-        else:
-            consistency_score = 0.0
+        import math
+        mean_activity = sum(activities) / len(activities)
+        variance = sum((act - mean_activity) ** 2 for act in activities) / len(activities)
+        std_dev = math.sqrt(variance)
 
-        # Generate human-readable insights
+        # Coefficient of variation (lower is more consistent)
+        cv = std_dev / mean_activity if mean_activity > 0 else 1.0
+        # Convert to 0-1 score (1 = perfect consistency, 0 = highly variable)
+        return max(0.0, 1.0 - min(cv, 1.0))
+
+    def _generate_trend_insights(
+        self,
+        monthly_trends: List[MonthlyTrend],
+        monthly_activities: List[tuple],
+        peak_month: Optional[str],
+        quiet_month: Optional[str],
+        trend_direction: str,
+        consistency_score: float,
+    ) -> List[str]:
+        """Generate human-readable insights from trend data."""
         insights = []
 
         if peak_month:
-            peak_activity = peak_month_data[1]
+            peak_activity = next((act for month, act in monthly_activities if month == peak_month), 0)
             insights.append(
                 f"{peak_month}에 가장 활발했습니다 (총 {peak_activity}건의 활동)"
             )
@@ -484,7 +468,6 @@ class Analyzer:
         # Analyze specific activity types
         commits_trend = [trend.commits for trend in monthly_trends]
         prs_trend = [trend.pull_requests for trend in monthly_trends]
-        reviews_trend = [trend.reviews for trend in monthly_trends]
 
         if commits_trend and max(commits_trend) > 0:
             peak_commit_month = monthly_trends[commits_trend.index(max(commits_trend))].month
@@ -498,6 +481,48 @@ class Analyzer:
                 insights.append(
                     f"PR 활동은 {peak_pr_month}에 가장 왕성했습니다 ({max(prs_trend)}개)"
                 )
+
+        return insights
+
+    def _build_monthly_insights(
+        self, monthly_trends: List[MonthlyTrend]
+    ) -> Optional[MonthlyTrendInsights]:
+        """Analyze monthly trends and generate insights."""
+        if not monthly_trends or len(monthly_trends) < 2:
+            return None
+
+        # Calculate total activity per month
+        monthly_activities = [
+            (trend.month, trend.commits + trend.pull_requests + trend.reviews + trend.issues)
+            for trend in monthly_trends
+        ]
+
+        # Find peak and quiet months
+        peak_month_data = max(monthly_activities, key=lambda x: x[1])
+        peak_month = peak_month_data[0] if peak_month_data[1] > 0 else None
+
+        non_zero_activities = [(month, activity) for month, activity in monthly_activities if activity > 0]
+        quiet_month = None
+        if non_zero_activities:
+            quiet_month_data = min(non_zero_activities, key=lambda x: x[1])
+            quiet_month = quiet_month_data[0]
+
+        # Calculate active months
+        total_active_months = sum(1 for _, activity in monthly_activities if activity > 0)
+
+        # Calculate metrics
+        trend_direction = self._calculate_trend_direction(monthly_activities)
+        consistency_score = self._calculate_consistency_score(monthly_activities)
+
+        # Generate insights
+        insights = self._generate_trend_insights(
+            monthly_trends,
+            monthly_activities,
+            peak_month,
+            quiet_month,
+            trend_direction,
+            consistency_score,
+        )
 
         return MonthlyTrendInsights(
             peak_month=peak_month,
@@ -597,35 +622,28 @@ class Analyzer:
 
         return ReflectionPrompts(questions=questions)
 
-    def _build_year_end_review(
-        self,
-        collection: CollectionResult,
-        highlights: List[str],
-        awards: List[str],
-    ) -> YearEndReview:
-        """Generate year-end specific review content based on actual data."""
+    def _extract_proudest_moments(self, collection: CollectionResult) -> List[str]:
+        """Extract proudest moments from collection data."""
+        moments = []
 
-        # Proudest moments based on actual metrics
-        proudest_moments = []
         if collection.commits > 200:
-            proudest_moments.append(
+            moments.append(
                 f"총 {collection.commits}회의 커밋으로 꾸준히 코드베이스를 개선했습니다."
             )
         if collection.pull_requests > 50:
-            proudest_moments.append(
+            moments.append(
                 f"{collection.pull_requests}개의 Pull Request를 성공적으로 머지했습니다."
             )
         if collection.reviews > 50:
-            proudest_moments.append(
+            moments.append(
                 f"{collection.reviews}회의 코드 리뷰로 팀의 코드 품질 향상에 기여했습니다."
             )
 
         # Add insights from PR examples
         if collection.pull_request_examples:
             total_changes = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples)
-            avg_changes = total_changes // len(collection.pull_request_examples) if collection.pull_request_examples else 0
             if total_changes > 10000:
-                proudest_moments.append(
+                moments.append(
                     f"총 {total_changes:,}줄의 코드 변경으로 대규모 개선을 주도했습니다."
                 )
 
@@ -633,33 +651,34 @@ class Analyzer:
             largest_pr = max(collection.pull_request_examples,
                            key=lambda pr: pr.additions + pr.deletions)
             if (largest_pr.additions + largest_pr.deletions) > 1000:
-                proudest_moments.append(
+                moments.append(
                     f"가장 큰 PR(#{largest_pr.number}: {largest_pr.title})에서 "
                     f"{largest_pr.additions + largest_pr.deletions:,}줄의 변경으로 도전적인 작업을 완수했습니다."
                 )
 
-        if not proudest_moments:
-            proudest_moments.append(
-                "꾸준한 활동으로 프로젝트 발전에 기여했습니다."
-            )
+        if not moments:
+            moments.append("꾸준한 활동으로 프로젝트 발전에 기여했습니다.")
 
-        # Data-driven challenges based on activity patterns
-        biggest_challenges = []
+        return moments
+
+    def _extract_biggest_challenges(self, collection: CollectionResult) -> List[str]:
+        """Extract biggest challenges from collection data."""
+        challenges = []
         month_span = max(collection.months, 1)
 
         if collection.pull_requests > 30:
             avg_pr_per_month = collection.pull_requests / month_span
-            biggest_challenges.append(
+            challenges.append(
                 f"월평균 {avg_pr_per_month:.1f}개의 PR을 관리하며 지속적인 배포 리듬을 유지하는 도전을 해냈습니다."
             )
 
         if collection.reviews > 20:
-            biggest_challenges.append(
+            challenges.append(
                 f"{collection.reviews}회의 코드 리뷰를 진행하며 팀원들의 다양한 관점을 이해하고 조율했습니다."
             )
 
         if collection.issues > 0:
-            biggest_challenges.append(
+            challenges.append(
                 f"{collection.issues}건의 이슈를 처리하며 문제 해결 능력과 우선순위 판단 능력을 키웠습니다."
             )
 
@@ -668,28 +687,31 @@ class Analyzer:
             feature_prs = [pr for pr in collection.pull_request_examples
                          if any(kw in pr.title.lower() for kw in ['feature', 'feat', '기능', 'add'])]
             if len(feature_prs) > 5:
-                biggest_challenges.append(
+                challenges.append(
                     f"{len(feature_prs)}개의 새로운 기능을 개발하며 요구사항 분석과 설계 능력을 향상시켰습니다."
                 )
 
-        if not biggest_challenges:
-            biggest_challenges = [
+        if not challenges:
+            challenges = [
                 "복잡한 기술적 문제를 해결하며 문제 해결 능력을 키웠습니다.",
                 "팀원들과의 협업을 통해 커뮤니케이션 스킬을 향상시켰습니다.",
             ]
 
-        # Data-driven lessons learned
-        lessons_learned = []
+        return challenges
+
+    def _extract_lessons_learned(self, collection: CollectionResult) -> List[str]:
+        """Extract lessons learned from collection data."""
+        lessons = []
 
         if collection.commits > 0 and collection.pull_requests > 0:
             commits_per_pr = collection.commits / collection.pull_requests
             if commits_per_pr > 5:
-                lessons_learned.append(
+                lessons.append(
                     f"PR당 평균 {commits_per_pr:.1f}개의 커밋을 작성했습니다. "
                     "작은 단위로 자주 커밋하고 리뷰받는 것이 더 효과적일 수 있습니다."
                 )
             else:
-                lessons_learned.append(
+                lessons.append(
                     f"PR당 평균 {commits_per_pr:.1f}개의 커밋으로 적절한 크기의 변경을 유지했습니다. "
                     "작고 집중된 PR이 리뷰와 병합을 더 쉽게 만듭니다."
                 )
@@ -697,12 +719,12 @@ class Analyzer:
         if collection.reviews > 0 and collection.pull_requests > 0:
             review_ratio = collection.reviews / collection.pull_requests
             if review_ratio > 2:
-                lessons_learned.append(
+                lessons.append(
                     f"내 PR보다 {review_ratio:.1f}배 많은 리뷰를 진행했습니다. "
                     "코드 리뷰는 팀의 코드 품질을 높이고 지식을 공유하는 핵심 활동입니다."
                 )
             else:
-                lessons_learned.append(
+                lessons.append(
                     "코드 리뷰를 통해 다른 팀원들의 접근 방식을 배우고 시야를 넓힐 수 있었습니다."
                 )
 
@@ -711,23 +733,26 @@ class Analyzer:
             if merged_prs:
                 merge_rate = len(merged_prs) / len(collection.pull_request_examples)
                 if merge_rate > 0.8:
-                    lessons_learned.append(
+                    lessons.append(
                         f"{merge_rate*100:.0f}%의 높은 PR 머지율을 달성했습니다. "
                         "명확한 목적과 충분한 설명이 있는 PR이 성공률을 높입니다."
                     )
 
-        if not lessons_learned:
-            lessons_learned = [
+        if not lessons:
+            lessons = [
                 "작고 자주 커밋하는 것이 코드 리뷰와 협업에 더 효과적입니다.",
                 "코드 리뷰는 단순한 버그 찾기가 아닌 지식 공유의 장입니다.",
             ]
 
-        # Data-informed next year goals
-        next_year_goals = []
+        return lessons
+
+    def _extract_next_year_goals(self, collection: CollectionResult) -> List[str]:
+        """Extract next year goals from collection data."""
+        goals = []
 
         # Goals based on current weak points
         if collection.reviews < collection.pull_requests:
-            next_year_goals.append(
+            goals.append(
                 "코드 리뷰 참여를 늘려 팀의 코드 품질 향상에 더욱 기여하기"
             )
 
@@ -735,31 +760,38 @@ class Analyzer:
             doc_prs = [pr for pr in collection.pull_request_examples
                       if any(kw in pr.title.lower() for kw in ['doc', 'readme', '문서'])]
             if len(doc_prs) < 3:
-                next_year_goals.append(
+                goals.append(
                     "문서화에 더 신경써서 프로젝트의 접근성과 유지보수성 향상하기"
                 )
 
             test_prs = [pr for pr in collection.pull_request_examples
                        if any(kw in pr.title.lower() for kw in ['test', '테스트'])]
             if len(test_prs) < 5:
-                next_year_goals.append(
+                goals.append(
                     "테스트 커버리지를 높여 코드의 안정성과 신뢰도 강화하기"
                 )
 
         # Always include growth goals
-        next_year_goals.append(
+        goals.append(
             "새로운 기술이나 프레임워크를 학습하여 기술 스택 확장하기"
         )
-        next_year_goals.append(
+        goals.append(
             "오픈소스 기여나 기술 공유를 통해 개발 커뮤니티에 환원하기"
         )
 
         # Limit to 5 goals
-        next_year_goals = next_year_goals[:5]
+        return goals[:5]
 
+    def _build_year_end_review(
+        self,
+        collection: CollectionResult,
+        highlights: List[str],
+        awards: List[str],
+    ) -> YearEndReview:
+        """Generate year-end specific review content based on actual data."""
         return YearEndReview(
-            proudest_moments=proudest_moments,
-            biggest_challenges=biggest_challenges,
-            lessons_learned=lessons_learned,
-            next_year_goals=next_year_goals,
+            proudest_moments=self._extract_proudest_moments(collection),
+            biggest_challenges=self._extract_biggest_challenges(collection),
+            lessons_learned=self._extract_lessons_learned(collection),
+            next_year_goals=self._extract_next_year_goals(collection),
         )

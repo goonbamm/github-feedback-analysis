@@ -142,301 +142,396 @@ class Reporter:
 
         return "\n".join(lines).strip()
 
-    def generate_markdown(self, metrics: MetricSnapshot) -> Path:
-        """Create a markdown report for the provided metrics."""
+    def _build_header_and_summary(self, metrics: MetricSnapshot) -> List[str]:
+        """Build header and summary section."""
+        lines = ["# GitHub Feedback Report", ""]
+        lines.append(f"Repository: **{metrics.repo}**")
+        lines.append(f"Period: **{metrics.months} months**")
 
-        self.ensure_structure()
-        report_path = self.output_dir / "report.md"
-
-        console.log("Writing markdown report", f"path={report_path}")
-
-        summary_lines = ["# GitHub Feedback Report", ""]
-        summary_lines.append(f"Repository: **{metrics.repo}**")
-        summary_lines.append(f"Period: **{metrics.months} months**")
-
-        # Add exact date range if available
         if metrics.since_date and metrics.until_date:
             since_str = metrics.since_date.strftime("%Y-%m-%d")
             until_str = metrics.until_date.strftime("%Y-%m-%d")
-            summary_lines.append(f"Analysis Period: **{since_str} ~ {until_str}**")
+            lines.append(f"Analysis Period: **{since_str} ~ {until_str}**")
 
-        summary_lines.append("")
-        summary_lines.append("## Summary")
+        lines.append("")
+        lines.append("## Summary")
 
         for key, value in metrics.summary.items():
             display_value = (
                 _format_metric_value(value) if isinstance(value, (int, float)) else str(value)
             )
-            summary_lines.append(f"- **{key.title()}**: {display_value}")
+            lines.append(f"- **{key.title()}**: {display_value}")
+        lines.append("")
 
-        summary_lines.append("")
-        summary_lines.append("## Metrics")
+        return lines
 
+    def _build_metrics_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build metrics section."""
+        lines = ["## Metrics", ""]
         for domain, domain_stats in metrics.stats.items():
-            summary_lines.append(f"### {domain.title()}")
+            lines.append(f"### {domain.title()}")
             for stat_name, stat_value in domain_stats.items():
-                if isinstance(stat_value, (int, float)):
-                    formatted_value = _format_metric_value(stat_value)
-                else:
-                    formatted_value = str(stat_value)
-                summary_lines.append(
-                    f"- {stat_name.replace('_', ' ').title()}: {formatted_value}"
+                formatted_value = (
+                    _format_metric_value(stat_value)
+                    if isinstance(stat_value, (int, float))
+                    else str(stat_value)
                 )
-            summary_lines.append("")
+                lines.append(f"- {stat_name.replace('_', ' ').title()}: {formatted_value}")
+            lines.append("")
+        return lines
 
-        if metrics.highlights:
-            summary_lines.append("## Growth Highlights")
-            for highlight in metrics.highlights:
-                summary_lines.append(f"- {highlight}")
-            summary_lines.append("")
+    def _build_highlights_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build growth highlights section."""
+        if not metrics.highlights:
+            return []
 
-        if metrics.spotlight_examples:
-            summary_lines.append("## Spotlight Examples")
-            for category, entries in metrics.spotlight_examples.items():
-                summary_lines.append(f"### {category.replace('_', ' ').title()}")
-                for entry in entries:
-                    summary_lines.append(f"- {entry}")
-                summary_lines.append("")
+        lines = ["## Growth Highlights"]
+        for highlight in metrics.highlights:
+            lines.append(f"- {highlight}")
+        lines.append("")
+        return lines
 
-        if metrics.yearbook_story:
-            summary_lines.append("## Year in Review")
-            summary_lines.append("")
-            for paragraph in metrics.yearbook_story:
-                summary_lines.append(paragraph)
-                summary_lines.append("")
+    def _build_spotlight_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build spotlight examples section."""
+        if not metrics.spotlight_examples:
+            return []
 
-        if metrics.awards:
-            summary_lines.append("## 🏆 Awards Cabinet")
-            summary_lines.append("")
-            summary_lines.append(f"**총 {len(metrics.awards)}개의 어워드를 획득했습니다!**")
-            summary_lines.append("")
+        lines = ["## Spotlight Examples"]
+        for category, entries in metrics.spotlight_examples.items():
+            lines.append(f"### {category.replace('_', ' ').title()}")
+            for entry in entries:
+                lines.append(f"- {entry}")
+            lines.append("")
+        return lines
 
-            # Categorize awards
-            categories = self._categorize_awards(metrics.awards)
+    def _build_year_in_review_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build year in review section."""
+        if not metrics.yearbook_story:
+            return []
 
-            for category_name, category_awards in categories.items():
-                if category_awards:
-                    summary_lines.append(f"### {category_name}")
-                    for award in category_awards:
-                        summary_lines.append(f"- {award}")
-                    summary_lines.append("")
+        lines = ["## Year in Review", ""]
+        for paragraph in metrics.yearbook_story:
+            lines.append(paragraph)
+            lines.append("")
+        return lines
 
-        summary_lines.append("## Evidence")
+    def _build_awards_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build awards cabinet section."""
+        if not metrics.awards:
+            return []
+
+        lines = ["## 🏆 Awards Cabinet", ""]
+        lines.append(f"**총 {len(metrics.awards)}개의 어워드를 획득했습니다!**")
+        lines.append("")
+
+        categories = self._categorize_awards(metrics.awards)
+        for category_name, category_awards in categories.items():
+            if category_awards:
+                lines.append(f"### {category_name}")
+                for award in category_awards:
+                    lines.append(f"- {award}")
+                lines.append("")
+        return lines
+
+    def _build_evidence_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build evidence section."""
+        lines = ["## Evidence"]
         for domain, links in metrics.evidence.items():
-            summary_lines.append(f"### {domain.title()}")
+            lines.append(f"### {domain.title()}")
             for link in links:
-                summary_lines.append(f"- {link}")
-            summary_lines.append("")
+                lines.append(f"- {link}")
+            lines.append("")
+        return lines
 
-        # Add detailed feedback section
-        if metrics.detailed_feedback:
-            summary_lines.append("## 상세 피드백")
-            summary_lines.append("")
+    def _build_detailed_feedback_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build detailed feedback section."""
+        if not metrics.detailed_feedback:
+            return []
 
-            feedback = metrics.detailed_feedback
+        lines = ["## 상세 피드백", ""]
+        feedback = metrics.detailed_feedback
 
-            # Commit message feedback
-            if feedback.commit_feedback:
-                cf = feedback.commit_feedback
-                summary_lines.append("### 커밋 메시지 품질")
-                summary_lines.append(f"- 총 커밋: {cf.total_commits}")
-                summary_lines.append(f"- 좋은 메시지: {cf.good_messages}")
-                summary_lines.append(f"- 개선 필요: {cf.poor_messages}")
-                if cf.suggestions:
-                    summary_lines.append("")
-                    summary_lines.append("**개선 제안:**")
-                    for suggestion in cf.suggestions:
-                        summary_lines.append(f"- {suggestion}")
-                if cf.examples_good:
-                    summary_lines.append("")
-                    summary_lines.append("**좋은 예시:**")
-                    for example in cf.examples_good:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
-                        else:
-                            summary_lines.append(f"- {example}")
-                if cf.examples_poor:
-                    summary_lines.append("")
-                    summary_lines.append("**개선이 필요한 예시:**")
-                    for example in cf.examples_poor:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
-                        else:
-                            summary_lines.append(f"- {example}")
-                summary_lines.append("")
+        # Commit message feedback
+        if feedback.commit_feedback:
+            lines.extend(self._build_commit_feedback(feedback.commit_feedback))
 
-            # PR title feedback
-            if feedback.pr_title_feedback:
-                pf = feedback.pr_title_feedback
-                summary_lines.append("### PR 제목 품질")
-                summary_lines.append(f"- 총 PR: {pf.total_prs}")
-                summary_lines.append(f"- 명확한 제목: {pf.clear_titles}")
-                summary_lines.append(f"- 모호한 제목: {pf.vague_titles}")
-                if pf.suggestions:
-                    summary_lines.append("")
-                    summary_lines.append("**개선 제안:**")
-                    for suggestion in pf.suggestions:
-                        summary_lines.append(f"- {suggestion}")
-                if pf.examples_good:
-                    summary_lines.append("")
-                    summary_lines.append("**좋은 예시:**")
-                    for example in pf.examples_good:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
-                        else:
-                            summary_lines.append(f"- {example}")
-                if pf.examples_poor:
-                    summary_lines.append("")
-                    summary_lines.append("**개선이 필요한 예시:**")
-                    for example in pf.examples_poor:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
-                        else:
-                            summary_lines.append(f"- {example}")
-                summary_lines.append("")
+        # PR title feedback
+        if feedback.pr_title_feedback:
+            lines.extend(self._build_pr_title_feedback(feedback.pr_title_feedback))
 
-            # Review tone feedback
-            if feedback.review_tone_feedback:
-                rf = feedback.review_tone_feedback
-                summary_lines.append("### 리뷰 톤 분석")
-                summary_lines.append(f"- 총 리뷰: {rf.total_reviews}")
-                summary_lines.append(f"- 건설적인 리뷰: {rf.constructive_reviews}")
-                summary_lines.append(f"- 가혹한 리뷰: {rf.harsh_reviews}")
-                summary_lines.append(f"- 중립적인 리뷰: {rf.neutral_reviews}")
-                if rf.suggestions:
-                    summary_lines.append("")
-                    summary_lines.append("**개선 제안:**")
-                    for suggestion in rf.suggestions:
-                        summary_lines.append(f"- {suggestion}")
-                if rf.examples_good:
-                    summary_lines.append("")
-                    summary_lines.append("**좋은 예시:**")
-                    for example in rf.examples_good:
-                        summary_lines.append(f"- {example}")
-                if rf.examples_improve:
-                    summary_lines.append("")
-                    summary_lines.append("**개선이 필요한 예시:**")
-                    for example in rf.examples_improve:
-                        summary_lines.append(f"- {example}")
-                summary_lines.append("")
+        # Review tone feedback
+        if feedback.review_tone_feedback:
+            lines.extend(self._build_review_tone_feedback(feedback.review_tone_feedback))
 
-            # Issue feedback
-            if feedback.issue_feedback:
-                isf = feedback.issue_feedback
-                summary_lines.append("### 이슈 품질")
-                summary_lines.append(f"- 총 이슈: {isf.total_issues}")
-                summary_lines.append(f"- 잘 작성됨: {isf.well_described}")
-                summary_lines.append(f"- 개선 필요: {isf.poorly_described}")
-                if isf.suggestions:
-                    summary_lines.append("")
-                    summary_lines.append("**개선 제안:**")
-                    for suggestion in isf.suggestions:
-                        summary_lines.append(f"- {suggestion}")
-                if isf.examples_good:
-                    summary_lines.append("")
-                    summary_lines.append("**좋은 예시:**")
-                    for example in isf.examples_good:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
-                        else:
-                            summary_lines.append(f"- {example}")
-                if isf.examples_poor:
-                    summary_lines.append("")
-                    summary_lines.append("**개선이 필요한 예시:**")
-                    for example in isf.examples_poor:
-                        if isinstance(example, dict):
-                            summary_lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
-                        else:
-                            summary_lines.append(f"- {example}")
-                summary_lines.append("")
+        # Issue feedback
+        if feedback.issue_feedback:
+            lines.extend(self._build_issue_feedback(feedback.issue_feedback))
 
-        # Add year-end review sections
-        if metrics.monthly_trends:
-            summary_lines.append("## 📈 월별 활동 트렌드")
-            summary_lines.append("")
+        return lines
 
-            # Add insights if available
-            if metrics.monthly_insights and metrics.monthly_insights.insights:
-                summary_lines.append("### 트렌드 분석")
-                summary_lines.append("")
-                for insight in metrics.monthly_insights.insights:
-                    summary_lines.append(f"- {insight}")
-                summary_lines.append("")
+    def _build_commit_feedback(self, cf) -> List[str]:
+        """Build commit feedback subsection."""
+        lines = ["### 커밋 메시지 품질"]
+        lines.append(f"- 총 커밋: {cf.total_commits}")
+        lines.append(f"- 좋은 메시지: {cf.good_messages}")
+        lines.append(f"- 개선 필요: {cf.poor_messages}")
 
-            summary_lines.append("### 월별 상세 데이터")
-            summary_lines.append("")
-            summary_lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 |")
-            summary_lines.append("|---|---|---|---|---|---|")
-            for trend in metrics.monthly_trends:
-                total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
-                summary_lines.append(
-                    f"| {trend.month} | {trend.commits} | {trend.pull_requests} | "
-                    f"{trend.reviews} | {trend.issues} | **{total_activity}** |"
-                )
-            summary_lines.append("")
+        if cf.suggestions:
+            lines.append("")
+            lines.append("**개선 제안:**")
+            for suggestion in cf.suggestions:
+                lines.append(f"- {suggestion}")
 
-        if metrics.tech_stack:
-            summary_lines.append("## 💻 기술 스택 분석")
-            summary_lines.append("")
-            summary_lines.append(f"**다양성 점수**: {metrics.tech_stack.diversity_score:.2f} (0-1 척도)")
-            summary_lines.append("")
-            summary_lines.append("**주요 사용 언어:**")
-            for i, lang in enumerate(metrics.tech_stack.top_languages[:5], 1):
-                count = metrics.tech_stack.languages.get(lang, 0)
-                summary_lines.append(f"{i}. {lang} ({count}개 파일)")
-            summary_lines.append("")
+        if cf.examples_good:
+            lines.append("")
+            lines.append("**좋은 예시:**")
+            for example in cf.examples_good:
+                if isinstance(example, dict):
+                    lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
+                else:
+                    lines.append(f"- {example}")
 
-        if metrics.collaboration:
-            summary_lines.append("## 🤝 협업 네트워크")
-            summary_lines.append("")
-            summary_lines.append(f"- 받은 리뷰 수: **{metrics.collaboration.review_received_count}건**")
-            summary_lines.append(f"- 협업한 사람 수: **{metrics.collaboration.unique_collaborators}명**")
-            summary_lines.append("")
-            if metrics.collaboration.top_reviewers:
-                summary_lines.append("**주요 리뷰어:**")
-                for i, reviewer in enumerate(metrics.collaboration.top_reviewers, 1):
-                    count = metrics.collaboration.pr_reviewers.get(reviewer, 0)
-                    summary_lines.append(f"{i}. @{reviewer} ({count}회)")
-                summary_lines.append("")
+        if cf.examples_poor:
+            lines.append("")
+            lines.append("**개선이 필요한 예시:**")
+            for example in cf.examples_poor:
+                if isinstance(example, dict):
+                    lines.append(f"- {example.get('message', '')} ({example.get('sha', '')})")
+                else:
+                    lines.append(f"- {example}")
+        lines.append("")
+        return lines
 
-        if metrics.reflection_prompts and metrics.reflection_prompts.questions:
-            summary_lines.append("## 🤔 회고 질문")
-            summary_lines.append("")
-            summary_lines.append("스스로에게 물어보세요:")
-            summary_lines.append("")
-            for i, question in enumerate(metrics.reflection_prompts.questions, 1):
-                summary_lines.append(f"{i}. {question}")
-            summary_lines.append("")
+    def _build_pr_title_feedback(self, pf) -> List[str]:
+        """Build PR title feedback subsection."""
+        lines = ["### PR 제목 품질"]
+        lines.append(f"- 총 PR: {pf.total_prs}")
+        lines.append(f"- 명확한 제목: {pf.clear_titles}")
+        lines.append(f"- 모호한 제목: {pf.vague_titles}")
 
-        if metrics.year_end_review:
-            summary_lines.append("## 🎯 연말 회고")
-            summary_lines.append("")
+        if pf.suggestions:
+            lines.append("")
+            lines.append("**개선 제안:**")
+            for suggestion in pf.suggestions:
+                lines.append(f"- {suggestion}")
 
-            if metrics.year_end_review.proudest_moments:
-                summary_lines.append("### 자랑스러운 순간들")
-                for moment in metrics.year_end_review.proudest_moments:
-                    summary_lines.append(f"- {moment}")
-                summary_lines.append("")
+        if pf.examples_good:
+            lines.append("")
+            lines.append("**좋은 예시:**")
+            for example in pf.examples_good:
+                if isinstance(example, dict):
+                    lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                else:
+                    lines.append(f"- {example}")
 
-            if metrics.year_end_review.biggest_challenges:
-                summary_lines.append("### 극복한 도전들")
-                for challenge in metrics.year_end_review.biggest_challenges:
-                    summary_lines.append(f"- {challenge}")
-                summary_lines.append("")
+        if pf.examples_poor:
+            lines.append("")
+            lines.append("**개선이 필요한 예시:**")
+            for example in pf.examples_poor:
+                if isinstance(example, dict):
+                    lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                else:
+                    lines.append(f"- {example}")
+        lines.append("")
+        return lines
 
-            if metrics.year_end_review.lessons_learned:
-                summary_lines.append("### 배운 교훈들")
-                for lesson in metrics.year_end_review.lessons_learned:
-                    summary_lines.append(f"- {lesson}")
-                summary_lines.append("")
+    def _build_review_tone_feedback(self, rf) -> List[str]:
+        """Build review tone feedback subsection."""
+        lines = ["### 리뷰 톤 분석"]
+        lines.append(f"- 총 리뷰: {rf.total_reviews}")
+        lines.append(f"- 건설적인 리뷰: {rf.constructive_reviews}")
+        lines.append(f"- 가혹한 리뷰: {rf.harsh_reviews}")
+        lines.append(f"- 중립적인 리뷰: {rf.neutral_reviews}")
 
-            if metrics.year_end_review.next_year_goals:
-                summary_lines.append("### 내년 목표")
-                for goal in metrics.year_end_review.next_year_goals:
-                    summary_lines.append(f"- {goal}")
-                summary_lines.append("")
+        if rf.suggestions:
+            lines.append("")
+            lines.append("**개선 제안:**")
+            for suggestion in rf.suggestions:
+                lines.append(f"- {suggestion}")
 
-        report_path.write_text("\n".join(summary_lines), encoding="utf-8")
+        if rf.examples_good:
+            lines.append("")
+            lines.append("**좋은 예시:**")
+            for example in rf.examples_good:
+                lines.append(f"- {example}")
+
+        if rf.examples_improve:
+            lines.append("")
+            lines.append("**개선이 필요한 예시:**")
+            for example in rf.examples_improve:
+                lines.append(f"- {example}")
+        lines.append("")
+        return lines
+
+    def _build_issue_feedback(self, isf) -> List[str]:
+        """Build issue feedback subsection."""
+        lines = ["### 이슈 품질"]
+        lines.append(f"- 총 이슈: {isf.total_issues}")
+        lines.append(f"- 잘 작성됨: {isf.well_described}")
+        lines.append(f"- 개선 필요: {isf.poorly_described}")
+
+        if isf.suggestions:
+            lines.append("")
+            lines.append("**개선 제안:**")
+            for suggestion in isf.suggestions:
+                lines.append(f"- {suggestion}")
+
+        if isf.examples_good:
+            lines.append("")
+            lines.append("**좋은 예시:**")
+            for example in isf.examples_good:
+                if isinstance(example, dict):
+                    lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                else:
+                    lines.append(f"- {example}")
+
+        if isf.examples_poor:
+            lines.append("")
+            lines.append("**개선이 필요한 예시:**")
+            for example in isf.examples_poor:
+                if isinstance(example, dict):
+                    lines.append(f"- #{example.get('number', '')}: {example.get('title', '')}")
+                else:
+                    lines.append(f"- {example}")
+        lines.append("")
+        return lines
+
+    def _build_monthly_trends_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build monthly trends section."""
+        if not metrics.monthly_trends:
+            return []
+
+        lines = ["## 📈 월별 활동 트렌드", ""]
+
+        if metrics.monthly_insights and metrics.monthly_insights.insights:
+            lines.append("### 트렌드 분석")
+            lines.append("")
+            for insight in metrics.monthly_insights.insights:
+                lines.append(f"- {insight}")
+            lines.append("")
+
+        lines.append("### 월별 상세 데이터")
+        lines.append("")
+        lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 |")
+        lines.append("|---|---|---|---|---|---|")
+        for trend in metrics.monthly_trends:
+            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+            lines.append(
+                f"| {trend.month} | {trend.commits} | {trend.pull_requests} | "
+                f"{trend.reviews} | {trend.issues} | **{total_activity}** |"
+            )
+        lines.append("")
+        return lines
+
+    def _build_tech_stack_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build tech stack section."""
+        if not metrics.tech_stack:
+            return []
+
+        lines = ["## 💻 기술 스택 분석", ""]
+        lines.append(f"**다양성 점수**: {metrics.tech_stack.diversity_score:.2f} (0-1 척도)")
+        lines.append("")
+        lines.append("**주요 사용 언어:**")
+        for i, lang in enumerate(metrics.tech_stack.top_languages[:5], 1):
+            count = metrics.tech_stack.languages.get(lang, 0)
+            lines.append(f"{i}. {lang} ({count}개 파일)")
+        lines.append("")
+        return lines
+
+    def _build_collaboration_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build collaboration section."""
+        if not metrics.collaboration:
+            return []
+
+        lines = ["## 🤝 협업 네트워크", ""]
+        lines.append(f"- 받은 리뷰 수: **{metrics.collaboration.review_received_count}건**")
+        lines.append(f"- 협업한 사람 수: **{metrics.collaboration.unique_collaborators}명**")
+        lines.append("")
+
+        if metrics.collaboration.top_reviewers:
+            lines.append("**주요 리뷰어:**")
+            for i, reviewer in enumerate(metrics.collaboration.top_reviewers, 1):
+                count = metrics.collaboration.pr_reviewers.get(reviewer, 0)
+                lines.append(f"{i}. @{reviewer} ({count}회)")
+            lines.append("")
+        return lines
+
+    def _build_reflection_prompts_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build reflection prompts section."""
+        if not (metrics.reflection_prompts and metrics.reflection_prompts.questions):
+            return []
+
+        lines = ["## 🤔 회고 질문", ""]
+        lines.append("스스로에게 물어보세요:")
+        lines.append("")
+        for i, question in enumerate(metrics.reflection_prompts.questions, 1):
+            lines.append(f"{i}. {question}")
+        lines.append("")
+        return lines
+
+    def _build_year_end_review_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build year-end review section."""
+        if not metrics.year_end_review:
+            return []
+
+        lines = ["## 🎯 연말 회고", ""]
+
+        if metrics.year_end_review.proudest_moments:
+            lines.append("### 자랑스러운 순간들")
+            for moment in metrics.year_end_review.proudest_moments:
+                lines.append(f"- {moment}")
+            lines.append("")
+
+        if metrics.year_end_review.biggest_challenges:
+            lines.append("### 극복한 도전들")
+            for challenge in metrics.year_end_review.biggest_challenges:
+                lines.append(f"- {challenge}")
+            lines.append("")
+
+        if metrics.year_end_review.lessons_learned:
+            lines.append("### 배운 교훈들")
+            for lesson in metrics.year_end_review.lessons_learned:
+                lines.append(f"- {lesson}")
+            lines.append("")
+
+        if metrics.year_end_review.next_year_goals:
+            lines.append("### 내년 목표")
+            for goal in metrics.year_end_review.next_year_goals:
+                lines.append(f"- {goal}")
+            lines.append("")
+
+        return lines
+
+    def generate_markdown(self, metrics: MetricSnapshot) -> Path:
+        """Create a markdown report for the provided metrics."""
+        self.ensure_structure()
+        report_path = self.output_dir / "report.md"
+
+        console.log("Writing markdown report", f"path={report_path}")
+
+        # Build all sections
+        sections = [
+            self._build_header_and_summary(metrics),
+            self._build_metrics_section(metrics),
+            self._build_highlights_section(metrics),
+            self._build_spotlight_section(metrics),
+            self._build_year_in_review_section(metrics),
+            self._build_awards_section(metrics),
+            self._build_evidence_section(metrics),
+            self._build_detailed_feedback_section(metrics),
+            self._build_monthly_trends_section(metrics),
+            self._build_tech_stack_section(metrics),
+            self._build_collaboration_section(metrics),
+            self._build_reflection_prompts_section(metrics),
+            self._build_year_end_review_section(metrics),
+        ]
+
+        # Combine all sections
+        all_lines = []
+        for section in sections:
+            all_lines.extend(section)
+
+        report_path.write_text("\n".join(all_lines), encoding="utf-8")
         return report_path
 
     # ------------------------------------------------------------------
