@@ -1,0 +1,663 @@
+# 🚀 Análisis de Feedback de GitHub
+
+Una herramienta CLI que analiza la actividad de repositorios de GitHub y genera automáticamente informes perspicaces. Compatible con GitHub.com y GitHub Enterprise, con capacidades de revisión automatizada basadas en LLM.
+
+Español | [한국어](README.md) | [English](README_EN.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md)
+
+## ✨ Características Principales
+
+- 📊 **Análisis de Repositorios**: Agrega y analiza commits, issues y actividad de revisión por período
+- 🤖 **Feedback Basado en LLM**: Análisis detallado de mensajes de commit, títulos de PR, tono de revisión y calidad de issues
+- 🎯 **Revisión Automática de PR**: Revisa automáticamente los PRs de usuarios autenticados y genera informes retrospectivos integrados
+- 🏆 **Visualización de Logros**: Genera automáticamente premios y destacados basados en contribuciones
+- 💡 **Descubrimiento de Repositorios**: Lista repositorios accesibles y sugiere los activos
+- 🎨 **Modo Interactivo**: Interfaz amigable para selección directa de repositorios
+
+## 📋 Requisitos Previos
+
+- Python 3.11 o superior
+- [uv](https://docs.astral.sh/uv/) o su gestor de paquetes preferido
+- GitHub Personal Access Token
+  - Repositorios privados: permiso `repo`
+  - Repositorios públicos: permiso `public_repo`
+- Endpoint de API LLM (formato compatible con OpenAI)
+
+## 🔧 Instalación
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/goonbamm/github-feedback-analysis.git
+cd github-feedback-analysis
+
+# Crear y activar entorno virtual
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Instalar paquete
+uv pip install -e .
+```
+
+## 🚀 Inicio Rápido
+
+### 1️⃣ Inicializar Configuración
+
+```bash
+ghf init
+```
+
+Cuando se le solicite, ingrese la siguiente información:
+- GitHub Personal Access Token (almacenado de forma segura en el llavero del sistema)
+- Endpoint LLM (ej: `http://localhost:8000/v1/chat/completions`)
+- Modelo LLM (ej: `gpt-4`)
+- Host de GitHub Enterprise (opcional, solo si no usa github.com)
+
+### 2️⃣ Analizar Repositorio
+
+```bash
+ghf brief --repo goonbamm/github-feedback-analysis
+```
+
+Después de completar el análisis, se generan los siguientes archivos en el directorio `reports/`:
+- `metrics.json` - Datos de análisis
+- `report.md` - Informe en Markdown
+- `report.html` - Informe HTML (con gráficos de visualización)
+- `charts/` - Archivos de gráficos SVG
+- `prompts/` - Archivos de prompts LLM
+
+### 3️⃣ Ver Resultados
+
+```bash
+cat reports/report.md
+```
+
+## 📚 Referencia de Comandos
+
+### 🎯 `ghf init` - Configuración Inicial
+
+Almacena información de acceso a GitHub y configuración de LLM.
+
+#### Uso Básico (Interactivo)
+
+```bash
+ghf init
+```
+
+#### Ejemplo: GitHub.com + LLM Local
+
+```bash
+ghf init \
+  --pat ghp_xxxxxxxxxxxxxxxxxxxx \
+  --llm-endpoint http://localhost:8000/v1/chat/completions \
+  --llm-model gpt-4 \
+  --months 12
+```
+
+#### Ejemplo: GitHub Enterprise
+
+```bash
+ghf init \
+  --pat ghp_xxxxxxxxxxxxxxxxxxxx \
+  --enterprise-host https://github.company.com \
+  --llm-endpoint http://localhost:8000/v1/chat/completions \
+  --llm-model gpt-4
+```
+
+#### Opciones
+
+| Opción | Descripción | Requerido | Predeterminado |
+|--------|-------------|-----------|----------------|
+| `--pat` | GitHub Personal Access Token | ✅ | - |
+| `--llm-endpoint` | Endpoint de API LLM | ✅ | - |
+| `--llm-model` | Identificador del modelo LLM | ✅ | - |
+| `--months` | Período de análisis predeterminado (meses) | ❌ | 12 |
+| `--enterprise-host` | Host de GitHub Enterprise | ❌ | github.com |
+
+### 📊 `ghf brief` - Análisis de Repositorio
+
+Analiza el repositorio y genera informes de feedback detallados.
+
+#### Uso Básico
+
+```bash
+ghf brief --repo owner/repo-name
+```
+
+#### Modo Interactivo
+
+Seleccione un repositorio de la lista recomendada sin especificarlo directamente.
+
+```bash
+ghf brief --interactive
+```
+
+O
+
+```bash
+ghf brief  # Ejecutar sin la opción --repo
+```
+
+#### Ejemplos
+
+```bash
+# Analizar repositorio público
+ghf brief --repo torvalds/linux
+
+# Analizar repositorio personal
+ghf brief --repo myusername/my-private-repo
+
+# Analizar repositorio de organización
+ghf brief --repo microsoft/vscode
+
+# Modo interactivo para selección de repositorio
+ghf brief --interactive
+```
+
+#### Opciones
+
+| Opción | Descripción | Requerido | Predeterminado |
+|--------|-------------|-----------|----------------|
+| `--repo`, `-r` | Repositorio (owner/name) | ❌ | - |
+| `--output`, `-o` | Directorio de salida | ❌ | reports |
+| `--interactive`, `-i` | Selección interactiva de repositorio | ❌ | false |
+
+#### Informes Generados
+
+Después de completar el análisis, se crean los siguientes archivos en el directorio `reports/`:
+
+```
+reports/
+├── metrics.json              # 📈 Datos de análisis sin procesar
+├── report.md                 # 📄 Informe en Markdown
+├── report.html               # 🎨 Informe HTML (con gráficos de visualización)
+├── charts/                   # 📊 Gráficos de visualización (SVG)
+│   ├── quality.svg          # Gráfico de métricas de calidad
+│   ├── activity.svg         # Gráfico de métricas de actividad
+│   ├── engagement.svg       # Gráfico de participación
+│   └── ...                  # Otros gráficos específicos del dominio
+└── prompts/
+    ├── commit_feedback.txt   # 💬 Análisis de calidad de mensajes de commit
+    ├── pr_feedback.txt       # 🔀 Análisis de títulos de PR
+    ├── review_feedback.txt   # 👀 Análisis de tono de revisión
+    └── issue_feedback.txt    # 🐛 Análisis de calidad de issues
+```
+
+#### Contenido del Análisis
+
+- ✅ **Agregación de Actividad**: Cuenta commits, PRs, revisiones e issues
+- 🎯 **Análisis de Calidad**: Mensajes de commit, títulos de PR, tono de revisión, calidad de descripción de issues
+- 🏆 **Premios**: Premios automáticos basados en contribuciones
+- 📈 **Tendencias**: Tendencias de actividad mensual y análisis de velocidad
+
+### 🎯 `ghf feedback` - Revisión Automática de PR
+
+Revisa automáticamente los PRs del usuario autenticado (propietario del PAT) y genera un informe retrospectivo integrado.
+
+#### Uso Básico
+
+```bash
+ghf feedback --repo owner/repo-name
+```
+
+#### Ejemplos
+
+```bash
+# Revisar todos los PR (abiertos + cerrados)
+ghf feedback --repo myusername/my-project --state all
+
+# Revisar solo PRs abiertos
+ghf feedback --repo myusername/my-project --state open
+
+# Revisar solo PRs cerrados
+ghf feedback --repo myusername/my-project --state closed
+```
+
+#### Opciones
+
+| Opción | Descripción | Requerido | Predeterminado |
+|--------|-------------|-----------|----------------|
+| `--repo` | Repositorio (owner/name) | ✅ | - |
+| `--state` | Estado del PR (`open`, `closed`, `all`) | ❌ | `all` |
+
+#### Proceso de Ejecución
+
+1. **Búsqueda de PR** 🔍
+   - Recupera la lista de PRs creados por el usuario autenticado con PAT
+
+2. **Generar Revisiones Individuales** 📝
+   - Recopila cambios de código y comentarios de revisión para cada PR
+   - Genera revisiones detalladas usando LLM
+   - Guarda en el directorio `reviews/owner_repo/pr-{número}/`
+
+3. **Informe Retrospectivo Integrado** 📊
+   - Genera insights combinando todos los PRs
+   - Guarda en `reviews/owner_repo/integrated_report.md`
+
+#### Archivos Generados
+
+```
+reviews/
+└── owner_repo/
+    ├── pr-123/
+    │   ├── artefacts.json          # Datos sin procesar del PR
+    │   ├── review_summary.json     # Resultados del análisis LLM
+    │   └── review.md               # Revisión en Markdown
+    ├── pr-456/
+    │   └── ...
+    └── integrated_report.md        # Informe retrospectivo integrado
+```
+
+### ⚙️ `ghf config` - Gestión de Configuración
+
+Ver o modificar la configuración.
+
+#### `ghf config show` - Ver Configuración
+
+Ver la configuración actualmente almacenada.
+
+```bash
+ghf config show
+```
+
+**Ejemplo de Salida:**
+
+```
+┌─────────────────────────────────────┐
+│ GitHub Feedback Configuration       │
+├─────────────┬───────────────────────┤
+│ Section     │ Values                │
+├─────────────┼───────────────────────┤
+│ auth        │ pat = <set>           │
+├─────────────┼───────────────────────┤
+│ server      │ api_url = https://... │
+│             │ web_url = https://... │
+├─────────────┼───────────────────────┤
+│ llm         │ endpoint = http://... │
+│             │ model = gpt-4         │
+└─────────────┴───────────────────────┘
+```
+
+> **Nota:** El comando `ghf show-config` está obsoleto y ha sido reemplazado por `ghf config show`.
+
+#### `ghf config set` - Establecer Valores de Configuración
+
+Modifica valores de configuración individuales.
+
+```bash
+ghf config set <key> <value>
+```
+
+**Ejemplos:**
+
+```bash
+# Cambiar modelo LLM
+ghf config set llm.model gpt-4
+
+# Cambiar endpoint LLM
+ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+
+# Cambiar período de análisis predeterminado
+ghf config set defaults.months 6
+```
+
+#### `ghf config get` - Obtener Valores de Configuración
+
+Recupera valores de configuración específicos.
+
+```bash
+ghf config get <key>
+```
+
+**Ejemplos:**
+
+```bash
+# Verificar modelo LLM
+ghf config get llm.model
+
+# Verificar período de análisis predeterminado
+ghf config get defaults.months
+```
+
+### 🔍 `ghf list-repos` - Listar Repositorios
+
+Lista los repositorios accesibles.
+
+```bash
+ghf list-repos
+```
+
+#### Ejemplos
+
+```bash
+# Listar repositorios (predeterminado: 20 actualizados recientemente)
+ghf list-repos
+
+# Cambiar criterio de ordenamiento
+ghf list-repos --sort stars --limit 10
+
+# Filtrar por organización específica
+ghf list-repos --org myorganization
+
+# Ordenar por fecha de creación
+ghf list-repos --sort created --limit 50
+```
+
+#### Opciones
+
+| Opción | Descripción | Predeterminado |
+|--------|-------------|----------------|
+| `--sort`, `-s` | Criterio de ordenamiento (updated, created, pushed, full_name) | updated |
+| `--limit`, `-l` | Número máximo a mostrar | 20 |
+| `--org`, `-o` | Filtrar por nombre de organización | - |
+
+### 💡 `ghf suggest-repos` - Sugerencias de Repositorios
+
+Sugiere repositorios activos adecuados para análisis.
+
+```bash
+ghf suggest-repos
+```
+
+Selecciona automáticamente repositorios con actividad reciente. Considera de manera integral estrellas, forks, issues y actualizaciones recientes.
+
+#### Ejemplos
+
+```bash
+# Sugerencias predeterminadas (dentro de los últimos 90 días, 10 repositorios)
+ghf suggest-repos
+
+# Sugerir 5 repositorios activos en los últimos 30 días
+ghf suggest-repos --limit 5 --days 30
+
+# Ordenar por estrellas
+ghf suggest-repos --sort stars
+
+# Ordenar por puntuación de actividad (evaluación integral)
+ghf suggest-repos --sort activity
+```
+
+#### Opciones
+
+| Opción | Descripción | Predeterminado |
+|--------|-------------|----------------|
+| `--limit`, `-l` | Número máximo de sugerencias | 10 |
+| `--days`, `-d` | Período de actividad reciente (días) | 90 |
+| `--sort`, `-s` | Criterio de ordenamiento (updated, stars, activity) | activity |
+
+## 📁 Archivo de Configuración
+
+La configuración se almacena en `~/.config/github_feedback/config.toml` y se crea automáticamente al ejecutar `ghf init`.
+
+### Ejemplo de Archivo de Configuración
+
+```toml
+[version]
+version = "1.0.0"
+
+[auth]
+# PAT se almacena de forma segura en el llavero del sistema (no en este archivo)
+
+[server]
+api_url = "https://api.github.com"
+graphql_url = "https://api.github.com/graphql"
+web_url = "https://github.com"
+
+[llm]
+endpoint = "http://localhost:8000/v1/chat/completions"
+model = "gpt-4"
+timeout = 60
+max_files_in_prompt = 10
+max_retries = 3
+
+[defaults]
+months = 12
+```
+
+### Edición Manual de Configuración
+
+Si es necesario, puede editar el archivo de configuración directamente o usar los comandos `ghf config`:
+
+```bash
+# Método 1: Usar comandos config (recomendado)
+ghf config set llm.model gpt-4
+ghf config show
+
+# Método 2: Edición directa
+nano ~/.config/github_feedback/config.toml
+```
+
+## 📊 Estructura de Archivos Generados
+
+### Salida de `ghf brief`
+
+```
+reports/
+├── metrics.json              # 📈 Datos de análisis sin procesar
+├── report.md                 # 📄 Informe en Markdown
+├── report.html               # 🎨 Informe HTML (con gráficos de visualización)
+├── charts/                   # 📊 Gráficos de visualización (SVG)
+│   ├── quality.svg          # Gráfico de métricas de calidad
+│   ├── activity.svg         # Gráfico de métricas de actividad
+│   ├── engagement.svg       # Gráfico de participación
+│   └── ...                  # Otros gráficos específicos del dominio
+└── prompts/
+    ├── commit_feedback.txt   # 💬 Análisis de calidad de mensajes de commit
+    ├── pr_feedback.txt       # 🔀 Análisis de títulos de PR
+    ├── review_feedback.txt   # 👀 Análisis de tono de revisión
+    └── issue_feedback.txt    # 🐛 Análisis de calidad de issues
+```
+
+### Salida de `ghf feedback`
+
+```
+reviews/
+└── owner_repo/
+    ├── pr-123/
+    │   ├── artefacts.json          # 📦 Datos sin procesar del PR (código, revisiones, etc.)
+    │   ├── review_summary.json     # 🤖 Resultados del análisis LLM (datos estructurados)
+    │   └── review.md               # 📝 Informe de revisión en Markdown
+    ├── pr-456/
+    │   └── ...
+    └── integrated_report.md        # 🎯 Informe retrospectivo integrado (todos los PRs combinados)
+```
+
+## 💡 Ejemplos de Uso
+
+### Ejemplo 1: Inicio Rápido - Modo Interactivo
+
+```bash
+# 1. Configuración (solo la primera vez)
+ghf init
+
+# 2. Obtener sugerencias de repositorios
+ghf suggest-repos
+
+# 3. Analizar con modo interactivo
+ghf brief --interactive
+
+# 4. Ver informe
+cat reports/report.md
+```
+
+### Ejemplo 2: Análisis de Proyecto de Código Abierto
+
+```bash
+# 1. Configuración (solo la primera vez)
+ghf init
+
+# 2. Analizar proyecto popular de código abierto
+ghf brief --repo facebook/react
+
+# 3. Ver informe
+cat reports/report.md
+```
+
+### Ejemplo 3: Retrospectiva de Proyecto Personal
+
+```bash
+# Verificar lista de mis repositorios
+ghf list-repos --sort updated --limit 10
+
+# Analizar mi proyecto
+ghf brief --repo myname/my-awesome-project
+
+# Revisar automáticamente mis PRs
+ghf feedback --repo myname/my-awesome-project --state all
+
+# Ver informe retrospectivo integrado
+cat reviews/myname_my-awesome-project/integrated_report.md
+```
+
+### Ejemplo 4: Revisión de Rendimiento de Proyecto de Equipo
+
+```bash
+# Verificar lista de repositorios de la organización
+ghf list-repos --org mycompany --limit 20
+
+# Establecer período de análisis (últimos 6 meses)
+ghf config set defaults.months 6
+
+# Analizar repositorio de la organización
+ghf brief --repo mycompany/product-service
+
+# Revisar PRs de miembros del equipo (cada uno ejecuta con su propio PAT)
+ghf feedback --repo mycompany/product-service --state closed
+```
+
+## 🎯 Sistema de Premios
+
+Los premios se otorgan automáticamente según la actividad del repositorio:
+
+### Premios Basados en Commits
+- 💎 **Leyenda del Código** (1000+ commits)
+- 🏆 **Maestro del Código** (500+ commits)
+- 🥇 **Herrero del Código** (200+ commits)
+- 🥈 **Artesano del Código** (100+ commits)
+- 🥉 **Aprendiz del Código** (50+ commits)
+
+### Premios Basados en PR
+- 💎 **Leyenda de Releases** (200+ PRs)
+- 🏆 **Almirante de Despliegue** (100+ PRs)
+- 🥇 **Capitán de Releases** (50+ PRs)
+- 🥈 **Navegante de Releases** (25+ PRs)
+- 🥉 **Marinero de Despliegue** (10+ PRs)
+
+### Premios Basados en Revisiones
+- 💎 **Propagador de Conocimiento** (200+ revisiones)
+- 🏆 **Maestro de Mentoría** (100+ revisiones)
+- 🥇 **Experto en Revisiones** (50+ revisiones)
+- 🥈 **Mentor de Crecimiento** (20+ revisiones)
+- 🥉 **Soporte de Código** (10+ revisiones)
+
+### Premios Especiales
+- ⚡ **Desarrollador Relámpago** (50+ commits/mes)
+- 🤝 **Maestro de Colaboración** (20+ PRs+revisiones/mes)
+- 🏗️ **Arquitecto a Gran Escala** (5000+ líneas cambiadas)
+- 📅 **Maestro de Consistencia** (6+ meses de actividad continua)
+- 🌟 **Multitalento** (Contribuciones equilibradas en todas las áreas)
+
+## 🐛 Solución de Problemas
+
+### Error de Permisos de PAT
+
+```
+Error: GitHub API rejected the provided PAT
+```
+
+**Solución**: Verifica que el PAT tenga los permisos apropiados
+- Repositorios privados: se requiere permiso `repo`
+- Repositorios públicos: se requiere permiso `public_repo`
+- Verifica en [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+
+### Fallo de Conexión al Endpoint LLM
+
+```
+Warning: Detailed feedback analysis failed: Connection refused
+```
+
+**Solución**:
+1. Verifica que el servidor LLM esté en ejecución
+2. Verifica que la URL del endpoint sea correcta (`ghf config show`)
+3. Reinicializa la configuración si es necesario: `ghf init`
+
+### Repositorio No Encontrado
+
+```
+Error: Repository not found
+```
+
+**Solución**:
+- Verifica el formato del nombre del repositorio: `owner/repo` (ej: `torvalds/linux`)
+- Para repositorios privados, verifica los permisos del PAT
+- Para GitHub Enterprise, verifica la configuración `--enterprise-host`
+
+### Sin Datos en el Período de Análisis
+
+```
+No activity detected during analysis period.
+```
+
+**Solución**:
+- Intenta aumentar el período de análisis: `ghf init --months 24`
+- Verifica que el repositorio esté activo
+
+## 👩‍💻 Guía para Desarrolladores
+
+### Configuración del Entorno de Desarrollo
+
+```bash
+# Clonar repositorio
+git clone https://github.com/goonbamm/github-feedback-analysis.git
+cd github-feedback-analysis
+
+# Instalar en modo de desarrollo (incluye dependencias de prueba)
+uv pip install -e .[test]
+
+# Ejecutar pruebas
+pytest
+
+# Ejecutar pruebas específicas
+pytest tests/test_analyzer.py -v
+
+# Verificar cobertura
+pytest --cov=github_feedback --cov-report=html
+```
+
+### Estructura del Código
+
+```
+github_feedback/
+├── cli.py              # 🖥️  Punto de entrada CLI y comandos
+├── collector.py        # 📡 Recopilación de datos de API de GitHub
+├── analyzer.py         # 📊 Análisis y cálculo de métricas
+├── reporter.py         # 📄 Generación de informes (brief)
+├── reviewer.py         # 🎯 Lógica de revisión de PR
+├── review_reporter.py  # 📝 Informes de revisión integrados
+├── llm.py             # 🤖 Cliente de API LLM
+├── config.py          # ⚙️  Gestión de configuración
+├── models.py          # 📦 Modelos de datos
+└── utils.py           # 🔧 Funciones utilitarias
+```
+
+## 🔒 Seguridad
+
+- **Almacenamiento de PAT**: Los tokens de GitHub se almacenan de forma segura en el llavero del sistema (no en archivos de texto plano)
+- **Respaldo de Configuración**: Crea automáticamente respaldos antes de sobrescribir la configuración
+- **Validación de Entrada**: Valida todas las entradas del usuario (formato PAT, formato URL, formato de repositorio)
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la Licencia MIT.
+
+## 🤝 Contribuir
+
+¡Los informes de errores, sugerencias de características y PRs siempre son bienvenidos!
+
+1. Bifurca el repositorio
+2. Crea tu rama de características (`git checkout -b feature/amazing-feature`)
+3. Confirma tus cambios (`git commit -m 'Add amazing feature'`)
+4. Empuja a la rama (`git push origin feature/amazing-feature`)
+5. Abre un Pull Request
+
+## 💬 Feedback
+
+Si tienes problemas o sugerencias, ¡regístralos en [Issues](https://github.com/goonbamm/github-feedback-analysis/issues)!
