@@ -181,7 +181,7 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
                 console.print("[info]Enter a number (1-{}) or owner/repo format[/]".format(len(suggestions)))
                 continue
 
-        except (KeyboardInterrupt, EOFError):
+        except (typer.Abort, KeyboardInterrupt, EOFError):
             console.print("\n[warning]Selection cancelled.[/]")
             return None
 
@@ -232,32 +232,36 @@ def init(
     is_interactive = sys.stdin.isatty()
 
     # Prompt for missing required values only in interactive mode
-    if pat is None:
-        if is_interactive:
-            pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
-        else:
-            console.print("[danger]Error:[/] --pat is required in non-interactive mode")
-            raise typer.Exit(code=1)
+    try:
+        if pat is None:
+            if is_interactive:
+                pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
+            else:
+                console.print("[danger]Error:[/] --pat is required in non-interactive mode")
+                raise typer.Exit(code=1)
 
-    if llm_endpoint is None:
-        if is_interactive:
-            llm_endpoint = typer.prompt("LLM API endpoint (OpenAI-compatible format)")
-        else:
-            console.print("[danger]Error:[/] --llm-endpoint is required in non-interactive mode")
-            raise typer.Exit(code=1)
+        if llm_endpoint is None:
+            if is_interactive:
+                llm_endpoint = typer.prompt("LLM API endpoint (OpenAI-compatible format)")
+            else:
+                console.print("[danger]Error:[/] --llm-endpoint is required in non-interactive mode")
+                raise typer.Exit(code=1)
 
-    if llm_model is None:
-        if is_interactive:
-            llm_model = typer.prompt("LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)")
-        else:
-            console.print("[danger]Error:[/] --llm-model is required in non-interactive mode")
-            raise typer.Exit(code=1)
+        if llm_model is None:
+            if is_interactive:
+                llm_model = typer.prompt("LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)")
+            else:
+                console.print("[danger]Error:[/] --llm-model is required in non-interactive mode")
+                raise typer.Exit(code=1)
 
-    if enterprise_host is None and is_interactive:
-        enterprise_host = typer.prompt(
-            "GitHub Enterprise host (leave empty for github.com)",
-            default="",
-        )
+        if enterprise_host is None and is_interactive:
+            enterprise_host = typer.prompt(
+                "GitHub Enterprise host (leave empty for github.com)",
+                default="",
+            )
+    except (typer.Abort, KeyboardInterrupt, EOFError):
+        console.print("\n[warning]Configuration cancelled by user.[/]")
+        raise typer.Exit(code=0)
 
     # Validate inputs
     try:
@@ -311,12 +315,17 @@ def init(
                 test_client.test_connection()
                 console.print("[success]✓ LLM connection successful[/]")
             except KeyboardInterrupt:
-                raise
+                console.print("\n[warning]Configuration cancelled by user.[/]")
+                raise typer.Exit(code=0)
             except (requests.RequestException, ValueError, ConnectionError) as exc:
                 console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
-                if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
-                    console.print("[info]Configuration not saved[/]")
-                    raise typer.Exit(code=1)
+                try:
+                    if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
+                        console.print("[info]Configuration not saved[/]")
+                        raise typer.Exit(code=1)
+                except (typer.Abort, KeyboardInterrupt, EOFError):
+                    console.print("\n[warning]Configuration cancelled by user.[/]")
+                    raise typer.Exit(code=0)
 
     config.dump()
     console.print("[success]✓ Configuration saved successfully[/]")
