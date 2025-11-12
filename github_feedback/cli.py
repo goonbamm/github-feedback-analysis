@@ -82,7 +82,7 @@ def _load_config() -> Config:
         else:
             console.print(f"[danger]Configuration error:[/] {error_msg}")
         console.print()
-        console.print("[info]Run [accent]ghf init[/] to set up your configuration")
+        console.print("[info]Run [accent]gfa init[/] to set up your configuration")
         raise typer.Exit(code=1) from exc
 
 
@@ -686,7 +686,7 @@ def _check_repository_activity(
         console.print(f"[info]Repository:[/] {repo_input}")
         console.print(f"[info]Period:[/] Last {months} months")
         console.print("[info]Suggestions:[/]")
-        console.print("  • Try increasing the analysis period: [accent]ghf init --months 24[/]")
+        console.print("  • Try increasing the analysis period: [accent]gfa init --months 24[/]")
         console.print("  • Verify the repository has commits, PRs, or issues")
         console.print("  • Check if your PAT has access to this repository")
         raise typer.Exit(code=1)
@@ -942,7 +942,7 @@ def _generate_integrated_full_report(
 
 
 @app.command()
-def brief(
+def feedback(
     repo: Optional[str] = typer.Option(
         None,
         "--repo",
@@ -961,24 +961,17 @@ def brief(
         "-i",
         help="Interactively select repository from suggestions",
     ),
-    with_feedback: bool = typer.Option(
-        False,
-        "--with-feedback",
-        "-f",
-        help="Include PR feedback analysis after repository brief",
-    ),
 ) -> None:
-    """Analyze repository activity and generate detailed reports.
+    """Analyze repository activity and generate detailed reports with PR feedback.
 
     This command collects commits, PRs, reviews, and issues from a GitHub
-    repository, then generates comprehensive reports with insights and
-    recommendations.
+    repository, analyzes all PRs authored by you, then generates comprehensive
+    reports with insights and recommendations.
 
     Examples:
-        ghf brief --repo torvalds/linux
-        ghf brief --repo myorg/myrepo --output custom_reports/
-        ghf brief --interactive
-        ghf brief --repo myorg/myrepo --with-feedback
+        gfa feedback --repo torvalds/linux
+        gfa feedback --repo myorg/myrepo --output custom_reports/
+        gfa feedback --interactive
     """
     from datetime import datetime, timedelta, timezone
 
@@ -997,7 +990,7 @@ def brief(
         collector = Collector(config)
     except ValueError as exc:
         console.print(f"[danger]Error:[/] {exc}")
-        console.print("[info]Hint:[/] Check your GitHub token with [accent]ghf show-config[/]")
+        console.print("[info]Hint:[/] Check your GitHub token with [accent]gfa show-config[/]")
         raise typer.Exit(code=1) from exc
 
     # Handle interactive mode or no repo specified
@@ -1017,7 +1010,7 @@ def brief(
         validate_repo_format(repo_input)
     except ValueError as exc:
         console.print(f"[danger]Validation error:[/] {exc}")
-        console.print("[info]Example:[/] [accent]ghf brief --repo torvalds/linux[/]")
+        console.print("[info]Example:[/] [accent]gfa feedback --repo torvalds/linux[/]")
         raise typer.Exit(code=1) from exc
 
     # Phase 1: Collect repository data
@@ -1061,32 +1054,29 @@ def brief(
     console.print()
     console.print("[success]✓ Repository analysis complete![/]")
 
-    # Phase 6: Run feedback analysis if requested
-    feedback_report_path = None
-    pr_results = []
-    if with_feedback:
+    # Phase 6: Run feedback analysis
+    console.print()
+    console.rule("Phase 6: PR Feedback Analysis")
+    console.print("[accent]Running feedback analysis for your PRs...[/]")
+    console.print()
+
+    reviews_output_dir = Path("reviews")
+    feedback_report_path, pr_results = _run_feedback_analysis(
+        config=config,
+        repo_input=repo_input,
+        output_dir=reviews_output_dir,
+    )
+
+    if pr_results:
         console.print()
-        console.rule("Phase 6: PR Feedback Analysis")
-        console.print("[accent]Running feedback analysis for your PRs...[/]")
+        console.print("[success]✓ Feedback analysis complete![/]")
+        console.print(f"[success]Analyzed {len(pr_results)} pull request(s)[/]")
+    else:
         console.print()
+        console.print("[warning]No PRs found or feedback analysis failed.[/]")
 
-        reviews_output_dir = Path("reviews")
-        feedback_report_path, pr_results = _run_feedback_analysis(
-            config=config,
-            repo_input=repo_input,
-            output_dir=reviews_output_dir,
-        )
-
-        if pr_results:
-            console.print()
-            console.print("[success]✓ Feedback analysis complete![/]")
-            console.print(f"[success]Analyzed {len(pr_results)} pull request(s)[/]")
-        else:
-            console.print()
-            console.print("[warning]No PRs found or feedback analysis failed.[/]")
-
-    # Phase 7: Generate integrated full report if feedback was run
-    if with_feedback and feedback_report_path:
+    # Phase 7: Generate integrated full report
+    if feedback_report_path:
         console.print()
         console.rule("Phase 7: Generating Integrated Report")
 
@@ -1107,14 +1097,12 @@ def brief(
     console.print("[success]✓ All tasks complete![/]")
     console.print()
     console.print("[info]Next steps:[/]")
-    if with_feedback and feedback_report_path:
+    if feedback_report_path:
         console.print("  • View the integrated report: [accent]cat {}[/]".format(
             output_dir_resolved / "integrated_full_report.md"
         ))
     else:
         console.print("  • View the report: [accent]cat reports/report.md[/]")
-        console.print("  • Review your PRs: [accent]ghf feedback --repo {}[/]".format(repo_input))
-        console.print("  • Or run both together: [accent]ghf brief --repo {} --with-feedback[/]".format(repo_input))
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
@@ -1167,156 +1155,6 @@ def main_callback(
         console.print(get_christmas_banner())
 
 
-@app.command()
-def feedback(
-    repo: str = typer.Option(
-        ...,
-        "--repo",
-        "-r",
-        help="Repository in owner/name format (e.g. facebook/react)",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reviews"),
-        "--output",
-        "-o",
-        help="Output directory for reviews",
-    ),
-) -> None:
-    """Generate AI-powered reviews for your pull requests.
-
-    This command reviews all PRs authored by you (based on your GitHub token)
-    in the specified repository. It analyzes code changes, comments, and
-    creates an integrated retrospective report.
-
-    Examples:
-        ghf feedback --repo myorg/myrepo
-        ghf feedback --repo myorg/myrepo --output custom_reviews/
-    """
-
-    config = _load_config()
-
-    try:
-        collector = Collector(config)
-    except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
-        console.print("[info]Hint:[/] Check your configuration with [accent]ghf show-config[/]")
-        raise typer.Exit(code=1) from exc
-
-    llm_client = LLMClient(
-        endpoint=config.llm.endpoint,
-        model=config.llm.model,
-        timeout=config.llm.timeout,
-        max_files_in_prompt=config.llm.max_files_in_prompt,
-        max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
-    )
-
-    reviewer = Reviewer(collector=collector, llm=llm_client)
-
-    repo_input = repo.strip()
-
-    try:
-        validate_repo_format(repo_input)
-    except ValueError as exc:
-        console.print(f"[danger]Validation error:[/] {exc}")
-        console.print("[info]Example:[/] [accent]ghf feedback --repo myname/myproject[/]")
-        raise typer.Exit(code=1) from exc
-
-    def _render_result(pr_number: int, artefact_path: Path, summary_path: Path, markdown_path: Path) -> None:
-        console.print(f"[accent]Pull Request #[/][value]{pr_number}[/]")
-        console.print(
-            "[success]Pull request artefacts cached:[/]", f"[value]{artefact_path}[/]"
-        )
-        console.print(
-            "[success]Structured summary stored:[/]", f"[value]{summary_path}[/]"
-        )
-        console.print(
-            "[success]Markdown review generated:[/]", f"[value]{markdown_path}[/]"
-        )
-        console.print("")
-
-    results = []
-
-    # Step 1: Generate PR reviews
-    console.rule("Step 1: Generating PR Reviews")
-    # State is always fixed to "all"
-    state_normalised = "all"
-
-    with console.status(
-        "[accent]Retrieving authenticated user...", spinner="dots"
-    ):
-        try:
-            author = collector.get_authenticated_user()
-        except (ValueError, PermissionError) as exc:
-            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
-            raise typer.Exit(code=1) from exc
-
-    with console.status(
-        "[accent]Finding your pull requests...", spinner="dots"
-    ):
-        numbers = collector.list_authored_pull_requests(
-            repo=repo_input,
-            author=author,
-            state=state_normalised,
-        )
-
-    if not numbers:
-        console.print(
-            f"[warning]No pull requests found authored by '{author}' in {repo_input}.[/]"
-        )
-        return
-
-    pr_numbers = sorted(set(numbers))
-    total_prs = len(pr_numbers)
-
-    for idx, pr_number in enumerate(pr_numbers, 1):
-        with console.status(
-            f"[accent]Analyzing PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
-        ):
-            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
-                repo=repo_input,
-                number=pr_number,
-            )
-        results.append((pr_number, artefact_path, summary_path, markdown_path))
-        console.print(f"[success]✓ PR #{pr_number} reviewed ({idx}/{total_prs})", style="success")
-
-    console.rule("Review Assets")
-    for pr_number, artefact_path, summary_path, markdown_path in results:
-        _render_result(pr_number, artefact_path, summary_path, markdown_path)
-
-    if results:
-        review_root_value = getattr(reviewer, "output_dir", Path("reviews"))
-        review_root = Path(review_root_value).expanduser().resolve()
-        console.print(
-            "[info]Review artefacts stored under:[/]",
-            f"[value]{review_root}[/]",
-        )
-
-    # Step 2: Generate integrated report
-    console.rule("Step 2: Generating Integrated Report")
-    output_dir_resolved = _resolve_output_dir(output_dir)
-    review_reporter = ReviewReporter(
-        output_dir=output_dir_resolved,
-        llm=llm_client,
-    )
-
-    try:
-        with console.status("[accent]Creating integrated report...", spinner="dots"):
-            report_path = review_reporter.create_integrated_report(repo_input)
-    except ValueError as exc:
-        console.print(f"[warning]{exc}[/]")
-        raise typer.Exit(code=1) from exc
-
-    console.rule("Integrated Review Report")
-    console.print(
-        "[success]Integrated review report generated:[/]",
-        f"[value]{report_path}[/]",
-    )
-    console.print()
-    console.print("[success]✓ Review complete![/]")
-    console.print()
-    console.print("[info]Next steps:[/]")
-    console.print("  • Read the report: [accent]cat {}[/]".format(report_path))
-    console.print("  • Analyze the repository: [accent]ghf brief --repo {}[/]".format(repo_input))
 
 
 @config_app.command("show")
@@ -1365,9 +1203,9 @@ def config_set(
     """Set a configuration value.
 
     Examples:
-        ghf config set llm.model gpt-4
-        ghf config set llm.endpoint https://api.openai.com/v1/chat/completions
-        ghf config set defaults.months 6
+        gfa config set llm.model gpt-4
+        gfa config set llm.endpoint https://api.openai.com/v1/chat/completions
+        gfa config set defaults.months 6
     """
     try:
         config = Config.load()
@@ -1386,8 +1224,8 @@ def config_get(
     """Get a configuration value.
 
     Examples:
-        ghf config get llm.model
-        ghf config get defaults.months
+        gfa config get llm.model
+        gfa config get defaults.months
     """
     try:
         config = Config.load()
@@ -1426,9 +1264,9 @@ def list_repos(
     criteria.
 
     Examples:
-        ghf list-repos
-        ghf list-repos --sort stars --limit 10
-        ghf list-repos --org myorganization
+        gfa list-repos
+        gfa list-repos --sort stars --limit 10
+        gfa list-repos --org myorganization
     """
     config = _load_config()
 
@@ -1541,9 +1379,9 @@ def suggest_repos(
     stars, forks, and overall activity.
 
     Examples:
-        ghf suggest-repos
-        ghf suggest-repos --limit 5 --days 30
-        ghf suggest-repos --sort stars
+        gfa suggest-repos
+        gfa suggest-repos --limit 5 --days 30
+        gfa suggest-repos --sort stars
     """
     config = _load_config()
 
@@ -1620,7 +1458,7 @@ def suggest_repos(
         console.print(table)
         console.print()
         console.print(
-            "[info]To analyze a repository, use:[/] [accent]ghf brief --repo <owner/name>[/]"
+            "[info]To analyze a repository, use:[/] [accent]gfa feedback --repo <owner/name>[/]"
         )
     else:
         # Fallback if rich is not available
@@ -1635,7 +1473,7 @@ def suggest_repos(
 # Keep show-config as a deprecated alias for backward compatibility
 @app.command(name="show-config", hidden=True, deprecated=True)
 def show_config_deprecated() -> None:
-    """Display current configuration settings (deprecated: use 'ghf config show')."""
-    console.print("[warning]Note:[/] 'ghf show-config' is deprecated. Use 'ghf config show' instead.")
+    """Display current configuration settings (deprecated: use 'gfa config show')."""
+    console.print("[warning]Note:[/] 'gfa show-config' is deprecated. Use 'gfa config show' instead.")
     console.print()
     show_config()

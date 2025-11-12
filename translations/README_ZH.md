@@ -48,7 +48,7 @@
    - ⚠️ **重要**：离开此页面后将无法再次查看令牌
 
 5. **使用令牌**
-   - 运行 `ghf init` 时输入复制的令牌
+   - 运行 `gfainit` 时输入复制的令牌
 
 ### 使用细粒度 Personal Access Token（可选）
 
@@ -74,7 +74,7 @@
 
 3. **初始设置时指定企业主机**
    ```bash
-   ghf init --enterprise-host https://github.your-company.com
+   gfainit --enterprise-host https://github.your-company.com
    ```
 
 4. **联系管理员**
@@ -107,7 +107,7 @@ uv pip install -e .
 ### 1️⃣ 初始化配置
 
 ```bash
-ghf init
+gfainit
 ```
 
 出现提示时，请输入以下信息：
@@ -119,7 +119,7 @@ ghf init
 ### 2️⃣ 分析仓库
 
 ```bash
-ghf brief --repo goonbamm/github-feedback-analysis
+gfa feedback --repo goonbamm/github-feedback-analysis
 ```
 
 分析完成后，将在 `reports/` 目录中生成以下文件：
@@ -137,20 +137,20 @@ cat reports/report.md
 
 ## 📚 命令参考
 
-### 🎯 `ghf init` - 初始化配置
+### 🎯 `gfainit` - 初始化配置
 
 存储 GitHub 访问信息和 LLM 设置。
 
 #### 基本用法（交互式）
 
 ```bash
-ghf init
+gfainit
 ```
 
 #### 示例：GitHub.com + 本地 LLM
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -160,7 +160,7 @@ ghf init \
 #### 示例：GitHub Enterprise
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -177,14 +177,14 @@ ghf init \
 | `--months` | 默认分析周期（月） | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 主机 | ❌ | github.com |
 
-### 📊 `ghf brief` - 仓库分析
+### 📊 `gfa feedback` - 仓库分析
 
 分析仓库并生成详细反馈报告。
 
 #### 基本用法
 
 ```bash
-ghf brief --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### 交互模式
@@ -192,29 +192,29 @@ ghf brief --repo owner/repo-name
 无需直接指定仓库，可从推荐列表中选择仓库。
 
 ```bash
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 或
 
 ```bash
-ghf brief  # 不使用 --repo 选项运行
+gfa feedback  # 不使用 --repo 选项运行
 ```
 
 #### 示例
 
 ```bash
 # 分析公共仓库
-ghf brief --repo torvalds/linux
+gfa feedback --repo torvalds/linux
 
 # 分析个人仓库
-ghf brief --repo myusername/my-private-repo
+gfa feedback --repo myusername/my-private-repo
 
 # 分析组织仓库
-ghf brief --repo microsoft/vscode
+gfa feedback --repo microsoft/vscode
 
 # 交互模式选择仓库
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 #### 选项说明
@@ -253,21 +253,21 @@ reports/
 - 🏆 **奖项**：根据贡献自动授予奖项
 - 📈 **趋势**：每月活动趋势和速度分析
 
-### 🎯 `ghf feedback` - 自动 PR 审查
+### 🎯 `gfafeedback` - 自动 PR 审查
 
 自动审查已认证用户（PAT 所有者）的 PR 并生成集成回顾报告。
 
 #### 基本用法
 
 ```bash
-ghf feedback --repo owner/repo-name
+gfafeedback --repo owner/repo-name
 ```
 
 #### 示例
 
 ```bash
 # 审查你创建的所有 PR
-ghf feedback --repo myusername/my-project
+gfafeedback --repo myusername/my-project
 ```
 
 #### 选项说明
@@ -304,16 +304,16 @@ reviews/
     └── integrated_report.md        # 集成回顾报告
 ```
 
-### ⚙️ `ghf config` - 配置管理
+### ⚙️ `gfaconfig` - 配置管理
 
 查看或修改配置设置。
 
-#### `ghf config show` - 查看配置
+#### `gfaconfig show` - 查看配置
 
 查看当前存储的配置。
 
 ```bash
-ghf config show
+gfaconfig show
 ```
 
 **示例输出：**
@@ -334,69 +334,69 @@ ghf config show
 └─────────────┴───────────────────────┘
 ```
 
-> **注意：**`ghf show-config` 命令已弃用，已被 `ghf config show` 替代。
+> **注意：**`gfashow-config` 命令已弃用，已被 `gfaconfig show` 替代。
 
-#### `ghf config set` - 设置配置值
+#### `gfaconfig set` - 设置配置值
 
 修改单个配置值。
 
 ```bash
-ghf config set <key> <value>
+gfaconfig set <key> <value>
 ```
 
 **示例：**
 
 ```bash
 # 更改 LLM 模型
-ghf config set llm.model gpt-4
+gfaconfig set llm.model gpt-4
 
 # 更改 LLM 端点
-ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # 更改默认分析周期
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 ```
 
-#### `ghf config get` - 获取配置值
+#### `gfaconfig get` - 获取配置值
 
 检索特定配置值。
 
 ```bash
-ghf config get <key>
+gfaconfig get <key>
 ```
 
 **示例：**
 
 ```bash
 # 检查 LLM 模型
-ghf config get llm.model
+gfaconfig get llm.model
 
 # 检查默认分析周期
-ghf config get defaults.months
+gfaconfig get defaults.months
 ```
 
-### 🔍 `ghf list-repos` - 仓库列表
+### 🔍 `gfalist-repos` - 仓库列表
 
 列出可访问的仓库。
 
 ```bash
-ghf list-repos
+gfalist-repos
 ```
 
 #### 示例
 
 ```bash
 # 列出仓库（默认：最近更新的 20 个）
-ghf list-repos
+gfalist-repos
 
 # 更改排序标准
-ghf list-repos --sort stars --limit 10
+gfalist-repos --sort stars --limit 10
 
 # 按特定组织筛选
-ghf list-repos --org myorganization
+gfalist-repos --org myorganization
 
 # 按创建日期排序
-ghf list-repos --sort created --limit 50
+gfalist-repos --sort created --limit 50
 ```
 
 #### 选项说明
@@ -407,12 +407,12 @@ ghf list-repos --sort created --limit 50
 | `--limit`, `-l` | 最大显示数量 | 20 |
 | `--org`, `-o` | 按组织名称筛选 | - |
 
-### 💡 `ghf suggest-repos` - 仓库推荐
+### 💡 `gfasuggest-repos` - 仓库推荐
 
 推荐适合分析的活跃仓库。
 
 ```bash
-ghf suggest-repos
+gfasuggest-repos
 ```
 
 自动选择具有最近活动的仓库。综合考虑星标、分支、议题和最近更新。
@@ -421,16 +421,16 @@ ghf suggest-repos
 
 ```bash
 # 默认推荐（最近 90 天内，10 个仓库）
-ghf suggest-repos
+gfasuggest-repos
 
 # 推荐最近 30 天内活跃的 5 个仓库
-ghf suggest-repos --limit 5 --days 30
+gfasuggest-repos --limit 5 --days 30
 
 # 按星标排序
-ghf suggest-repos --sort stars
+gfasuggest-repos --sort stars
 
 # 按活动分数排序（综合评估）
-ghf suggest-repos --sort activity
+gfasuggest-repos --sort activity
 ```
 
 #### 选项说明
@@ -443,7 +443,7 @@ ghf suggest-repos --sort activity
 
 ## 📁 配置文件
 
-配置存储在 `~/.config/github_feedback/config.toml` 中，运行 `ghf init` 时自动创建。
+配置存储在 `~/.config/github_feedback/config.toml` 中，运行 `gfainit` 时自动创建。
 
 ### 配置文件示例
 
@@ -472,12 +472,12 @@ months = 12
 
 ### 手动配置编辑
 
-如需要，可以直接编辑配置文件或使用 `ghf config` 命令：
+如需要，可以直接编辑配置文件或使用 `gfaconfig` 命令：
 
 ```bash
 # 方法 1：使用 config 命令（推荐）
-ghf config set llm.model gpt-4
-ghf config show
+gfaconfig set llm.model gpt-4
+gfaconfig show
 
 # 方法 2：直接编辑
 nano ~/.config/github_feedback/config.toml
@@ -485,7 +485,7 @@ nano ~/.config/github_feedback/config.toml
 
 ## 📊 生成的文件结构
 
-### `ghf brief` 输出
+### `gfa feedback` 输出
 
 ```
 reports/
@@ -504,7 +504,7 @@ reports/
     └── issue_feedback.txt    # 🐛 议题质量分析
 ```
 
-### `ghf feedback` 输出
+### `gfafeedback` 输出
 
 ```
 reviews/
@@ -524,13 +524,13 @@ reviews/
 
 ```bash
 # 1. 配置（仅首次）
-ghf init
+gfainit
 
 # 2. 获取仓库推荐
-ghf suggest-repos
+gfasuggest-repos
 
 # 3. 使用交互模式分析
-ghf brief --interactive
+gfa feedback --interactive
 
 # 4. 查看报告
 cat reports/report.md
@@ -540,10 +540,10 @@ cat reports/report.md
 
 ```bash
 # 1. 配置（仅首次）
-ghf init
+gfainit
 
 # 2. 分析热门开源项目
-ghf brief --repo facebook/react
+gfa feedback --repo facebook/react
 
 # 3. 查看报告
 cat reports/report.md
@@ -553,13 +553,13 @@ cat reports/report.md
 
 ```bash
 # 查看我的仓库列表
-ghf list-repos --sort updated --limit 10
+gfalist-repos --sort updated --limit 10
 
 # 分析我的项目
-ghf brief --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 自动审查我的 PR
-ghf feedback --repo myname/my-awesome-project
+gfafeedback --repo myname/my-awesome-project
 
 # 查看集成回顾报告
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -569,16 +569,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 查看组织仓库列表
-ghf list-repos --org mycompany --limit 20
+gfalist-repos --org mycompany --limit 20
 
 # 设置分析周期（最近 6 个月）
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 
 # 分析组织仓库
-ghf brief --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 
 # 审查团队成员 PR（每人使用自己的 PAT 运行）
-ghf feedback --repo mycompany/product-service
+gfafeedback --repo mycompany/product-service
 ```
 
 ## 🎯 奖项系统
@@ -634,8 +634,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **解决方案**：
 1. 验证 LLM 服务器正在运行
-2. 验证端点 URL 正确（`ghf config show`）
-3. 如需要，重新初始化配置：`ghf init`
+2. 验证端点 URL 正确（`gfaconfig show`）
+3. 如需要，重新初始化配置：`gfainit`
 
 ### 仓库未找到
 
@@ -655,7 +655,7 @@ No activity detected during analysis period.
 ```
 
 **解决方案**：
-- 尝试增加分析周期：`ghf init --months 24`
+- 尝试增加分析周期：`gfainit --months 24`
 - 验证仓库是否活跃
 
 ## 👩‍💻 开发者指南

@@ -48,7 +48,7 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
    - ⚠️ **重要**：このページを離れると、トークンを再度確認できません
 
 5. **トークンを使用**
-   - `ghf init` 実行時にコピーしたトークンを入力してください
+   - `gfainit` 実行時にコピーしたトークンを入力してください
 
 ### Fine-grained Personal Access Token の使用（オプション）
 
@@ -74,7 +74,7 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
 
 3. **初期設定時にEnterpriseホストを指定**
    ```bash
-   ghf init --enterprise-host https://github.your-company.com
+   gfainit --enterprise-host https://github.your-company.com
    ```
 
 4. **管理者に問い合わせ**
@@ -107,7 +107,7 @@ uv pip install -e .
 ### 1️⃣ 設定の初期化
 
 ```bash
-ghf init
+gfainit
 ```
 
 プロンプトが表示されたら、以下の情報を入力してください：
@@ -119,7 +119,7 @@ ghf init
 ### 2️⃣ リポジトリを分析
 
 ```bash
-ghf brief --repo goonbamm/github-feedback-analysis
+gfa feedback --repo goonbamm/github-feedback-analysis
 ```
 
 分析完了後、`reports/`ディレクトリに以下のファイルが生成されます：
@@ -137,20 +137,20 @@ cat reports/report.md
 
 ## 📚 コマンドリファレンス
 
-### 🎯 `ghf init` - 初期設定
+### 🎯 `gfainit` - 初期設定
 
 GitHubアクセス情報とLLM設定を保存します。
 
 #### 基本的な使い方（インタラクティブ）
 
 ```bash
-ghf init
+gfainit
 ```
 
 #### 例：GitHub.com + ローカルLLM
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -160,7 +160,7 @@ ghf init \
 #### 例：GitHub Enterprise
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -177,14 +177,14 @@ ghf init \
 | `--months` | デフォルト分析期間（月） | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterpriseホスト | ❌ | github.com |
 
-### 📊 `ghf brief` - リポジトリ分析
+### 📊 `gfa feedback` - リポジトリ分析
 
 リポジトリを分析し、詳細なフィードバックレポートを生成します。
 
 #### 基本的な使い方
 
 ```bash
-ghf brief --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### インタラクティブモード
@@ -192,29 +192,29 @@ ghf brief --repo owner/repo-name
 リポジトリを直接指定せず、推奨リストから選択できます。
 
 ```bash
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 または
 
 ```bash
-ghf brief  # --repoオプションなしで実行
+gfa feedback  # --repoオプションなしで実行
 ```
 
 #### 例
 
 ```bash
 # パブリックリポジトリを分析
-ghf brief --repo torvalds/linux
+gfa feedback --repo torvalds/linux
 
 # 個人リポジトリを分析
-ghf brief --repo myusername/my-private-repo
+gfa feedback --repo myusername/my-private-repo
 
 # 組織リポジトリを分析
-ghf brief --repo microsoft/vscode
+gfa feedback --repo microsoft/vscode
 
 # インタラクティブモードでリポジトリ選択
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 #### オプション説明
@@ -253,21 +253,21 @@ reports/
 - 🏆 **アワード**：貢献度に基づく自動アワード
 - 📈 **トレンド**：月次アクティビティトレンドと速度分析
 
-### 🎯 `ghf feedback` - 自動PRレビュー
+### 🎯 `gfafeedback` - 自動PRレビュー
 
 認証ユーザー（PATオーナー）のPRを自動レビューし、統合振り返りレポートを生成します。
 
 #### 基本的な使い方
 
 ```bash
-ghf feedback --repo owner/repo-name
+gfafeedback --repo owner/repo-name
 ```
 
 #### 例
 
 ```bash
 # あなたが作成したすべてのPRをレビュー
-ghf feedback --repo myusername/my-project
+gfafeedback --repo myusername/my-project
 ```
 
 #### オプション説明
@@ -304,16 +304,16 @@ reviews/
     └── integrated_report.md        # 統合振り返りレポート
 ```
 
-### ⚙️ `ghf config` - 設定管理
+### ⚙️ `gfaconfig` - 設定管理
 
 設定を確認または変更します。
 
-#### `ghf config show` - 設定を表示
+#### `gfaconfig show` - 設定を表示
 
 現在保存されている設定を表示します。
 
 ```bash
-ghf config show
+gfaconfig show
 ```
 
 **出力例：**
@@ -334,69 +334,69 @@ ghf config show
 └─────────────┴───────────────────────┘
 ```
 
-> **注：**`ghf show-config`コマンドは非推奨となり、`ghf config show`に置き換えられました。
+> **注：**`gfashow-config`コマンドは非推奨となり、`gfaconfig show`に置き換えられました。
 
-#### `ghf config set` - 設定値を変更
+#### `gfaconfig set` - 設定値を変更
 
 個別の設定値を変更します。
 
 ```bash
-ghf config set <key> <value>
+gfaconfig set <key> <value>
 ```
 
 **例：**
 
 ```bash
 # LLMモデルを変更
-ghf config set llm.model gpt-4
+gfaconfig set llm.model gpt-4
 
 # LLMエンドポイントを変更
-ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # デフォルト分析期間を変更
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 ```
 
-#### `ghf config get` - 設定値を取得
+#### `gfaconfig get` - 設定値を取得
 
 特定の設定値を取得します。
 
 ```bash
-ghf config get <key>
+gfaconfig get <key>
 ```
 
 **例：**
 
 ```bash
 # LLMモデルを確認
-ghf config get llm.model
+gfaconfig get llm.model
 
 # デフォルト分析期間を確認
-ghf config get defaults.months
+gfaconfig get defaults.months
 ```
 
-### 🔍 `ghf list-repos` - リポジトリ一覧
+### 🔍 `gfalist-repos` - リポジトリ一覧
 
 アクセス可能なリポジトリをリストします。
 
 ```bash
-ghf list-repos
+gfalist-repos
 ```
 
 #### 例
 
 ```bash
 # リポジトリをリスト（デフォルト：最近更新された20件）
-ghf list-repos
+gfalist-repos
 
 # ソート基準を変更
-ghf list-repos --sort stars --limit 10
+gfalist-repos --sort stars --limit 10
 
 # 特定の組織でフィルタ
-ghf list-repos --org myorganization
+gfalist-repos --org myorganization
 
 # 作成日順にソート
-ghf list-repos --sort created --limit 50
+gfalist-repos --sort created --limit 50
 ```
 
 #### オプション説明
@@ -407,12 +407,12 @@ ghf list-repos --sort created --limit 50
 | `--limit`, `-l` | 最大表示数 | 20 |
 | `--org`, `-o` | 組織名でフィルタ | - |
 
-### 💡 `ghf suggest-repos` - リポジトリ推奨
+### 💡 `gfasuggest-repos` - リポジトリ推奨
 
 分析に適したアクティブなリポジトリを推奨します。
 
 ```bash
-ghf suggest-repos
+gfasuggest-repos
 ```
 
 最近のアクティビティがあるリポジトリを自動選択します。スター、フォーク、イシュー、最近の更新を総合的に考慮します。
@@ -421,16 +421,16 @@ ghf suggest-repos
 
 ```bash
 # デフォルト推奨（過去90日以内、10リポジトリ）
-ghf suggest-repos
+gfasuggest-repos
 
 # 過去30日以内にアクティブな5リポジトリを推奨
-ghf suggest-repos --limit 5 --days 30
+gfasuggest-repos --limit 5 --days 30
 
 # スター順でソート
-ghf suggest-repos --sort stars
+gfasuggest-repos --sort stars
 
 # アクティビティスコア順でソート（総合評価）
-ghf suggest-repos --sort activity
+gfasuggest-repos --sort activity
 ```
 
 #### オプション説明
@@ -443,7 +443,7 @@ ghf suggest-repos --sort activity
 
 ## 📁 設定ファイル
 
-設定は`~/.config/github_feedback/config.toml`に保存され、`ghf init`実行時に自動作成されます。
+設定は`~/.config/github_feedback/config.toml`に保存され、`gfainit`実行時に自動作成されます。
 
 ### 設定ファイル例
 
@@ -472,12 +472,12 @@ months = 12
 
 ### 手動設定編集
 
-必要に応じて、設定ファイルを直接編集するか、`ghf config`コマンドを使用できます：
+必要に応じて、設定ファイルを直接編集するか、`gfaconfig`コマンドを使用できます：
 
 ```bash
 # 方法1：configコマンドを使用（推奨）
-ghf config set llm.model gpt-4
-ghf config show
+gfaconfig set llm.model gpt-4
+gfaconfig show
 
 # 方法2：直接編集
 nano ~/.config/github_feedback/config.toml
@@ -485,7 +485,7 @@ nano ~/.config/github_feedback/config.toml
 
 ## 📊 生成されるファイル構造
 
-### `ghf brief`の出力
+### `gfa feedback`の出力
 
 ```
 reports/
@@ -504,7 +504,7 @@ reports/
     └── issue_feedback.txt    # 🐛 イシュー品質分析
 ```
 
-### `ghf feedback`の出力
+### `gfafeedback`の出力
 
 ```
 reviews/
@@ -524,13 +524,13 @@ reviews/
 
 ```bash
 # 1. 設定（初回のみ）
-ghf init
+gfainit
 
 # 2. リポジトリ推奨を取得
-ghf suggest-repos
+gfasuggest-repos
 
 # 3. インタラクティブモードで分析
-ghf brief --interactive
+gfa feedback --interactive
 
 # 4. レポートを表示
 cat reports/report.md
@@ -540,10 +540,10 @@ cat reports/report.md
 
 ```bash
 # 1. 設定（初回のみ）
-ghf init
+gfainit
 
 # 2. 人気のオープンソースプロジェクトを分析
-ghf brief --repo facebook/react
+gfa feedback --repo facebook/react
 
 # 3. レポートを表示
 cat reports/report.md
@@ -553,13 +553,13 @@ cat reports/report.md
 
 ```bash
 # 自分のリポジトリリストを確認
-ghf list-repos --sort updated --limit 10
+gfalist-repos --sort updated --limit 10
 
 # 自分のプロジェクトを分析
-ghf brief --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 自分のPRを自動レビュー
-ghf feedback --repo myname/my-awesome-project
+gfafeedback --repo myname/my-awesome-project
 
 # 統合振り返りレポートを表示
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -569,16 +569,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 組織のリポジトリリストを確認
-ghf list-repos --org mycompany --limit 20
+gfalist-repos --org mycompany --limit 20
 
 # 分析期間を設定（過去6ヶ月）
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 
 # 組織のリポジトリを分析
-ghf brief --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 
 # チームメンバーのPRをレビュー（各自のPATで実行）
-ghf feedback --repo mycompany/product-service
+gfafeedback --repo mycompany/product-service
 ```
 
 ## 🎯 アワードシステム
@@ -634,8 +634,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **解決方法**：
 1. LLMサーバーが実行中であることを確認
-2. エンドポイントURLが正しいことを確認（`ghf config show`）
-3. 必要に応じて設定を再初期化：`ghf init`
+2. エンドポイントURLが正しいことを確認（`gfaconfig show`）
+3. 必要に応じて設定を再初期化：`gfainit`
 
 ### リポジトリが見つからない
 
@@ -655,7 +655,7 @@ No activity detected during analysis period.
 ```
 
 **解決方法**：
-- 分析期間を増やしてみる：`ghf init --months 24`
+- 分析期間を増やしてみる：`gfainit --months 24`
 - リポジトリがアクティブであることを確認
 
 ## 👩‍💻 開発者ガイド

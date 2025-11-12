@@ -86,7 +86,7 @@ python test_keyring_fix.py
 Or initialize the configuration:
 
 ```bash
-ghf init
+gfa init
 ```
 
 ## Technical Details
