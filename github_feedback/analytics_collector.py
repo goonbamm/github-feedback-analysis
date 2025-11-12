@@ -75,8 +75,8 @@ class AnalyticsCollector(BaseCollector):
                         commit_date = self.parse_timestamp(date_str)
                         month_key = commit_date.strftime("%Y-%m")
                         monthly_data[month_key]["commits"] += 1
-            except Exception:
-                pass
+            except (requests.HTTPError, ValueError) as exc:
+                logger.warning(f"Failed to collect commits for monthly trends: {exc}")
 
         # Collect PRs by month
         try:
@@ -144,8 +144,8 @@ class AnalyticsCollector(BaseCollector):
                     if language:
                         local_counts[language] = local_counts.get(language, 0) + 1
 
-            except Exception:
-                pass
+            except (requests.HTTPError, ValueError) as exc:
+                logger.warning(f"Failed to fetch files for PR #{number}: {exc}")
 
             return local_counts
 
@@ -171,7 +171,8 @@ class AnalyticsCollector(BaseCollector):
                         console.log(
                             f"Tech stack analysis progress: {completed_count}/{total_prs} PRs analyzed"
                         )
-                except Exception:
+                except Exception as exc:
+                    logger.warning(f"Failed to process PR for tech stack analysis: {exc}")
                     continue
 
         return language_counts
@@ -225,8 +226,8 @@ class AnalyticsCollector(BaseCollector):
                     )
                     local_reviewers.add(reviewer_login)
                     local_total += 1
-            except Exception:
-                pass
+            except (requests.HTTPError, ValueError) as exc:
+                logger.warning(f"Failed to fetch reviews for PR #{number}: {exc}")
 
             return local_counts, local_reviewers, local_total
 
@@ -254,7 +255,8 @@ class AnalyticsCollector(BaseCollector):
                         console.log(
                             f"Collaboration network progress: {completed_count}/{total_prs} PRs analyzed"
                         )
-                except Exception:
+                except Exception as exc:
+                    logger.warning(f"Failed to process PR for collaboration network: {exc}")
                     continue
 
         return {
