@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List
 
@@ -10,6 +11,8 @@ import requests
 
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import limit_items, truncate_patch
+
+logger = logging.getLogger(__name__)
 
 
 MAX_FILES_IN_PROMPT = 10
@@ -272,8 +275,9 @@ class LLMClient:
                 "examples_good": result.get("examples_good", []),
                 "examples_poor": result.get("examples_poor", []),
             }
-        except Exception:
-            # Fallback to simple heuristics
+        except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+            # Fallback to simple heuristics on known errors
+            logger.warning(f"LLM commit analysis failed: {exc}")
             return self._fallback_commit_analysis(sample_commits)
 
     def analyze_pr_titles(self, pr_titles: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -324,8 +328,9 @@ class LLMClient:
                 "examples_good": result.get("examples_good", []),
                 "examples_poor": result.get("examples_poor", []),
             }
-        except Exception:
-            # Fallback to simple heuristics
+        except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+            # Fallback to simple heuristics on known errors
+            logger.warning(f"LLM PR title analysis failed: {exc}")
             return self._fallback_pr_title_analysis(sample_prs)
 
     def analyze_review_tone(
@@ -381,8 +386,9 @@ class LLMClient:
                 "examples_good": result.get("examples_good", []),
                 "examples_improve": result.get("examples_improve", []),
             }
-        except Exception:
-            # Fallback to simple heuristics
+        except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+            # Fallback to simple heuristics on known errors
+            logger.warning(f"LLM review tone analysis failed: {exc}")
             return self._fallback_review_tone_analysis(sample_reviews)
 
     def analyze_issue_quality(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -433,8 +439,9 @@ class LLMClient:
                 "examples_good": result.get("examples_good", []),
                 "examples_poor": result.get("examples_poor", []),
             }
-        except Exception:
-            # Fallback to simple heuristics
+        except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+            # Fallback to simple heuristics on known errors
+            logger.warning(f"LLM issue analysis failed: {exc}")
             return self._fallback_issue_analysis(sample_issues)
 
     # Fallback analysis methods ----------------------------------------

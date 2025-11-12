@@ -8,13 +8,16 @@ pytest.importorskip("requests")
 import requests
 
 from github_feedback.collector import Collector
-from github_feedback.config import AuthConfig, Config
+from github_feedback.config import Config
 from github_feedback.models import AnalysisFilters
 
 
 def test_collector_filters_bots_and_counts_resources(monkeypatch):
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "dummy-token")
+
     now = datetime.now(timezone.utc)
-    config = Config(auth=AuthConfig(pat="dummy-token"))
+    config = Config()
     collector = Collector(config)
 
     def fake_request(path, params=None):  # type: ignore[override]
@@ -79,7 +82,10 @@ def test_collector_filters_bots_and_counts_resources(monkeypatch):
 
 
 def test_collector_excludes_commits_from_excluded_branches(monkeypatch):
-    config = Config(auth=AuthConfig(pat="dummy-token"))
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "dummy-token")
+
+    config = Config()
     collector = Collector(config)
 
     branches_payload = [{"name": "main"}, {"name": "feature"}]
@@ -140,8 +146,11 @@ def test_collector_excludes_commits_from_excluded_branches(monkeypatch):
 
 
 def test_collect_pull_request_details_paginates(monkeypatch):
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "dummy-token")
+
     now = datetime.now(timezone.utc)
-    config = Config(auth=AuthConfig(pat="dummy-token"))
+    config = Config()
     collector = Collector(config)
 
     def fake_request(path, params=None):  # type: ignore[override]
@@ -221,8 +230,11 @@ def test_collect_pull_request_details_paginates(monkeypatch):
 def test_collector_applies_branch_path_and_language_filters(
     monkeypatch: pytest.MonkeyPatch, include_languages: List[str]
 ):
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "dummy-token")
+
     now = datetime.now(timezone.utc)
-    config = Config(auth=AuthConfig(pat="dummy-token"))
+    config = Config()
     collector = Collector(config)
 
     commit_pages = {
@@ -379,7 +391,11 @@ def test_collector_applies_branch_path_and_language_filters(
 
 
 def test_list_authored_pull_requests_filters_prs(monkeypatch):
-    collector = Collector(Config(auth=AuthConfig(pat="token")))
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "token")
+
+    config = Config()
+    collector = Collector(config)
 
     issues_payload = [
         {"number": 1, "pull_request": {}},
@@ -404,15 +420,23 @@ def test_list_authored_pull_requests_filters_prs(monkeypatch):
     assert numbers == [1, 3]
 
 
-def test_list_authored_pull_requests_validates_state():
-    collector = Collector(Config(auth=AuthConfig(pat="token")))
+def test_list_authored_pull_requests_validates_state(monkeypatch):
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "token")
+
+    config = Config()
+    collector = Collector(config)
 
     with pytest.raises(ValueError):
         collector.list_authored_pull_requests("example/repo", "octocat", state="invalid")
 
 
 def test_get_authenticated_user(monkeypatch):
-    collector = Collector(Config(auth=AuthConfig(pat="token")))
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "token")
+
+    config = Config()
+    collector = Collector(config)
 
     user_payload = {"login": "octocat", "id": 1}
 
@@ -428,7 +452,11 @@ def test_get_authenticated_user(monkeypatch):
 
 
 def test_get_authenticated_user_raises_on_missing_login(monkeypatch):
-    collector = Collector(Config(auth=AuthConfig(pat="token")))
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "token")
+
+    config = Config()
+    collector = Collector(config)
 
     user_payload = {"id": 1}
 
