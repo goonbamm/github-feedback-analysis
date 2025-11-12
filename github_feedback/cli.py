@@ -145,7 +145,6 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             description = repo.get("description") or "No description"
             stars = repo.get("stargazers_count", 0)
             console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
-
     console.print()
     console.print("[info]Select a repository by number (1-{}) or enter owner/repo format[/]".format(len(suggestions)))
     console.print("[info]Press Ctrl+C or enter 'q' to quit[/]")
@@ -318,11 +317,8 @@ def init(
     config.dump()
     console.print("[success]✓ Configuration saved successfully[/]")
     console.print("[success]✓ GitHub token stored securely in system keyring[/]")
-
     console.print()
     show_config()
-
-
 
 
 def _render_metrics(metrics: MetricSnapshot) -> None:
@@ -811,15 +807,12 @@ def brief(
     console.rule("Artifacts")
     for label, path in artifacts:
         console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
-
     console.print()
     console.print("[success]✓ Analysis complete![/]")
     console.print()
     console.print("[info]Next steps:[/]")
     console.print("  • View the report: [accent]cat reports/report.md[/]")
     console.print("  • Review your PRs: [accent]ghf feedback --repo {}[/]".format(repo_input))
-
-
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
@@ -943,7 +936,6 @@ def feedback(
 
     # Step 1: Generate PR reviews
     console.rule("Step 1: Generating PR Reviews")
-
     # State is always fixed to "all"
     state_normalised = "all"
 
@@ -999,7 +991,6 @@ def feedback(
 
     # Step 2: Generate integrated report
     console.rule("Step 2: Generating Integrated Report")
-
     output_dir_resolved = _resolve_output_dir(output_dir)
     review_reporter = ReviewReporter(
         output_dir=output_dir_resolved,
@@ -1018,7 +1009,6 @@ def feedback(
         "[success]Integrated review report generated:[/]",
         f"[value]{report_path}[/]",
     )
-
     console.print()
     console.print("[success]✓ Review complete![/]")
     console.print()
