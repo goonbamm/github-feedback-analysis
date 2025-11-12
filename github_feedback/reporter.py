@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from .console import Console
+from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS
 from .models import MetricSnapshot, PromptRequest
 
 console = Console()
@@ -37,37 +38,22 @@ class Reporter:
 
     def _categorize_awards(self, awards: List[str]) -> dict:
         """Categorize awards by type for better organization."""
-        categories = {
-            "🎖️ 기본 성취": [],
-            "⚡ 속도 & 효율성": [],
-            "🤝 협업 & 리뷰": [],
-            "🎯 품질 & 안정성": [],
-            "🎨 특별 기여": [],
-            "👑 최고 영예": [],
-        }
+        # Initialize categories from constants
+        categories = {label: [] for label in AWARD_CATEGORIES.values()}
 
         for award in awards:
-            # Tier awards (Diamond, Platinum, Gold, Silver, Bronze)
-            if any(tier in award for tier in ["다이아몬드", "플래티넘", "골드", "실버", "브론즈"]):
-                categories["🎖️ 기본 성취"].append(award)
-            # Speed and efficiency awards
-            elif any(keyword in award for keyword in ["번개", "속도", "스프린터", "스피드", "스프린트", "머신"]):
-                categories["⚡ 속도 & 효율성"].append(award)
-            # Collaboration awards
-            elif any(keyword in award for keyword in ["협업", "리뷰", "멘토", "팀", "지식 전파", "감시자", "챔피언"]):
-                categories["🤝 협업 & 리뷰"].append(award)
-            # Quality and stability awards
-            elif any(keyword in award for keyword in ["품질", "안정", "테스트", "버그", "수호자", "지킴이", "머지"]):
-                categories["🎯 품질 & 안정성"].append(award)
-            # Special contribution awards
-            elif any(keyword in award for keyword in ["문서", "리팩터링", "기능", "빅뱅", "미세", "아키텍트", "빌더", "건축가"]):
-                categories["🎨 특별 기여"].append(award)
-            # Top honors
-            elif any(keyword in award for keyword in ["르네상스", "다재다능", "올라운더", "일관성의 왕", "균형"]):
-                categories["👑 최고 영예"].append(award)
-            # Default category
-            else:
-                categories["🎖️ 기본 성취"].append(award)
+            categorized = False
+            # Check each category's keywords
+            for category_key, keywords in AWARD_KEYWORDS.items():
+                if any(keyword in award for keyword in keywords):
+                    category_label = AWARD_CATEGORIES[category_key]
+                    categories[category_label].append(award)
+                    categorized = True
+                    break
+
+            # Default category if no keywords match
+            if not categorized:
+                categories[AWARD_CATEGORIES['basic']].append(award)
 
         # Remove empty categories
         return {k: v for k, v in categories.items() if v}
@@ -387,181 +373,168 @@ class Reporter:
         lines.append("")
         return lines
 
-    def _build_commit_feedback(self, cf) -> List[str]:
-        """Build commit feedback subsection."""
-        lines = ["### 📝 커밋 메시지 품질", ""]
+    def _build_feedback_section(
+        self,
+        title: str,
+        feedback_data: Any,
+        stats_config: Dict[str, str],
+        example_formatter: Optional[Callable[[Any], str]] = None,
+        examples_poor_attr: str = "examples_poor"
+    ) -> List[str]:
+        """Build a feedback subsection with a common structure.
 
-        # Summary with percentage
-        if cf.total_commits > 0:
-            good_pct = (cf.good_messages / cf.total_commits) * 100
-            lines.append(f"**총 커밋**: {cf.total_commits}개")
-            lines.append(f"**좋은 메시지**: {cf.good_messages}개 ({good_pct:.1f}%)")
-            lines.append(f"**개선 필요**: {cf.poor_messages}개")
+        Args:
+            title: Section title (e.g., "### 📝 커밋 메시지 품질")
+            feedback_data: Feedback data object with stats and examples
+            stats_config: Dictionary mapping stat names to labels
+                - 'total': tuple of (attribute_name, label, unit)
+                - 'good': tuple of (attribute_name, label, unit)
+                - 'poor': tuple of (attribute_name, label, unit)
+                - additional stats as needed
+            example_formatter: Optional function to format examples
+            examples_poor_attr: Attribute name for poor examples (default: "examples_poor")
+
+        Returns:
+            List of markdown lines
+        """
+        lines = [title, ""]
+
+        # Build summary statistics
+        total_attr, total_label, unit = stats_config.get('total', (None, None, '개'))
+        good_attr, good_label, _ = stats_config.get('good', (None, None, '개'))
+        poor_attr, poor_label, _ = stats_config.get('poor', (None, None, '개'))
+
+        total_value = getattr(feedback_data, total_attr, 0) if total_attr else 0
+        good_value = getattr(feedback_data, good_attr, 0) if good_attr else 0
+        poor_value = getattr(feedback_data, poor_attr, 0) if poor_attr else 0
+
+        if total_value > 0:
+            good_pct = (good_value / total_value) * 100
+            lines.append(f"**{total_label}**: {total_value}{unit}")
+            lines.append(f"**{good_label}**: {good_value}{unit} ({good_pct:.1f}%)")
+            lines.append(f"**{poor_label}**: {poor_value}{unit}")
+
+            # Add additional stats if configured
+            for key, (attr, label, stat_unit) in stats_config.items():
+                if key not in ('total', 'good', 'poor'):
+                    value = getattr(feedback_data, attr, 0)
+                    lines.append(f"**{label}**: {value}{stat_unit}")
         else:
-            lines.append(f"- 총 커밋: {cf.total_commits}")
-            lines.append(f"- 좋은 메시지: {cf.good_messages}")
-            lines.append(f"- 개선 필요: {cf.poor_messages}")
+            lines.append(f"- {total_label}: {total_value}")
+            lines.append(f"- {good_label}: {good_value}")
+            lines.append(f"- {poor_label}: {poor_value}")
+
+            # Add additional stats if configured
+            for key, (attr, label, stat_unit) in stats_config.items():
+                if key not in ('total', 'good', 'poor'):
+                    value = getattr(feedback_data, attr, 0)
+                    lines.append(f"- {label}: {value}")
         lines.append("")
 
-        if cf.suggestions:
+        # Suggestions section
+        if hasattr(feedback_data, 'suggestions') and feedback_data.suggestions:
             lines.append("#### 💡 개선 제안")
             lines.append("")
-            for i, suggestion in enumerate(cf.suggestions, 1):
+            for i, suggestion in enumerate(feedback_data.suggestions, 1):
                 lines.append(f"{i}. {suggestion}")
             lines.append("")
 
-        if cf.examples_good:
+        # Good examples section
+        if hasattr(feedback_data, 'examples_good') and feedback_data.examples_good:
             lines.append("#### ✅ 좋은 예시")
             lines.append("")
-            for example in cf.examples_good[:3]:  # Limit to 3 examples
-                if isinstance(example, dict):
-                    lines.append(f"- `{example.get('message', '')}` ({example.get('sha', '')[:7]})")
+            for example in feedback_data.examples_good[:3]:
+                if example_formatter:
+                    lines.append(f"- {example_formatter(example)}")
+                elif isinstance(example, dict):
+                    lines.append(f"- {example}")
                 else:
                     lines.append(f"- {example}")
             lines.append("")
 
-        if cf.examples_poor:
+        # Poor/improve examples section
+        poor_examples = getattr(feedback_data, examples_poor_attr, None)
+        if poor_examples:
             lines.append("#### ⚠️ 개선이 필요한 예시")
             lines.append("")
-            for example in cf.examples_poor[:3]:  # Limit to 3 examples
-                if isinstance(example, dict):
-                    lines.append(f"- `{example.get('message', '')}` ({example.get('sha', '')[:7]})")
+            for example in poor_examples[:3]:
+                if example_formatter:
+                    lines.append(f"- {example_formatter(example)}")
+                elif isinstance(example, dict):
+                    lines.append(f"- {example}")
                 else:
                     lines.append(f"- {example}")
             lines.append("")
 
         return lines
+
+    def _build_commit_feedback(self, cf) -> List[str]:
+        """Build commit feedback subsection."""
+        def format_commit_example(example):
+            if isinstance(example, dict):
+                return f"`{example.get('message', '')}` ({example.get('sha', '')[:7]})"
+            return str(example)
+
+        return self._build_feedback_section(
+            title="### 📝 커밋 메시지 품질",
+            feedback_data=cf,
+            stats_config={
+                'total': ('total_commits', '총 커밋', '개'),
+                'good': ('good_messages', '좋은 메시지', '개'),
+                'poor': ('poor_messages', '개선 필요', '개'),
+            },
+            example_formatter=format_commit_example,
+        )
 
     def _build_pr_title_feedback(self, pf) -> List[str]:
         """Build PR title feedback subsection."""
-        lines = ["### 🔀 PR 제목 품질", ""]
+        def format_pr_example(example):
+            if isinstance(example, dict):
+                return f"#{example.get('number', '')}: `{example.get('title', '')}`"
+            return str(example)
 
-        # Summary with percentage
-        if pf.total_prs > 0:
-            clear_pct = (pf.clear_titles / pf.total_prs) * 100
-            lines.append(f"**총 PR**: {pf.total_prs}개")
-            lines.append(f"**명확한 제목**: {pf.clear_titles}개 ({clear_pct:.1f}%)")
-            lines.append(f"**모호한 제목**: {pf.vague_titles}개")
-        else:
-            lines.append(f"- 총 PR: {pf.total_prs}")
-            lines.append(f"- 명확한 제목: {pf.clear_titles}")
-            lines.append(f"- 모호한 제목: {pf.vague_titles}")
-        lines.append("")
-
-        if pf.suggestions:
-            lines.append("#### 💡 개선 제안")
-            lines.append("")
-            for i, suggestion in enumerate(pf.suggestions, 1):
-                lines.append(f"{i}. {suggestion}")
-            lines.append("")
-
-        if pf.examples_good:
-            lines.append("#### ✅ 좋은 예시")
-            lines.append("")
-            for example in pf.examples_good[:3]:
-                if isinstance(example, dict):
-                    lines.append(f"- #{example.get('number', '')}: `{example.get('title', '')}`")
-                else:
-                    lines.append(f"- {example}")
-            lines.append("")
-
-        if pf.examples_poor:
-            lines.append("#### ⚠️ 개선이 필요한 예시")
-            lines.append("")
-            for example in pf.examples_poor[:3]:
-                if isinstance(example, dict):
-                    lines.append(f"- #{example.get('number', '')}: `{example.get('title', '')}`")
-                else:
-                    lines.append(f"- {example}")
-            lines.append("")
-
-        return lines
+        return self._build_feedback_section(
+            title="### 🔀 PR 제목 품질",
+            feedback_data=pf,
+            stats_config={
+                'total': ('total_prs', '총 PR', '개'),
+                'good': ('clear_titles', '명확한 제목', '개'),
+                'poor': ('vague_titles', '모호한 제목', '개'),
+            },
+            example_formatter=format_pr_example,
+        )
 
     def _build_review_tone_feedback(self, rf) -> List[str]:
         """Build review tone feedback subsection."""
-        lines = ["### 👀 리뷰 톤 분석", ""]
-
-        # Summary with percentage
-        if rf.total_reviews > 0:
-            constructive_pct = (rf.constructive_reviews / rf.total_reviews) * 100
-            lines.append(f"**총 리뷰**: {rf.total_reviews}개")
-            lines.append(f"**건설적인 리뷰**: {rf.constructive_reviews}개 ({constructive_pct:.1f}%)")
-            lines.append(f"**가혹한 리뷰**: {rf.harsh_reviews}개")
-            lines.append(f"**중립적인 리뷰**: {rf.neutral_reviews}개")
-        else:
-            lines.append(f"- 총 리뷰: {rf.total_reviews}")
-            lines.append(f"- 건설적인 리뷰: {rf.constructive_reviews}")
-            lines.append(f"- 가혹한 리뷰: {rf.harsh_reviews}")
-            lines.append(f"- 중립적인 리뷰: {rf.neutral_reviews}")
-        lines.append("")
-
-        if rf.suggestions:
-            lines.append("#### 💡 개선 제안")
-            lines.append("")
-            for i, suggestion in enumerate(rf.suggestions, 1):
-                lines.append(f"{i}. {suggestion}")
-            lines.append("")
-
-        if rf.examples_good:
-            lines.append("#### ✅ 좋은 예시")
-            lines.append("")
-            for example in rf.examples_good[:3]:
-                lines.append(f"- {example}")
-            lines.append("")
-
-        if rf.examples_improve:
-            lines.append("#### ⚠️ 개선이 필요한 예시")
-            lines.append("")
-            for example in rf.examples_improve[:3]:
-                lines.append(f"- {example}")
-            lines.append("")
-
-        return lines
+        return self._build_feedback_section(
+            title="### 👀 리뷰 톤 분석",
+            feedback_data=rf,
+            stats_config={
+                'total': ('total_reviews', '총 리뷰', '개'),
+                'good': ('constructive_reviews', '건설적인 리뷰', '개'),
+                'poor': ('harsh_reviews', '가혹한 리뷰', '개'),
+                'neutral': ('neutral_reviews', '중립적인 리뷰', '개'),
+            },
+            examples_poor_attr='examples_improve',
+        )
 
     def _build_issue_feedback(self, isf) -> List[str]:
         """Build issue feedback subsection."""
-        lines = ["### 🐛 이슈 품질", ""]
+        def format_issue_example(example):
+            if isinstance(example, dict):
+                return f"#{example.get('number', '')}: `{example.get('title', '')}`"
+            return str(example)
 
-        # Summary with percentage
-        if isf.total_issues > 0:
-            well_pct = (isf.well_described / isf.total_issues) * 100
-            lines.append(f"**총 이슈**: {isf.total_issues}개")
-            lines.append(f"**잘 작성됨**: {isf.well_described}개 ({well_pct:.1f}%)")
-            lines.append(f"**개선 필요**: {isf.poorly_described}개")
-        else:
-            lines.append(f"- 총 이슈: {isf.total_issues}")
-            lines.append(f"- 잘 작성됨: {isf.well_described}")
-            lines.append(f"- 개선 필요: {isf.poorly_described}")
-        lines.append("")
-
-        if isf.suggestions:
-            lines.append("#### 💡 개선 제안")
-            lines.append("")
-            for i, suggestion in enumerate(isf.suggestions, 1):
-                lines.append(f"{i}. {suggestion}")
-            lines.append("")
-
-        if isf.examples_good:
-            lines.append("#### ✅ 좋은 예시")
-            lines.append("")
-            for example in isf.examples_good[:3]:
-                if isinstance(example, dict):
-                    lines.append(f"- #{example.get('number', '')}: `{example.get('title', '')}`")
-                else:
-                    lines.append(f"- {example}")
-            lines.append("")
-
-        if isf.examples_poor:
-            lines.append("#### ⚠️ 개선이 필요한 예시")
-            lines.append("")
-            for example in isf.examples_poor[:3]:
-                if isinstance(example, dict):
-                    lines.append(f"- #{example.get('number', '')}: `{example.get('title', '')}`")
-                else:
-                    lines.append(f"- {example}")
-            lines.append("")
-
-        return lines
+        return self._build_feedback_section(
+            title="### 🐛 이슈 품질",
+            feedback_data=isf,
+            stats_config={
+                'total': ('total_issues', '총 이슈', '개'),
+                'good': ('well_described', '잘 작성됨', '개'),
+                'poor': ('poorly_described', '개선 필요', '개'),
+            },
+            example_formatter=format_issue_example,
+        )
 
     def _build_monthly_trends_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build monthly trends section."""

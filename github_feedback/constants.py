@@ -1,0 +1,262 @@
+"""Constants and configuration values for the GitHub feedback toolkit."""
+
+from __future__ import annotations
+
+from typing import Dict, List
+
+# =============================================================================
+# Console Styles and UI Elements
+# =============================================================================
+
+# Console style templates
+CONSOLE_STYLES = {
+    'accent': '[accent]{}[/]',
+    'success': '[success]{}[/]',
+    'warning': '[warning]{}[/]',
+    'danger': '[danger]{}[/]',
+    'info': '[info]{}[/]',
+    'muted': '[muted]{}[/]',
+    'title': '[title]{}[/]',
+    'repo': '[repo]{}[/]',
+    'label': '[label]{}[/]',
+    'value': '[value]{}[/]',
+}
+
+# Spinner types for status indicators
+SPINNERS = {
+    'bouncing': 'bouncingBar',
+    'dots': 'dots',
+    'line': 'line',
+    'arc': 'arc',
+    'arrow': 'arrow',
+    'pulse': 'pulse',
+}
+
+# =============================================================================
+# Analysis Phases
+# =============================================================================
+
+ANALYSIS_PHASES = {
+    0: "Configuration validation",
+    1: "Repository access verification",
+    2: "Data collection (commits, PRs, reviews, issues)",
+    3: "Metrics computation and trend analysis",
+    4: "LLM-based feedback generation (commit messages, PR titles, review tone, issue quality)",
+    5: "Report generation (markdown, HTML, charts)",
+}
+
+# =============================================================================
+# Reporter Categories and Labels
+# =============================================================================
+
+# Award categories for organizing achievements
+AWARD_CATEGORIES = {
+    'basic': '🎖️ 기본 성취',
+    'speed': '⚡ 속도 & 효율성',
+    'collaboration': '🤝 협업 & 리뷰',
+    'quality': '🎯 품질 & 안정성',
+    'special': '🎨 특별 기여',
+    'top_honors': '👑 최고 영예',
+}
+
+# Keywords for categorizing awards
+AWARD_KEYWORDS = {
+    'basic': ['다이아몬드', '플래티넘', '골드', '실버', '브론즈'],
+    'speed': ['번개', '속도', '스프린터', '스피드', '스프린트', '머신'],
+    'collaboration': ['협업', '리뷰', '멘토', '팀', '지식 전파', '감시자', '챔피언'],
+    'quality': ['품질', '안정', '테스트', '버그', '수호자', '지킴이', '머지'],
+    'special': ['문서', '리팩터링', '기능', '빅뱅', '미세', '아키텍트', '빌더', '건축가'],
+    'top_honors': ['르네상스', '다재다능', '올라운더', '일관성의 왕', '균형'],
+}
+
+# Table of contents sections
+TOC_SECTIONS = [
+    ('📊 Executive Summary', '한눈에 보는 핵심 지표'),
+    ('🏆 Awards Cabinet', '획득한 어워드'),
+    ('✨ Growth Highlights', '성장 하이라이트'),
+    ('📈 Monthly Trends', '월별 활동 트렌드'),
+    ('💡 Detailed Feedback', '상세 피드백'),
+    ('🎯 Spotlight Examples', '주요 기여 사례'),
+    ('💻 Tech Stack', '기술 스택 분석'),
+    ('🤝 Collaboration', '협업 네트워크'),
+    ('🤔 Reflection', '회고 질문'),
+    ('📊 Detailed Metrics', '상세 메트릭'),
+    ('🔗 Evidence', '증거 링크'),
+]
+
+# Feedback section configurations
+FEEDBACK_SECTIONS = {
+    'commit': {
+        'title': '### 📝 Commit Messages',
+        'emoji': '✅',
+        'metrics_label': '지표',
+        'value_label': '값',
+    },
+    'pr_title': {
+        'title': '### 🔀 PR Titles',
+        'emoji': '✅',
+        'metrics_label': '지표',
+        'value_label': '값',
+    },
+    'review_tone': {
+        'title': '### 👀 Review Tone',
+        'emoji': '✅',
+        'metrics_label': '지표',
+        'value_label': '값',
+    },
+    'issue': {
+        'title': '### 🐛 Issue Quality',
+        'emoji': '✅',
+        'metrics_label': '지표',
+        'value_label': '값',
+    },
+}
+
+# =============================================================================
+# File and Directory Paths
+# =============================================================================
+
+DEFAULT_OUTPUT_DIR = 'reports'
+CHARTS_SUBDIR = 'charts'
+PROMPTS_SUBDIR = 'prompts'
+
+# Output file names
+OUTPUT_FILES = {
+    'metrics': 'metrics.json',
+    'report_md': 'report.md',
+    'report_html': 'report.html',
+    'commit_feedback': 'prompts/commit_feedback.txt',
+    'pr_feedback': 'prompts/pr_feedback.txt',
+    'review_feedback': 'prompts/review_feedback.txt',
+    'issue_feedback': 'prompts/issue_feedback.txt',
+}
+
+# Chart file names
+CHART_FILES = {
+    'quality': 'charts/quality.svg',
+    'activity': 'charts/activity.svg',
+    'engagement': 'charts/engagement.svg',
+    'commits': 'charts/commits.svg',
+    'prs': 'charts/prs.svg',
+    'reviews': 'charts/reviews.svg',
+    'issues': 'charts/issues.svg',
+}
+
+# =============================================================================
+# Error Messages
+# =============================================================================
+
+ERROR_MESSAGES = {
+    'config_invalid': 'Configuration error',
+    'config_missing': 'Run [accent]gfa init[/] to set up your configuration',
+    'pat_invalid': 'GitHub API rejected the provided PAT',
+    'pat_permissions': 'PAT requires "repo" scope for private repos or "public_repo" for public repos',
+    'repo_not_found': 'Repository not found',
+    'repo_invalid_format': 'Invalid repository format. Use owner/repo format (e.g., torvalds/linux)',
+    'llm_connection_failed': 'Detailed feedback analysis failed: Connection refused',
+    'llm_server_down': 'LLM server is not running or unreachable',
+    'no_activity': 'No significant activity detected during the analysis period',
+    'no_suggestions': 'No repository suggestions found',
+}
+
+# =============================================================================
+# Success Messages
+# =============================================================================
+
+SUCCESS_MESSAGES = {
+    'config_saved': 'Configuration saved successfully',
+    'analysis_complete': 'Analysis complete',
+    'report_generated': 'Report generated successfully',
+    'repo_selected': 'Selected',
+    'data_collected': 'Data collection complete',
+}
+
+# =============================================================================
+# Info Messages
+# =============================================================================
+
+INFO_MESSAGES = {
+    'fetching_repos': 'Fetching repository suggestions...',
+    'analyzing_repos': 'Analyzing repositories...',
+    'collecting_data': 'Collecting data from GitHub...',
+    'computing_metrics': 'Computing metrics...',
+    'generating_feedback': 'Generating feedback...',
+    'creating_report': 'Creating report...',
+    'try_manual_repo': 'Try manually specifying a repository with [accent]--repo[/]',
+    'selection_cancelled': 'Selection cancelled.',
+}
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+
+# PAT format validation
+PAT_PATTERNS = {
+    'classic': r'^ghp_[a-zA-Z0-9]{36}$',
+    'fine_grained': r'^github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}$',
+}
+
+# Repository format validation
+REPO_FORMAT_PATTERN = r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
+
+# URL validation pattern
+URL_PATTERN = r'^https?://'
+
+# =============================================================================
+# Defaults
+# =============================================================================
+
+DEFAULT_CONFIG = {
+    'months': 12,
+    'timeout': 60,
+    'max_retries': 3,
+    'max_files_in_prompt': 10,
+    'repo_suggestions_limit': 10,
+    'min_activity_days': 90,
+}
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+
+LLM_DEFAULTS = {
+    'timeout': 60,
+    'max_retries': 3,
+    'max_files_in_prompt': 10,
+}
+
+# =============================================================================
+# Table Configuration
+# =============================================================================
+
+TABLE_CONFIG = {
+    'box_style': 'ROUNDED',
+    'header_style': 'bold cyan',
+    'index_style': 'dim',
+    'index_width': 3,
+    'activity_style': 'success',
+    'description_max_length': 50,
+}
+
+# =============================================================================
+# Prompt Templates
+# =============================================================================
+
+PROMPT_TEMPLATES = {
+    'context_header': """Repository: {repo}
+Period: {period}
+
+""",
+    'summary_section': """Summary:
+{summary}
+
+""",
+    'metrics_section': """Metrics:
+{metrics}
+
+""",
+    'highlights_section': """Growth Highlights:
+{highlights}
+
+""",
+}
