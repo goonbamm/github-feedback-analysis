@@ -22,7 +22,8 @@ Español | [한국어](../README.md) | [English](README_EN.md) | [简体中文](
   - Repositorios públicos: permiso `public_repo`
 - Endpoint de API LLM (formato compatible con OpenAI)
 
-## 🔑 Generar GitHub Personal Access Token
+<details>
+<summary><b>🔑 Generar GitHub Personal Access Token</b></summary>
 
 Necesita un GitHub Personal Access Token (PAT) para usar esta herramienta.
 
@@ -87,6 +88,8 @@ Si está usando GitHub Enterprise en su organización:
 - [Documentación de GitHub: Fine-grained PAT](https://docs.github.com/es/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 - [Documentación de GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
+</details>
+
 ## 🔧 Instalación
 
 ```bash
@@ -137,7 +140,8 @@ cat reports/report.md
 
 ## 📚 Referencia de Comandos
 
-### 🎯 `gfainit` - Configuración Inicial
+<details>
+<summary><b>🎯 `gfainit` - Configuración Inicial</b></summary>
 
 Almacena información de acceso a GitHub y configuración de LLM.
 
@@ -177,7 +181,10 @@ gfainit \
 | `--months` | Período de análisis predeterminado (meses) | ❌ | 12 |
 | `--enterprise-host` | Host de GitHub Enterprise | ❌ | github.com |
 
-### 📊 `gfa feedback` - Análisis de Repositorio
+</details>
+
+<details>
+<summary><b>📊 `gfa feedback` - Análisis de Repositorio</b></summary>
 
 Analiza el repositorio y genera informes de feedback detallados.
 
@@ -253,7 +260,10 @@ reports/
 - 🏆 **Premios**: Premios automáticos basados en contribuciones
 - 📈 **Tendencias**: Tendencias de actividad mensual y análisis de velocidad
 
-### 🎯 `gfafeedback` - Revisión Automática de PR
+</details>
+
+<details>
+<summary><b>🎯 `gfafeedback` - Revisión Automática de PR</b></summary>
 
 Revisa automáticamente los PRs del usuario autenticado (propietario del PAT) y genera un informe retrospectivo integrado.
 
@@ -304,7 +314,10 @@ reviews/
     └── integrated_report.md        # Informe retrospectivo integrado
 ```
 
-### ⚙️ `gfaconfig` - Gestión de Configuración
+</details>
+
+<details>
+<summary><b>⚙️ `gfaconfig` - Gestión de Configuración</b></summary>
 
 Ver o modificar la configuración.
 
@@ -375,7 +388,10 @@ gfaconfig get llm.model
 gfaconfig get defaults.months
 ```
 
-### 🔍 `gfalist-repos` - Listar Repositorios
+</details>
+
+<details>
+<summary><b>🔍 `gfalist-repos` - Listar Repositorios</b></summary>
 
 Lista los repositorios accesibles.
 
@@ -407,7 +423,10 @@ gfalist-repos --sort created --limit 50
 | `--limit`, `-l` | Número máximo a mostrar | 20 |
 | `--org`, `-o` | Filtrar por nombre de organización | - |
 
-### 💡 `gfasuggest-repos` - Sugerencias de Repositorios
+</details>
+
+<details>
+<summary><b>💡 `gfasuggest-repos` - Sugerencias de Repositorios</b></summary>
 
 Sugiere repositorios activos adecuados para análisis.
 
@@ -441,7 +460,10 @@ gfasuggest-repos --sort activity
 | `--days`, `-d` | Período de actividad reciente (días) | 90 |
 | `--sort`, `-s` | Criterio de ordenamiento (updated, stars, activity) | activity |
 
-## 📁 Archivo de Configuración
+</details>
+
+<details>
+<summary><b>📁 Archivo de Configuración</b></summary>
 
 La configuración se almacena en `~/.config/github_feedback/config.toml` y se crea automáticamente al ejecutar `gfainit`.
 
@@ -452,7 +474,7 @@ La configuración se almacena en `~/.config/github_feedback/config.toml` y se cr
 version = "1.0.0"
 
 [auth]
-# PAT se almacena de forma segura en el llavero del sistema (no en este archivo)
+# El PAT se almacena de forma segura en el llavero del sistema (no en este archivo)
 
 [server]
 api_url = "https://api.github.com"
@@ -483,7 +505,10 @@ gfaconfig show
 nano ~/.config/github_feedback/config.toml
 ```
 
-## 📊 Estructura de Archivos Generados
+</details>
+
+<details>
+<summary><b>📊 Estructura de Archivos Generados</b></summary>
 
 ### Salida de `gfa feedback`
 
@@ -518,7 +543,10 @@ reviews/
     └── integrated_report.md        # 🎯 Informe retrospectivo integrado (todos los PRs combinados)
 ```
 
-## 💡 Ejemplos de Uso
+</details>
+
+<details>
+<summary><b>💡 Ejemplos de Uso</b></summary>
 
 ### Ejemplo 1: Inicio Rápido - Modo Interactivo
 
@@ -581,7 +609,10 @@ gfa feedback --repo mycompany/product-service
 gfafeedback --repo mycompany/product-service
 ```
 
-## 🎯 Sistema de Premios
+</details>
+
+<details>
+<summary><b>🎯 Sistema de Premios</b></summary>
 
 Los premios se otorgan automáticamente según la actividad del repositorio:
 
@@ -613,7 +644,10 @@ Los premios se otorgan automáticamente según la actividad del repositorio:
 - 📅 **Maestro de Consistencia** (6+ meses de actividad continua)
 - 🌟 **Multitalento** (Contribuciones equilibradas en todas las áreas)
 
-## 🐛 Solución de Problemas
+</details>
+
+<details>
+<summary><b>🐛 Solución de Problemas</b></summary>
 
 ### Error de Permisos de PAT
 
@@ -658,7 +692,10 @@ No activity detected during analysis period.
 - Intenta aumentar el período de análisis: `gfainit --months 24`
 - Verifica que el repositorio esté activo
 
-## 👩‍💻 Guía para Desarrolladores
+</details>
+
+<details>
+<summary><b>👩‍💻 Guía para Desarrolladores</b></summary>
 
 ### Configuración del Entorno de Desarrollo
 
@@ -696,11 +733,13 @@ github_feedback/
 └── utils.py           # 🔧 Funciones utilitarias
 ```
 
+</details>
+
 ## 🔒 Seguridad
 
 - **Almacenamiento de PAT**: Los tokens de GitHub se almacenan de forma segura en el llavero del sistema (no en archivos de texto plano)
-- **Respaldo de Configuración**: Crea automáticamente respaldos antes de sobrescribir la configuración
-- **Validación de Entrada**: Valida todas las entradas del usuario (formato PAT, formato URL, formato de repositorio)
+- **Copia de seguridad de configuración**: Crea automáticamente copias de seguridad antes de sobrescribir la configuración
+- **Validación de entrada**: Valida todas las entradas del usuario (formato PAT, formato URL, formato de repositorio)
 
 ## 📄 Licencia
 

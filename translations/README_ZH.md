@@ -22,7 +22,8 @@
   - 公共仓库：需要 `public_repo` 权限
 - LLM API 端点（OpenAI 兼容格式）
 
-## 🔑 生成 GitHub Personal Access Token
+<details>
+<summary><b>🔑 生成 GitHub Personal Access Token</b></summary>
 
 使用本工具需要 GitHub Personal Access Token（PAT）。
 
@@ -87,6 +88,8 @@
 - [GitHub 文档：细粒度 PAT](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 - [GitHub Enterprise Server 文档](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
+</details>
+
 ## 🔧 安装
 
 ```bash
@@ -137,7 +140,8 @@ cat reports/report.md
 
 ## 📚 命令参考
 
-### 🎯 `gfainit` - 初始化配置
+<details>
+<summary><b>🎯 `gfainit` - 初始化配置</b></summary>
 
 存储 GitHub 访问信息和 LLM 设置。
 
@@ -177,7 +181,10 @@ gfainit \
 | `--months` | 默认分析周期（月） | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 主机 | ❌ | github.com |
 
-### 📊 `gfa feedback` - 仓库分析
+</details>
+
+<details>
+<summary><b>📊 `gfa feedback` - 仓库分析</b></summary>
 
 分析仓库并生成详细反馈报告。
 
@@ -253,7 +260,10 @@ reports/
 - 🏆 **奖项**：根据贡献自动授予奖项
 - 📈 **趋势**：每月活动趋势和速度分析
 
-### 🎯 `gfafeedback` - 自动 PR 审查
+</details>
+
+<details>
+<summary><b>🎯 `gfafeedback` - 自动 PR 审查</b></summary>
 
 自动审查已认证用户（PAT 所有者）的 PR 并生成集成回顾报告。
 
@@ -304,7 +314,10 @@ reviews/
     └── integrated_report.md        # 集成回顾报告
 ```
 
-### ⚙️ `gfaconfig` - 配置管理
+</details>
+
+<details>
+<summary><b>⚙️ `gfaconfig` - 配置管理</b></summary>
 
 查看或修改配置设置。
 
@@ -375,7 +388,10 @@ gfaconfig get llm.model
 gfaconfig get defaults.months
 ```
 
-### 🔍 `gfalist-repos` - 仓库列表
+</details>
+
+<details>
+<summary><b>🔍 `gfalist-repos` - 仓库列表</b></summary>
 
 列出可访问的仓库。
 
@@ -407,7 +423,10 @@ gfalist-repos --sort created --limit 50
 | `--limit`, `-l` | 最大显示数量 | 20 |
 | `--org`, `-o` | 按组织名称筛选 | - |
 
-### 💡 `gfasuggest-repos` - 仓库推荐
+</details>
+
+<details>
+<summary><b>💡 `gfasuggest-repos` - 仓库推荐</b></summary>
 
 推荐适合分析的活跃仓库。
 
@@ -441,7 +460,10 @@ gfasuggest-repos --sort activity
 | `--days`, `-d` | 最近活动周期（天） | 90 |
 | `--sort`, `-s` | 排序标准（updated、stars、activity） | activity |
 
-## 📁 配置文件
+</details>
+
+<details>
+<summary><b>📁 配置文件</b></summary>
 
 配置存储在 `~/.config/github_feedback/config.toml` 中，运行 `gfainit` 时自动创建。
 
@@ -452,7 +474,7 @@ gfasuggest-repos --sort activity
 version = "1.0.0"
 
 [auth]
-# PAT 安全存储在系统密钥环中（不在此文件中）
+# PAT 安全存储在系统密钥环中（不存储在此文件中）
 
 [server]
 api_url = "https://api.github.com"
@@ -483,7 +505,10 @@ gfaconfig show
 nano ~/.config/github_feedback/config.toml
 ```
 
-## 📊 生成的文件结构
+</details>
+
+<details>
+<summary><b>📊 生成的文件结构</b></summary>
 
 ### `gfa feedback` 输出
 
@@ -518,7 +543,10 @@ reviews/
     └── integrated_report.md        # 🎯 集成回顾报告（所有 PR 综合）
 ```
 
-## 💡 使用示例
+</details>
+
+<details>
+<summary><b>💡 使用示例</b></summary>
 
 ### 示例 1：快速入门 - 交互模式
 
@@ -581,7 +609,10 @@ gfa feedback --repo mycompany/product-service
 gfafeedback --repo mycompany/product-service
 ```
 
-## 🎯 奖项系统
+</details>
+
+<details>
+<summary><b>🎯 奖项系统</b></summary>
 
 根据仓库活动自动授予奖项：
 
@@ -613,7 +644,10 @@ gfafeedback --repo mycompany/product-service
 - 📅 **坚持大师**（6 个月以上持续活动）
 - 🌟 **多才多艺**（各领域均衡贡献）
 
-## 🐛 故障排除
+</details>
+
+<details>
+<summary><b>🐛 故障排除</b></summary>
 
 ### PAT 权限错误
 
@@ -658,7 +692,10 @@ No activity detected during analysis period.
 - 尝试增加分析周期：`gfainit --months 24`
 - 验证仓库是否活跃
 
-## 👩‍💻 开发者指南
+</details>
+
+<details>
+<summary><b>👩‍💻 开发者指南</b></summary>
 
 ### 开发环境设置
 
@@ -696,10 +733,12 @@ github_feedback/
 └── utils.py           # 🔧 实用函数
 ```
 
-## 🔒 安全性
+</details>
 
-- **PAT 存储**：GitHub 令牌安全存储在系统密钥环中（不在纯文本文件中）
-- **配置备份**：在覆盖配置前自动创建备份
+## 🔒 安全
+
+- **PAT 存储**：GitHub 令牌安全存储在系统密钥环中（不存储在明文文件中）
+- **配置备份**：覆盖配置前自动创建备份
 - **输入验证**：验证所有用户输入（PAT 格式、URL 格式、仓库格式）
 
 ## 📄 许可证

@@ -24,6 +24,9 @@ English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語]
 
 ## 🔑 Generating GitHub Personal Access Token
 
+<details>
+<summary><b>📖 View Token Generation Guide (Click to Expand)</b></summary>
+
 You need a GitHub Personal Access Token (PAT) to use this tool.
 
 ### How to Generate
@@ -87,6 +90,8 @@ If you're using GitHub Enterprise in your organization:
 - [GitHub Docs: Fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 - [GitHub Enterprise Server Documentation](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
+</details>
+
 ## 🔧 Installation
 
 ```bash
@@ -137,7 +142,8 @@ cat reports/report.md
 
 ## 📚 Command Reference
 
-### 🎯 `gfainit` - Initial Configuration
+<details>
+<summary><b>🎯 gfainit - Initial Configuration</b></summary>
 
 Store GitHub access information and LLM settings.
 
@@ -177,7 +183,10 @@ gfainit \
 | `--months` | Default analysis period (months) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise host | ❌ | github.com |
 
-### 📊 `gfa feedback` - Repository Analysis
+</details>
+
+<details>
+<summary><b>📊 gfa feedback - Repository Analysis</b></summary>
 
 Analyze repository and generate detailed feedback reports.
 
@@ -253,7 +262,10 @@ reports/
 - 🏆 **Awards**: Automatic awards based on contributions
 - 📈 **Trends**: Monthly activity trends and velocity analysis
 
-### 🎯 `gfafeedback` - Automated PR Review
+</details>
+
+<details>
+<summary><b>🎯 gfafeedback - Automated PR Review</b></summary>
 
 Automatically review authenticated user's (PAT owner's) PRs and generate integrated retrospective report.
 
@@ -304,7 +316,10 @@ reviews/
     └── integrated_report.md        # Integrated retrospective report
 ```
 
-### ⚙️ `gfaconfig` - Configuration Management
+</details>
+
+<details>
+<summary><b>⚙️ gfaconfig - Configuration Management</b></summary>
 
 View or modify configuration settings.
 
@@ -375,7 +390,10 @@ gfaconfig get llm.model
 gfaconfig get defaults.months
 ```
 
-### 🔍 `gfalist-repos` - List Repositories
+</details>
+
+<details>
+<summary><b>🔍 gfalist-repos - List Repositories</b></summary>
 
 List accessible repositories.
 
@@ -407,7 +425,10 @@ gfalist-repos --sort created --limit 50
 | `--limit`, `-l` | Maximum number to display | 20 |
 | `--org`, `-o` | Filter by organization name | - |
 
-### 💡 `gfasuggest-repos` - Repository Suggestions
+</details>
+
+<details>
+<summary><b>💡 gfasuggest-repos - Repository Suggestions</b></summary>
 
 Suggest active repositories suitable for analysis.
 
@@ -441,7 +462,12 @@ gfasuggest-repos --sort activity
 | `--days`, `-d` | Recent activity period (days) | 90 |
 | `--sort`, `-s` | Sort criteria (updated, stars, activity) | activity |
 
+</details>
+
 ## 📁 Configuration File
+
+<details>
+<summary><b>⚙️ Configuration File Structure</b></summary>
 
 Configuration is stored in `~/.config/github_feedback/config.toml` and is automatically created when running `gfainit`.
 
@@ -483,7 +509,12 @@ gfaconfig show
 nano ~/.config/github_feedback/config.toml
 ```
 
+</details>
+
 ## 📊 Generated File Structure
+
+<details>
+<summary><b>📁 Output File Structure</b></summary>
 
 ### `gfa feedback` Output
 
@@ -518,7 +549,12 @@ reviews/
     └── integrated_report.md        # 🎯 Integrated retrospective report (all PRs combined)
 ```
 
+</details>
+
 ## 💡 Usage Examples
+
+<details>
+<summary><b>📚 Usage Scenario Examples</b></summary>
 
 ### Example 1: Quick Start - Interactive Mode
 
@@ -581,7 +617,12 @@ gfa feedback --repo mycompany/product-service
 gfafeedback --repo mycompany/product-service
 ```
 
+</details>
+
 ## 🎯 Award System
+
+<details>
+<summary><b>🏆 Award List</b></summary>
 
 Awards are automatically granted based on repository activity:
 
@@ -613,7 +654,12 @@ Awards are automatically granted based on repository activity:
 - 📅 **Consistency Master** (6+ months continuous activity)
 - 🌟 **Multi-Talented** (Balanced contributions across all areas)
 
+</details>
+
 ## 🐛 Troubleshooting
+
+<details>
+<summary><b>🔧 Troubleshooting Guide</b></summary>
 
 ### PAT Permission Error
 
@@ -658,7 +704,12 @@ No activity detected during analysis period.
 - Try increasing analysis period: `gfainit --months 24`
 - Verify repository is active
 
+</details>
+
 ## 👩‍💻 Developer Guide
+
+<details>
+<summary><b>🛠️ Development Environment Setup</b></summary>
 
 ### Development Environment Setup
 
@@ -695,6 +746,8 @@ github_feedback/
 ├── models.py          # 📦 Data models
 └── utils.py           # 🔧 Utility functions
 ```
+
+</details>
 
 ## 🔒 Security
 
