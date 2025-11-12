@@ -122,7 +122,7 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
         )
 
         table.add_column("#", justify="right", style="dim", width=3)
-        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Repository", style="cyan", no_wrap=True)
         table.add_column("Description", style="dim")
         table.add_column("Activity", justify="right", style="success")
 
@@ -581,7 +581,7 @@ def _collect_detailed_feedback(
         console.print(
             f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
         )
-        console.print("[info]Continuing with standard analysis...", style="info")
+        console.print("[cyan]Continuing with standard analysis...", style="cyan")
         return None
 
 
@@ -1228,7 +1228,7 @@ def list_repos(
             header_style="bold cyan",
         )
 
-        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Repository", style="cyan", no_wrap=True)
         table.add_column("Description", style="dim")
         table.add_column("Stars", justify="right", style="warning")
         table.add_column("Forks", justify="right", style="success")
@@ -1341,7 +1341,7 @@ def suggest_repos(
         )
 
         table.add_column("Rank", justify="right", style="dim", width=4)
-        table.add_column("Repository", style="info", no_wrap=True)
+        table.add_column("Repository", style="cyan", no_wrap=True)
         table.add_column("Description", style="dim")
         table.add_column("Activity", justify="right", style="success")
         table.add_column("Updated", justify="right", style="warning")
