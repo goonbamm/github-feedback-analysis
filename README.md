@@ -48,7 +48,7 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
    - ⚠️ **중요**: 이 페이지를 벗어나면 토큰을 다시 확인할 수 없습니다
 
 5. **토큰 사용**
-   - `ghf init` 실행 시 복사한 토큰을 입력하세요
+   - `gfainit` 실행 시 복사한 토큰을 입력하세요
 
 ### Fine-grained Personal Access Token 사용 (선택사항)
 
@@ -74,7 +74,7 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
 
 3. **초기 설정 시 Enterprise 호스트 지정**
    ```bash
-   ghf init --enterprise-host https://github.your-company.com
+   gfainit --enterprise-host https://github.your-company.com
    ```
 
 4. **관리자 문의**
@@ -107,7 +107,7 @@ uv pip install -e .
 ### 1️⃣ 설정 초기화
 
 ```bash
-ghf init
+gfainit
 ```
 
 대화형 프롬프트가 나타나면 다음 정보를 입력하세요:
@@ -119,7 +119,7 @@ ghf init
 ### 2️⃣ 저장소 분석
 
 ```bash
-ghf brief --repo goonbamm/github-feedback-analysis
+gfa feedback --repo goonbamm/github-feedback-analysis
 ```
 
 분석이 완료되면 `reports/` 디렉터리에 다음 파일들이 생성됩니다:
@@ -137,20 +137,20 @@ cat reports/report.md
 
 ## 📚 명령어 상세 가이드
 
-### 🎯 `ghf init` - 초기 설정
+### 🎯 `gfainit` - 초기 설정
 
 GitHub 접속 정보와 LLM 설정을 저장합니다.
 
 #### 기본 사용법 (대화형)
 
 ```bash
-ghf init
+gfainit
 ```
 
 #### 예시: GitHub.com + 로컬 LLM 사용
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
   --llm-model gpt-4 \
@@ -160,7 +160,7 @@ ghf init \
 #### 예시: GitHub Enterprise 사용
 
 ```bash
-ghf init \
+gfainit \
   --pat ghp_xxxxxxxxxxxxxxxxxxxx \
   --enterprise-host https://github.company.com \
   --llm-endpoint http://localhost:8000/v1/chat/completions \
@@ -177,14 +177,14 @@ ghf init \
 | `--months` | 기본 분석 기간 (개월) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 호스트 | ❌ | github.com |
 
-### 📊 `ghf brief` - 저장소 분석
+### 📊 `gfa feedback` - 저장소 분석
 
 저장소를 분석하고 상세 피드백 보고서를 생성합니다.
 
 #### 기본 사용법
 
 ```bash
-ghf brief --repo owner/repo-name
+gfa feedback --repo owner/repo-name
 ```
 
 #### 대화형 모드
@@ -192,29 +192,29 @@ ghf brief --repo owner/repo-name
 저장소를 직접 지정하지 않고 추천 목록에서 선택할 수 있습니다.
 
 ```bash
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 또는
 
 ```bash
-ghf brief  # --repo 옵션 없이 실행
+gfa feedback  # --repo 옵션 없이 실행
 ```
 
 #### 예시
 
 ```bash
 # 공개 저장소 분석
-ghf brief --repo torvalds/linux
+gfa feedback --repo torvalds/linux
 
 # 개인 저장소 분석
-ghf brief --repo myusername/my-private-repo
+gfa feedback --repo myusername/my-private-repo
 
 # 조직 저장소 분석
-ghf brief --repo microsoft/vscode
+gfa feedback --repo microsoft/vscode
 
 # 대화형 모드로 저장소 선택
-ghf brief --interactive
+gfa feedback --interactive
 ```
 
 #### 옵션 설명
@@ -252,21 +252,21 @@ reports/
 - 🏆 **어워드**: 기여도에 따른 자동 어워드 부여
 - 📈 **트렌드**: 월별 활동 추이 및 속도 분석
 
-### 🎯 `ghf feedback` - PR 자동 리뷰
+### 🎯 `gfafeedback` - PR 자동 리뷰
 
 인증된 사용자(PAT 소유자)의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
 
 #### 기본 사용법
 
 ```bash
-ghf feedback --repo owner/repo-name
+gfafeedback --repo owner/repo-name
 ```
 
 #### 예시
 
 ```bash
 # 내가 작성한 모든 PR 리뷰
-ghf feedback --repo myusername/my-project
+gfafeedback --repo myusername/my-project
 ```
 
 #### 옵션 설명
@@ -303,16 +303,16 @@ reviews/
     └── integrated_report.md        # 통합 회고 보고서
 ```
 
-### ⚙️ `ghf config` - 설정 관리
+### ⚙️ `gfaconfig` - 설정 관리
 
 설정을 확인하거나 수정합니다.
 
-#### `ghf config show` - 설정 확인
+#### `gfaconfig show` - 설정 확인
 
 현재 저장된 설정을 확인합니다.
 
 ```bash
-ghf config show
+gfaconfig show
 ```
 
 **출력 예시:**
@@ -333,69 +333,69 @@ ghf config show
 └─────────────┴───────────────────────┘
 ```
 
-> **참고:** `ghf show-config` 명령어는 deprecated되었으며 `ghf config show`로 대체되었습니다.
+> **참고:** `gfashow-config` 명령어는 deprecated되었으며 `gfaconfig show`로 대체되었습니다.
 
-#### `ghf config set` - 설정 값 변경
+#### `gfaconfig set` - 설정 값 변경
 
 개별 설정 값을 변경합니다.
 
 ```bash
-ghf config set <key> <value>
+gfaconfig set <key> <value>
 ```
 
 **예시:**
 
 ```bash
 # LLM 모델 변경
-ghf config set llm.model gpt-4
+gfaconfig set llm.model gpt-4
 
 # LLM 엔드포인트 변경
-ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+gfaconfig set llm.endpoint http://localhost:8000/v1/chat/completions
 
 # 기본 분석 기간 변경
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 ```
 
-#### `ghf config get` - 설정 값 조회
+#### `gfaconfig get` - 설정 값 조회
 
 특정 설정 값을 조회합니다.
 
 ```bash
-ghf config get <key>
+gfaconfig get <key>
 ```
 
 **예시:**
 
 ```bash
 # LLM 모델 확인
-ghf config get llm.model
+gfaconfig get llm.model
 
 # 기본 분석 기간 확인
-ghf config get defaults.months
+gfaconfig get defaults.months
 ```
 
-### 🔍 `ghf list-repos` - 저장소 목록
+### 🔍 `gfalist-repos` - 저장소 목록
 
 접근 가능한 저장소 목록을 조회합니다.
 
 ```bash
-ghf list-repos
+gfalist-repos
 ```
 
 #### 예시
 
 ```bash
 # 저장소 목록 조회 (기본: 최근 업데이트순 20개)
-ghf list-repos
+gfalist-repos
 
 # 정렬 기준 변경
-ghf list-repos --sort stars --limit 10
+gfalist-repos --sort stars --limit 10
 
 # 특정 조직 저장소만 조회
-ghf list-repos --org myorganization
+gfalist-repos --org myorganization
 
 # 생성일순으로 정렬
-ghf list-repos --sort created --limit 50
+gfalist-repos --sort created --limit 50
 ```
 
 #### 옵션 설명
@@ -406,12 +406,12 @@ ghf list-repos --sort created --limit 50
 | `--limit`, `-l` | 최대 표시 개수 | 20 |
 | `--org`, `-o` | 조직 이름으로 필터링 | - |
 
-### 💡 `ghf suggest-repos` - 저장소 추천
+### 💡 `gfasuggest-repos` - 저장소 추천
 
 분석하기 좋은 활성 저장소를 추천합니다.
 
 ```bash
-ghf suggest-repos
+gfasuggest-repos
 ```
 
 최근 활동이 활발한 저장소를 자동으로 선별하여 추천합니다. Stars, forks, 이슈 수, 최근 업데이트 등을 종합적으로 고려합니다.
@@ -420,16 +420,16 @@ ghf suggest-repos
 
 ```bash
 # 기본 추천 (최근 90일 이내 활동, 10개)
-ghf suggest-repos
+gfasuggest-repos
 
 # 최근 30일 이내 활동한 저장소 5개 추천
-ghf suggest-repos --limit 5 --days 30
+gfasuggest-repos --limit 5 --days 30
 
 # Stars 순으로 정렬
-ghf suggest-repos --sort stars
+gfasuggest-repos --sort stars
 
 # 활동 점수 기준으로 정렬 (종합 평가)
-ghf suggest-repos --sort activity
+gfasuggest-repos --sort activity
 ```
 
 #### 옵션 설명
@@ -442,7 +442,7 @@ ghf suggest-repos --sort activity
 
 ## 📁 설정 파일
 
-설정은 `~/.config/github_feedback/config.toml`에 저장되며, `ghf init` 실행 시 자동으로 생성됩니다.
+설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gfainit` 실행 시 자동으로 생성됩니다.
 
 ### 설정 파일 예시
 
@@ -465,12 +465,12 @@ months = 12
 
 ### 수동 설정 편집
 
-필요한 경우 설정 파일을 직접 편집하거나 `ghf config` 명령어를 사용할 수 있습니다:
+필요한 경우 설정 파일을 직접 편집하거나 `gfaconfig` 명령어를 사용할 수 있습니다:
 
 ```bash
 # 방법 1: config 명령어 사용 (권장)
-ghf config set llm.model gpt-4
-ghf config show
+gfaconfig set llm.model gpt-4
+gfaconfig show
 
 # 방법 2: 직접 편집
 nano ~/.config/github_feedback/config.toml
@@ -478,7 +478,7 @@ nano ~/.config/github_feedback/config.toml
 
 ## 📊 생성되는 파일 구조
 
-### `ghf brief` 출력
+### `gfa feedback` 출력
 
 ```
 reports/
@@ -497,7 +497,7 @@ reports/
     └── issue_feedback.txt    # 🐛 이슈 품질 분석
 ```
 
-### `ghf feedback` 출력
+### `gfafeedback` 출력
 
 ```
 reviews/
@@ -517,13 +517,13 @@ reviews/
 
 ```bash
 # 1. 설정 (최초 1회)
-ghf init
+gfainit
 
 # 2. 저장소 추천 받기
-ghf suggest-repos
+gfasuggest-repos
 
 # 3. 대화형 모드로 분석
-ghf brief --interactive
+gfa feedback --interactive
 
 # 4. 보고서 확인
 cat reports/report.md
@@ -533,10 +533,10 @@ cat reports/report.md
 
 ```bash
 # 1. 설정 (최초 1회)
-ghf init
+gfainit
 
 # 2. 유명 오픈소스 프로젝트 분석
-ghf brief --repo facebook/react
+gfa feedback --repo facebook/react
 
 # 3. 보고서 확인
 cat reports/report.md
@@ -546,13 +546,13 @@ cat reports/report.md
 
 ```bash
 # 내 저장소 목록 확인
-ghf list-repos --sort updated --limit 10
+gfalist-repos --sort updated --limit 10
 
 # 내 프로젝트 분석
-ghf brief --repo myname/my-awesome-project
+gfa feedback --repo myname/my-awesome-project
 
 # 내가 작성한 PR 자동 리뷰
-ghf feedback --repo myname/my-awesome-project
+gfafeedback --repo myname/my-awesome-project
 
 # 통합 회고 보고서 확인
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -562,16 +562,16 @@ cat reviews/myname_my-awesome-project/integrated_report.md
 
 ```bash
 # 조직 저장소 목록 확인
-ghf list-repos --org mycompany --limit 20
+gfalist-repos --org mycompany --limit 20
 
 # 분석 기간 설정 (지난 6개월)
-ghf config set defaults.months 6
+gfaconfig set defaults.months 6
 
 # 조직 저장소 분석
-ghf brief --repo mycompany/product-service
+gfa feedback --repo mycompany/product-service
 
 # 팀원별 PR 리뷰 (각자 PAT로 실행)
-ghf feedback --repo mycompany/product-service --state closed
+gfafeedback --repo mycompany/product-service --state closed
 ```
 
 ## 🎯 어워드 시스템
@@ -627,8 +627,8 @@ Warning: Detailed feedback analysis failed: Connection refused
 
 **해결방법**:
 1. LLM 서버가 실행 중인지 확인
-2. 엔드포인트 URL이 올바른지 확인 (`ghf config show`)
-3. 필요시 설정 재초기화: `ghf init`
+2. 엔드포인트 URL이 올바른지 확인 (`gfaconfig show`)
+3. 필요시 설정 재초기화: `gfainit`
 
 ### 저장소를 찾을 수 없음
 
@@ -648,7 +648,7 @@ Error: Repository not found
 ```
 
 **해결방법**:
-- 분석 기간을 늘려보세요: `ghf init --months 24`
+- 분석 기간을 늘려보세요: `gfainit --months 24`
 - 저장소가 활성화된 저장소인지 확인
 
 ## 👩‍💻 개발자 가이드

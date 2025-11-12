@@ -266,7 +266,7 @@ def test_brief_uses_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
     config = _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.brief(repo="example/repo")
+    cli.feedback(repo="example/repo")
 
     assert "collector" in created
     collector = created["collector"]
@@ -293,7 +293,7 @@ def test_brief_generates_markdown_report(monkeypatch: pytest.MonkeyPatch) -> Non
     _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.brief(repo="example/repo")
+    cli.feedback(repo="example/repo")
 
     reporters = created.get("reporters", [])
     assert reporters, "Reporter should be instantiated"
@@ -308,7 +308,7 @@ def test_brief_uses_default_output_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_config(monkeypatch)
     created = _stub_dependencies(monkeypatch)
 
-    cli.brief(repo="example/repo")
+    cli.feedback(repo="example/repo")
 
     reporters = created.get("reporters", [])
     assert reporters, "Reporter should be instantiated"
