@@ -1,15 +1,15 @@
 # 🚀 GitHub フィードバック分析
 
-開発者としてフィードバックが欲しいのに、年末の振り返りをしたいのに、どこから始めればいいかわからない？GitHubリポジトリのアクティビティを分析し、インサイトに富んだレポートを自動生成するCLIツールです。GitHub.comとGitHub Enterpriseの両方をサポートし、LLMベースの自動レビュー機能を提供します。
+開発者としてフィードバックが欲しいのに、年末の振り返りをしたいのに、どこから始めればいいかわからない？GitHubで**あなたの活動**を分析し、インサイトに富んだレポートを自動生成するCLIツールです。GitHub.comとGitHub Enterpriseの両方をサポートし、LLMベースの自動レビュー機能を提供します。
 
 日本語 | [한국어](../README.md) | [English](README_EN.md) | [简体中文](README_ZH.md) | [Español](README_ES.md)
 
 ## ✨ 主な機能
 
-- 📊 **リポジトリ分析**：コミット、イシュー、レビューアクティビティを期間別に集計・分析
-- 🤖 **LLMベースのフィードバック**：コミットメッセージ、PRタイトル、レビュートーン、イシュー品質の詳細分析
-- 🎯 **自動PRレビュー**：認証ユーザーのPRを自動レビューし、統合振り返りレポートを生成
-- 🏆 **アチーブメント可視化**：貢献度に応じてアワードとハイライトを自動生成
+- 📊 **個人活動分析**：特定のリポジトリで**あなたの**コミット、イシュー、レビューアクティビティを期間別に集計・分析
+- 🤖 **LLMベースのフィードバック**：あなたのコミットメッセージ、PRタイトル、レビュートーン、イシュー品質の詳細分析
+- 🎯 **統合振り返りレポート**：個人活動指標と共に総合的なインサイトを提供
+- 🏆 **アチーブメント可視化**：あなたの貢献度に応じてアワードとハイライトを自動生成
 - 💡 **リポジトリ探索**：アクセス可能なリポジトリのリスト表示とアクティブなリポジトリの推奨
 - 🎨 **インタラクティブモード**：リポジトリを直接選択できるユーザーフレンドリーなインターフェース
 
@@ -127,7 +127,7 @@ gfa init
 gfa feedback
 ```
 
-推奨リポジトリのリストから選択するか、直接入力することができます。
+推奨リポジトリのリストから選択するか、直接入力して**あなたの活動**を分析することができます。
 
 分析完了後、`reports/`ディレクトリに以下のファイルが生成されます：
 - `metrics.json` - 分析データ
@@ -188,9 +188,11 @@ gfa init \
 </details>
 
 <details>
-<summary><b>📊 `gfa feedback` - リポジトリ分析</b></summary>
+<summary><b>📊 gfa feedback - 個人活動分析</b></summary>
 
-リポジトリを分析し、詳細なフィードバックレポートを生成します。
+特定のリポジトリで**あなたの活動**を分析し、詳細なフィードバックレポートを生成します。
+
+> **重要**：このコマンドは認証されたユーザー（PAT所有者）の個人活動のみを分析します。リポジトリ全体ではなく、**あなたの**コミット、PR、レビュー、イシューのみを収集して分析します。
 
 #### 基本的な使い方
 
@@ -215,13 +217,13 @@ gfa feedback  # --repoオプションなしで実行
 #### 例
 
 ```bash
-# パブリックリポジトリを分析
+# あなたが貢献した公開リポジトリを分析
 gfa feedback --repo torvalds/linux
 
-# 個人リポジトリを分析
+# あなたが貢献した個人リポジトリを分析
 gfa feedback --repo myusername/my-private-repo
 
-# 組織リポジトリを分析
+# あなたが貢献した組織リポジトリを分析
 gfa feedback --repo microsoft/vscode
 
 # インタラクティブモードでリポジトリ選択
@@ -242,81 +244,28 @@ gfa feedback --interactive
 
 ```
 reports/
-├── metrics.json              # 📈 生の分析データ
-├── report.md                 # 📄 Markdownレポート
-├── report.html               # 🎨 HTMLレポート（可視化チャート付き）
-├── charts/                   # 📊 可視化チャート（SVG）
+├── metrics.json              # 原本データ（JSON）
+├── report.md                 # 分析レポート（Markdown）
+├── report.html               # 分析レポート（HTML、チャート付き）
+├── charts/                   # 可視化チャート
 │   ├── quality.svg          # 品質指標チャート
 │   ├── activity.svg         # アクティビティ指標チャート
-│   ├── engagement.svg       # エンゲージメントチャート
 │   └── ...                  # その他のドメイン固有チャート
 └── prompts/
-    ├── commit_feedback.txt   # 💬 コミットメッセージ品質分析
-    ├── pr_feedback.txt       # 🔀 PRタイトル分析
-    ├── review_feedback.txt   # 👀 レビュートーン分析
-    └── issue_feedback.txt    # 🐛 イシュー品質分析
+    ├── commit_feedback.txt   # コミットメッセージフィードバック
+    ├── pr_feedback.txt       # PRタイトルフィードバック
+    ├── review_feedback.txt   # レビュートーンフィードバック
+    └── issue_feedback.txt    # イシュー品質フィードバック
 ```
 
 #### 分析内容
 
-- ✅ **アクティビティ集計**：コミット、PR、レビュー、イシュー数をカウント
-- 🎯 **品質分析**：コミットメッセージ、PRタイトル、レビュートーン、イシュー説明の品質
-- 🏆 **アワード**：貢献度に基づく自動アワード
-- 📈 **トレンド**：月次アクティビティトレンドと速度分析
-
-</details>
-
-<details>
-<summary><b>🎯 `gfa feedback` - 自動PRレビュー</b></summary>
-
-認証ユーザー（PATオーナー）のPRを自動レビューし、統合振り返りレポートを生成します。
-
-#### 基本的な使い方
-
-```bash
-gfa feedback --repo owner/repo-name
-```
-
-#### 例
-
-```bash
-# あなたが作成したすべてのPRをレビュー
-gfa feedback --repo myusername/my-project
-```
-
-#### オプション説明
-
-| オプション | 説明 | 必須 | デフォルト |
-|-----------|------|------|-----------|
-| `--repo` | リポジトリ（owner/name） | ✅ | - |
-
-#### 実行プロセス
-
-1. **PR検索** 🔍
-   - PAT認証ユーザーが作成したPRリストを取得
-
-2. **個別レビュー生成** 📝
-   - 各PRのコード変更とレビューコメントを収集
-   - LLMを使用して詳細レビューを生成
-   - `reviews/owner_repo/pr-{番号}/`ディレクトリに保存
-
-3. **統合振り返りレポート** 📊
-   - すべてのPRを統合したインサイトを生成
-   - `reviews/owner_repo/integrated_report.md`に保存
-
-#### 生成されるファイル
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # PR生データ
-    │   ├── review_summary.json     # LLM分析結果
-    │   └── review.md               # Markdownレビュー
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 統合振り返りレポート
-```
+- ✅ **アクティビティ集計**：あなたのコミット、PR、レビュー、イシュー数をカウント
+- 🎯 **品質分析**：あなたのコミットメッセージ、PRタイトル、レビュートーン、イシュー説明の品質
+- 🏆 **アワード**：あなたの貢献度に基づく自動アワード
+- 📈 **トレンド**：あなたの月次アクティビティトレンドと速度分析
+- 🤝 **協業分析**：あなたと一緒に作業した協業者ネットワーク
+- 💻 **技術スタック**：あなたが作業したファイルの言語と技術分析
 
 </details>
 
@@ -522,7 +471,7 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 生の分析データ
+├── metrics.json              # 📈 個人活動分析データ（JSON）
 ├── report.md                 # 📄 Markdownレポート
 ├── report.html               # 🎨 HTMLレポート（可視化チャート付き）
 ├── charts/                   # 📊 可視化チャート（SVG）
@@ -535,20 +484,6 @@ reports/
     ├── pr_feedback.txt       # 🔀 PRタイトル分析
     ├── review_feedback.txt   # 👀 レビュートーン分析
     └── issue_feedback.txt    # 🐛 イシュー品質分析
-```
-
-### `gfa feedback`の出力
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # 📦 PR生データ（コード、レビューなど）
-    │   ├── review_summary.json     # 🤖 LLM分析結果（構造化データ）
-    │   └── review.md               # 📝 Markdownレビューレポート
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 🎯 統合振り返りレポート（すべてのPR統合）
 ```
 
 </details>
@@ -567,43 +502,40 @@ gfa init
 # 2. リポジトリ推奨を取得
 gfa suggest-repos
 
-# 3. インタラクティブモードで分析
+# 3. インタラクティブモードであなたの活動を分析
 gfa feedback --interactive
 
 # 4. レポートを表示
 cat reports/report.md
 ```
 
-### 例2：オープンソースプロジェクト分析
+### 例2：オープンソース貢献活動の分析
 
 ```bash
 # 1. 設定（初回のみ）
 gfa init
 
-# 2. 人気のオープンソースプロジェクトを分析
+# 2. あなたが貢献したオープンソースプロジェクトの活動を分析
 gfa feedback --repo facebook/react
 
-# 3. レポートを表示
+# 3. レポートを表示（あなたの貢献活動のみ表示されます）
 cat reports/report.md
 ```
 
-### 例3：個人プロジェクト振り返り
+### 例3：個人プロジェクトの振り返り
 
 ```bash
 # 自分のリポジトリリストを確認
 gfa list-repos --sort updated --limit 10
 
-# 自分のプロジェクトを分析
+# 自分のプロジェクトであなたの活動を分析
 gfa feedback --repo myname/my-awesome-project
 
-# 自分のPRを自動レビュー
-gfa feedback --repo myname/my-awesome-project
-
-# 統合振り返りレポートを表示
-cat reviews/myname_my-awesome-project/integrated_report.md
+# レポートを表示
+cat reports/report.md
 ```
 
-### 例4：チームプロジェクトパフォーマンスレビュー
+### 例4：チームプロジェクトでのあなたの成果レビュー
 
 ```bash
 # 組織のリポジトリリストを確認
@@ -612,11 +544,11 @@ gfa list-repos --org mycompany --limit 20
 # 分析期間を設定（過去6ヶ月）
 gfa config set defaults.months 6
 
-# 組織のリポジトリを分析
+# 組織のリポジトリであなたの活動を分析
 gfa feedback --repo mycompany/product-service
 
-# チームメンバーのPRをレビュー（各自のPATで実行）
-gfa feedback --repo mycompany/product-service
+# レポートを表示（あなたの活動のみ表示されます）
+cat reports/report.md
 ```
 
 </details>

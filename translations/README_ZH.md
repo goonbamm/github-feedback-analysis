@@ -1,15 +1,15 @@
 # 🚀 GitHub 反馈分析工具
 
-作为开发者，想要获得反馈，想要年终回顾，却不知道从哪里开始？一个用于分析 GitHub 仓库活动并自动生成深度洞察报告的命令行工具。支持 GitHub.com 和 GitHub Enterprise，具备基于 LLM 的自动审查功能。
+作为开发者，想要获得反馈，想要年终回顾，却不知道从哪里开始？一个用于分析 GitHub 上**你的活动**并自动生成深度洞察报告的命令行工具。支持 GitHub.com 和 GitHub Enterprise，具备基于 LLM 的自动审查功能。
 
 简体中文 | [한국어](../README.md) | [English](README_EN.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
 ## ✨ 核心功能
 
-- 📊 **仓库分析**：按时间段聚合和分析提交、议题和审查活动
-- 🤖 **基于 LLM 的反馈**：详细分析提交信息、PR 标题、审查语气和议题质量
-- 🎯 **自动 PR 审查**：自动审查已认证用户的 PR 并生成集成回顾报告
-- 🏆 **成就可视化**：根据贡献自动生成奖项和亮点
+- 📊 **个人活动分析**：按时间段聚合和分析特定仓库中**你的**提交、议题和审查活动
+- 🤖 **基于 LLM 的反馈**：详细分析你的提交信息、PR 标题、审查语气和议题质量
+- 🎯 **综合回顾报告**：结合个人活动指标提供全面的洞察
+- 🏆 **成就可视化**：根据你的贡献自动生成奖项和亮点
 - 💡 **仓库发现**：列出可访问的仓库并推荐活跃仓库
 - 🎨 **交互模式**：用户友好的仓库直接选择界面
 
@@ -119,13 +119,13 @@ gfa init
 - LLM 模型（例如：`gpt-4`）
 - GitHub Enterprise 主机（可选，仅当不使用 github.com 时）
 
-### 2️⃣ 分析仓库
+### 2️⃣ 个人活动分析
 
 ```bash
 gfa feedback
 ```
 
-您可以从推荐仓库列表中选择或直接输入仓库。
+您可以从推荐仓库列表中选择或直接输入仓库来分析**你的活动**。
 
 分析完成后，将在 `reports/` 目录中生成以下文件：
 - `metrics.json` - 分析数据
@@ -186,9 +186,11 @@ gfa init \
 </details>
 
 <details>
-<summary><b>📊 `gfa feedback` - 仓库分析</b></summary>
+<summary><b>📊 `gfa feedback` - 个人活动分析</b></summary>
 
-分析仓库并生成详细反馈报告。
+分析特定仓库中**你的活动**并生成详细反馈报告。
+
+> **重要**：此命令仅分析已认证用户（PAT 所有者）的个人活动。它仅收集和分析**你的**提交、PR、审查和议题，而不是整个仓库。
 
 #### 基本用法
 
@@ -213,13 +215,13 @@ gfa feedback  # 不使用 --repo 选项运行
 #### 示例
 
 ```bash
-# 分析公共仓库
+# 分析你在公共仓库的贡献
 gfa feedback --repo torvalds/linux
 
-# 分析个人仓库
+# 分析你在个人仓库的贡献
 gfa feedback --repo myusername/my-private-repo
 
-# 分析组织仓库
+# 分析你在组织仓库的贡献
 gfa feedback --repo microsoft/vscode
 
 # 交互模式选择仓库
@@ -257,64 +259,12 @@ reports/
 
 #### 分析内容
 
-- ✅ **活动聚合**：统计提交、PR、审查和议题数量
-- 🎯 **质量分析**：提交信息、PR 标题、审查语气、议题描述质量
-- 🏆 **奖项**：根据贡献自动授予奖项
-- 📈 **趋势**：每月活动趋势和速度分析
-
-</details>
-
-<details>
-<summary><b>🎯 `gfa feedback` - 自动 PR 审查</b></summary>
-
-自动审查已认证用户（PAT 所有者）的 PR 并生成集成回顾报告。
-
-#### 基本用法
-
-```bash
-gfa feedback --repo owner/repo-name
-```
-
-#### 示例
-
-```bash
-# 审查你创建的所有 PR
-gfa feedback --repo myusername/my-project
-```
-
-#### 选项说明
-
-| 选项 | 描述 | 必需 | 默认值 |
-|------|------|------|--------|
-| `--repo` | 仓库（owner/name） | ✅ | - |
-
-#### 执行过程
-
-1. **PR 搜索** 🔍
-   - 检索 PAT 认证用户创建的 PR 列表
-
-2. **生成单独审查** 📝
-   - 收集每个 PR 的代码更改和审查评论
-   - 使用 LLM 生成详细审查
-   - 保存到 `reviews/owner_repo/pr-{number}/` 目录
-
-3. **集成回顾报告** 📊
-   - 综合所有 PR 生成洞察
-   - 保存到 `reviews/owner_repo/integrated_report.md`
-
-#### 生成的文件
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # PR 原始数据
-    │   ├── review_summary.json     # LLM 分析结果
-    │   └── review.md               # Markdown 审查
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 集成回顾报告
-```
+- ✅ **活动聚合**：统计你的提交、PR、审查和议题数量
+- 🎯 **质量分析**：分析你的提交信息、PR 标题、审查语气、议题描述质量
+- 🏆 **奖项**：根据你的贡献自动授予奖项
+- 📈 **趋势**：分析你的月度活动趋势和速度
+- 🤝 **协作分析**：与你共同工作的协作者网络
+- 💻 **技术栈**：分析你工作的文件的语言和技术
 
 </details>
 
@@ -516,7 +466,7 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 原始分析数据
+├── metrics.json              # 📈 个人活动分析数据（JSON）
 ├── report.md                 # 📄 Markdown 报告
 ├── report.html               # 🎨 HTML 报告（包含可视化图表）
 ├── charts/                   # 📊 可视化图表（SVG）
@@ -529,20 +479,6 @@ reports/
     ├── pr_feedback.txt       # 🔀 PR 标题分析
     ├── review_feedback.txt   # 👀 审查语气分析
     └── issue_feedback.txt    # 🐛 议题质量分析
-```
-
-### `gfa feedback` 输出
-
-```
-reviews/
-└── owner_repo/
-    ├── pr-123/
-    │   ├── artefacts.json          # 📦 PR 原始数据（代码、审查等）
-    │   ├── review_summary.json     # 🤖 LLM 分析结果（结构化数据）
-    │   └── review.md               # 📝 Markdown 审查报告
-    ├── pr-456/
-    │   └── ...
-    └── integrated_report.md        # 🎯 集成回顾报告（所有 PR 综合）
 ```
 
 </details>
@@ -559,23 +495,23 @@ gfa init
 # 2. 获取仓库推荐
 gfa suggest-repos
 
-# 3. 使用交互模式分析
+# 3. 使用交互模式分析你的活动
 gfa feedback --interactive
 
 # 4. 查看报告
 cat reports/report.md
 ```
 
-### 示例 2：开源项目分析
+### 示例 2：分析你的开源贡献活动
 
 ```bash
 # 1. 配置（仅首次）
 gfa init
 
-# 2. 分析热门开源项目
+# 2. 分析你在开源项目的贡献
 gfa feedback --repo facebook/react
 
-# 3. 查看报告
+# 3. 查看报告（仅显示你的贡献活动）
 cat reports/report.md
 ```
 
@@ -585,17 +521,14 @@ cat reports/report.md
 # 查看我的仓库列表
 gfa list-repos --sort updated --limit 10
 
-# 分析我的项目
+# 分析我在项目中的活动
 gfa feedback --repo myname/my-awesome-project
 
-# 自动审查我的 PR
-gfa feedback --repo myname/my-awesome-project
-
-# 查看集成回顾报告
-cat reviews/myname_my-awesome-project/integrated_report.md
+# 查看报告
+cat reports/report.md
 ```
 
-### 示例 4：团队项目绩效审查
+### 示例 4：分析你在团队项目的成果
 
 ```bash
 # 查看组织仓库列表
@@ -604,11 +537,11 @@ gfa list-repos --org mycompany --limit 20
 # 设置分析周期（最近 6 个月）
 gfa config set defaults.months 6
 
-# 分析组织仓库
+# 分析你在组织仓库的活动
 gfa feedback --repo mycompany/product-service
 
-# 审查团队成员 PR（每人使用自己的 PAT 运行）
-gfa feedback --repo mycompany/product-service
+# 查看报告（仅显示你的活动）
+cat reports/report.md
 ```
 
 </details>
