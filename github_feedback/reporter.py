@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from .console import Console
-from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS
+from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS, COLLECTION_LIMITS, DISPLAY_LIMITS
 from .models import MetricSnapshot, PromptRequest
 
 console = Console()
@@ -447,7 +447,7 @@ class Reporter:
         if hasattr(feedback_data, 'examples_good') and feedback_data.examples_good:
             lines.append("#### ✅ 좋은 예시")
             lines.append("")
-            for example in feedback_data.examples_good[:3]:
+            for example in feedback_data.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
                 if example_formatter:
                     lines.append(f"- {example_formatter(example)}")
                 elif isinstance(example, dict):
@@ -461,7 +461,7 @@ class Reporter:
         if poor_examples:
             lines.append("#### ⚠️ 개선이 필요한 예시")
             lines.append("")
-            for example in poor_examples[:3]:
+            for example in poor_examples[:DISPLAY_LIMITS['feedback_examples']]:
                 if example_formatter:
                     lines.append(f"- {example_formatter(example)}")
                 elif isinstance(example, dict):
@@ -885,7 +885,7 @@ class Reporter:
             if medium_priority:
                 lines.append("#### 🟡 중간 우선순위")
                 lines.append("")
-                for insight in medium_priority[:3]:  # Limit to top 3 for readability
+                for insight in medium_priority[:DISPLAY_LIMITS['medium_priority_insights']]:  # Limit to top N for readability
                     lines.append(f"**{insight.title}**")
                     lines.append("")
                     lines.append(f"*{insight.description}*")

@@ -216,6 +216,87 @@ DEFAULT_CONFIG = {
 }
 
 # =============================================================================
+# Data Collection Configuration
+# =============================================================================
+
+# Limits for data collection
+COLLECTION_LIMITS = {
+    'commit_messages': 100,
+    'pr_titles': 100,
+    'review_comments': 100,
+    'issues': 100,
+    'pr_examples': 3,  # Number of PR examples to show in spotlight
+}
+
+# Display limits for reporting
+DISPLAY_LIMITS = {
+    'feedback_examples': 3,  # Number of examples to show in feedback sections
+    'medium_priority_insights': 3,  # Number of medium priority insights to show
+}
+
+# Parallel processing configuration
+PARALLEL_CONFIG = {
+    'max_workers_data_collection': 4,  # Concurrent data collection tasks
+    'max_workers_llm_analysis': 4,  # Concurrent LLM analysis tasks
+    'max_workers_yearend': 3,  # Concurrent year-end data collection tasks
+    'collection_timeout': 120,  # Timeout for data collection in seconds
+    'analysis_timeout': 180,  # Timeout for LLM analysis in seconds
+    'yearend_timeout': 180,  # Timeout for year-end data collection in seconds
+}
+
+# =============================================================================
+# Analysis Thresholds
+# =============================================================================
+
+# Activity level thresholds for insights and awards
+ACTIVITY_THRESHOLDS = {
+    # Commit thresholds
+    'very_high_commits': 200,
+    'high_commits': 100,
+    'moderate_commits': 50,
+
+    # Pull request thresholds
+    'very_high_prs': 50,
+    'high_prs': 30,
+    'moderate_prs': 10,
+
+    # Review thresholds
+    'very_high_reviews': 50,
+    'high_reviews': 20,
+    'moderate_reviews': 10,
+
+    # Issue thresholds
+    'moderate_issues': 20,
+
+    # Code change thresholds
+    'very_large_pr': 10000,  # Lines changed
+    'large_pr': 1000,  # Lines changed
+
+    # Ratio thresholds
+    'high_commits_per_pr': 5,
+    'high_review_ratio': 2,  # Reviews / PRs
+    'high_merge_rate': 0.8,  # 80% merge rate
+
+    # Collaboration thresholds
+    'moderate_doc_prs': 3,
+    'moderate_test_prs': 5,
+    'feature_pr_threshold': 5,
+}
+
+# Consistency score interpretation thresholds
+CONSISTENCY_THRESHOLDS = {
+    'very_consistent': 0.7,  # Above this is very consistent
+    'inconsistent': 0.3,  # Below this is inconsistent
+}
+
+# Trend analysis thresholds
+TREND_THRESHOLDS = {
+    'increasing_multiplier': 1.2,  # 20% increase
+    'decreasing_multiplier': 0.8,  # 20% decrease
+    'minimum_months_for_trend': 3,  # Need at least 3 months for trend analysis
+}
+
+# =============================================================================
 # LLM Configuration
 # =============================================================================
 

@@ -35,11 +35,19 @@ from .collector import Collector
 from .config import Config
 from .console import Console
 from .constants import (
+    COLLECTION_LIMITS,
     ERROR_MESSAGES,
     INFO_MESSAGES,
+    PARALLEL_CONFIG,
     SPINNERS,
     SUCCESS_MESSAGES,
     TABLE_CONFIG,
+)
+from .exceptions import (
+    CollectionError,
+    CollectionTimeoutError,
+    LLMAnalysisError,
+    LLMTimeoutError,
 )
 from .llm import LLMClient
 from .models import (
@@ -58,6 +66,66 @@ config_app = typer.Typer(help="Manage configuration settings")
 app.add_typer(config_app, name="config")
 
 console = Console()
+
+
+def _run_parallel_tasks(
+    tasks: Dict[str, tuple],
+    max_workers: int,
+    timeout: int,
+    task_type: str = "collection",
+) -> Dict[str, Any]:
+    """Run multiple tasks in parallel with consistent error handling.
+
+    Args:
+        tasks: Dict mapping task keys to (func, args, label) tuples
+        max_workers: Maximum number of concurrent workers
+        timeout: Timeout in seconds for each task
+        task_type: Type of task ('collection' or 'analysis') for error messages
+
+    Returns:
+        Dict mapping task keys to results (None for failed tasks)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(func, *args): (key, label)
+            for key, (func, args, label) in tasks.items()
+        }
+
+        completed = 0
+        total = len(futures)
+        for future in as_completed(futures, timeout=timeout):
+            key, label = futures[future]
+            try:
+                results[key] = future.result(timeout=timeout)
+                completed += 1
+                console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
+            except KeyboardInterrupt:
+                raise
+            except TimeoutError as e:
+                if task_type == "analysis":
+                    error = LLMTimeoutError(
+                        f"{label} timed out after {timeout}s",
+                        analysis_type=key
+                    )
+                else:
+                    error = CollectionTimeoutError(
+                        f"{label} timed out after {timeout}s",
+                        source=key
+                    )
+                console.print(f"[warning]✗ {error}", style="warning")
+                results[key] = None if task_type == "analysis" else []
+            except Exception as e:
+                if task_type == "analysis":
+                    error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
+                else:
+                    error = CollectionError(f"{label} failed: {e}", source=key)
+                console.print(f"[warning]✗ {error}", style="warning")
+                results[key] = None if task_type == "analysis" else []
+
+    return results
 
 
 def _resolve_output_dir(value: Path | str | object) -> Path:
@@ -482,44 +550,74 @@ def _collect_detailed_feedback(
     filters: AnalysisFilters,
     author: Optional[str] = None,
 ) -> Optional[DetailedFeedbackSnapshot]:
-    """Collect and analyze detailed feedback data."""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    """Collect and analyze detailed feedback data in parallel.
+
+    This function collects four types of feedback data and analyzes them using LLM:
+    1. Commit messages - for quality analysis
+    2. PR titles - for clarity analysis
+    3. Review comments - for tone analysis
+    4. Issue details - for quality analysis
+
+    Args:
+        collector: Data collector instance
+        analyzer: Metrics analyzer instance
+        config: Configuration with LLM settings
+        repo: Repository name in owner/repo format
+        since: Start date for data collection
+        filters: Analysis filters to apply
+        author: Optional GitHub username to filter by author
+
+    Returns:
+        DetailedFeedbackSnapshot with LLM analysis results,
+        or None if collection/analysis fails
+
+    Raises:
+        KeyboardInterrupt: User interrupted the operation
+    """
     from .llm import LLMClient
 
     console.print("[accent]Collecting detailed feedback data...", style="accent")
 
     try:
-        # Collect detailed data in parallel
-        data_collection_tasks = {
-            "commits": (collector.collect_commit_messages, (repo, since, filters), {"limit": 100, "author": author}, "commit messages"),
-            "pr_titles": (collector.collect_pr_titles, (repo, since, filters), {"limit": 100, "author": author}, "PR titles"),
-            "review_comments": (collector.collect_review_comments_detailed, (repo, since, filters), {"limit": 100, "author": author}, "review comments"),
-            "issues": (collector.collect_issue_details, (repo, since, filters), {"limit": 100, "author": author}, "issues"),
+        # Prepare data collection tasks
+        collection_tasks = {
+            "commits": (
+                lambda: collector.collect_commit_messages(
+                    repo, since, filters, COLLECTION_LIMITS['commit_messages'], author
+                ),
+                (),
+                "commit messages"
+            ),
+            "pr_titles": (
+                lambda: collector.collect_pr_titles(
+                    repo, since, filters, COLLECTION_LIMITS['pr_titles'], author
+                ),
+                (),
+                "PR titles"
+            ),
+            "review_comments": (
+                lambda: collector.collect_review_comments_detailed(
+                    repo, since, filters, COLLECTION_LIMITS['review_comments'], author
+                ),
+                (),
+                "review comments"
+            ),
+            "issues": (
+                lambda: collector.collect_issue_details(
+                    repo, since, filters, COLLECTION_LIMITS['issues'], author
+                ),
+                (),
+                "issues"
+            ),
         }
 
-        collected_data = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(func, *args, **kwargs): (key, label)
-                for key, (func, args, kwargs, label) in data_collection_tasks.items()
-            }
-
-            completed = 0
-            total = len(futures)
-            for future in as_completed(futures, timeout=120):
-                key, label = futures[future]
-                try:
-                    collected_data[key] = future.result(timeout=120)
-                    completed += 1
-                    console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
-                except KeyboardInterrupt:
-                    raise
-                except TimeoutError:
-                    console.print(f"[warning]✗ {label} collection timed out after 120s", style="warning")
-                    collected_data[key] = []
-                except Exception as e:
-                    console.print(f"[warning]✗ {label} collection failed: {e}", style="warning")
-                    collected_data[key] = []
+        # Collect data in parallel
+        collected_data = _run_parallel_tasks(
+            collection_tasks,
+            PARALLEL_CONFIG['max_workers_data_collection'],
+            PARALLEL_CONFIG['collection_timeout'],
+            task_type="collection"
+        )
 
         commits_data = collected_data.get("commits", [])
         pr_titles_data = collected_data.get("pr_titles", [])
@@ -539,37 +637,18 @@ def _collect_detailed_feedback(
         console.print("[accent]Analyzing feedback in parallel...", style="accent")
 
         analysis_tasks = {
-            "commit_messages": (llm_client.analyze_commit_messages, commits_data, "commits"),
-            "pr_titles": (llm_client.analyze_pr_titles, pr_titles_data, "PR titles"),
-            "review_tone": (llm_client.analyze_review_tone, review_comments_data, "review tone"),
-            "issue_quality": (llm_client.analyze_issue_quality, issues_data, "issues"),
+            "commit_messages": (lambda: llm_client.analyze_commit_messages(commits_data), (), "commits"),
+            "pr_titles": (lambda: llm_client.analyze_pr_titles(pr_titles_data), (), "PR titles"),
+            "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data), (), "review tone"),
+            "issue_quality": (lambda: llm_client.analyze_issue_quality(issues_data), (), "issues"),
         }
 
-        results = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            # Submit all tasks
-            futures = {
-                executor.submit(func, data): (key, label)
-                for key, (func, data, label) in analysis_tasks.items()
-            }
-
-            # Collect results with progress indication
-            completed = 0
-            total = len(futures)
-            for future in as_completed(futures, timeout=180):
-                key, label = futures[future]
-                try:
-                    results[key] = future.result(timeout=180)
-                    completed += 1
-                    console.print(f"[success]✓ {label} analyzed ({completed}/{total})", style="success")
-                except KeyboardInterrupt:
-                    raise
-                except TimeoutError:
-                    console.print(f"[warning]✗ {label} analysis timed out after 180s", style="warning")
-                    results[key] = None
-                except Exception as e:
-                    console.print(f"[warning]✗ {label} analysis failed: {e}", style="warning")
-                    results[key] = None
+        results = _run_parallel_tasks(
+            analysis_tasks,
+            PARALLEL_CONFIG['max_workers_llm_analysis'],
+            PARALLEL_CONFIG['analysis_timeout'],
+            task_type="analysis"
+        )
 
         commit_analysis = results.get("commit_messages")
         pr_title_analysis = results.get("pr_titles")
@@ -747,7 +826,7 @@ def _collect_yearend_data(
     }
 
     yearend_data = {}
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=PARALLEL_CONFIG['max_workers_yearend']) as executor:
         futures = {
             executor.submit(func, *args): (key, label)
             for key, (func, args, label) in yearend_tasks.items()
@@ -755,19 +834,25 @@ def _collect_yearend_data(
 
         completed = 0
         total = len(futures)
-        for future in as_completed(futures, timeout=180):
+        yearend_timeout = PARALLEL_CONFIG['yearend_timeout']
+        for future in as_completed(futures, timeout=yearend_timeout):
             key, label = futures[future]
             try:
-                yearend_data[key] = future.result(timeout=180)
+                yearend_data[key] = future.result(timeout=yearend_timeout)
                 completed += 1
                 console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
             except KeyboardInterrupt:
                 raise
-            except TimeoutError:
-                console.print(f"[warning]✗ {label} collection timed out after 180s", style="warning")
+            except TimeoutError as e:
+                error = CollectionTimeoutError(
+                    f"{label} collection timed out after {yearend_timeout}s",
+                    source=key
+                )
+                console.print(f"[warning]✗ {error}", style="warning")
                 yearend_data[key] = None
             except Exception as exc:
-                console.print(f"[warning]✗ {label} collection failed: {exc}", style="warning")
+                error = CollectionError(f"{label} collection failed: {exc}", source=key)
+                console.print(f"[warning]✗ {error}", style="warning")
                 yearend_data[key] = None
 
     return (
