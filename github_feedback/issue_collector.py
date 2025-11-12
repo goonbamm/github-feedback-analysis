@@ -1,0 +1,120 @@
+"""Issue collection operations."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from .base_collector import BaseCollector
+from .filters import FilterHelper
+from .models import AnalysisFilters
+
+
+class IssueCollector(BaseCollector):
+    """Collector specialized for issue operations."""
+
+    def count_issues(self, repo: str, since: datetime, filters: AnalysisFilters) -> int:
+        """Count issues matching filters.
+
+        Args:
+            repo: Repository name (owner/repo)
+            since: Start date for issue collection
+            filters: Analysis filters to apply
+
+        Returns:
+            Number of issues matching filters
+        """
+        params: Dict[str, Any] = {
+            "state": "all",
+            "per_page": 100,
+            "since": since.isoformat(),
+        }
+
+        all_issues = self.api_client.paginate(
+            f"repos/{repo}/issues", base_params=params, per_page=100
+        )
+
+        # Count issues that pass filters
+        total = 0
+        for issue in all_issues:
+            if "pull_request" in issue:
+                continue
+            author = issue.get("user")
+            if self.filter_bot(author, filters):
+                continue
+            if not self._issue_matches_filters(issue, filters):
+                continue
+            total += 1
+
+        return total
+
+    def collect_issue_details(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, str]]:
+        """Collect issue details for quality analysis.
+
+        Args:
+            repo: Repository name (owner/repo)
+            since: Start date for issue collection
+            filters: Optional analysis filters
+            limit: Maximum number of issues to collect
+
+        Returns:
+            List of issue detail dictionaries
+        """
+        filters = filters or AnalysisFilters()
+        issues: List[Dict[str, str]] = []
+
+        params: Dict[str, Any] = {
+            "state": "all",
+            "sort": "created",
+            "direction": "desc",
+            "per_page": limit,
+            "since": since.isoformat(),
+        }
+
+        data = self.api_client.request_list(f"repos/{repo}/issues", params)
+        for issue in data:
+            # Skip pull requests (GitHub API returns them as issues)
+            if "pull_request" in issue:
+                continue
+
+            author = issue.get("user")
+            if self.filter_bot(author, filters):
+                continue
+
+            issues.append(
+                {
+                    "number": issue.get("number", 0),
+                    "title": issue.get("title", ""),
+                    "body": issue.get("body", "") or "",
+                    "author": (issue.get("user") or {}).get("login", ""),
+                    "url": issue.get("html_url", ""),
+                    "state": issue.get("state", ""),
+                    "created_at": issue.get("created_at", ""),
+                }
+            )
+
+            if len(issues) >= limit:
+                break
+
+        return issues[:limit]
+
+    def _issue_matches_filters(
+        self, issue: Dict[str, Any], filters: AnalysisFilters
+    ) -> bool:
+        """Check if issue matches filters.
+
+        Args:
+            issue: GitHub issue object
+            filters: Analysis filters
+
+        Returns:
+            True if issue matches filters
+        """
+        filenames = FilterHelper.extract_issue_files(issue)
+        return self.apply_file_filters(filenames, filters)
