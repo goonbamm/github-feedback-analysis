@@ -24,6 +24,7 @@ from .models import (
     ReflectionPrompts,
     YearEndReview,
 )
+from .retrospective import RetrospectiveAnalyzer
 
 console = Console()
 
@@ -83,7 +84,8 @@ class Analyzer:
         reflection_prompts = self._build_reflection_prompts(collection)
         year_end_review = self._build_year_end_review(collection, highlights, awards)
 
-        return MetricSnapshot(
+        # Create initial metrics snapshot
+        metrics_snapshot = MetricSnapshot(
             repo=collection.repo,
             months=collection.months,
             generated_at=datetime.now(timezone.utc),
@@ -105,6 +107,14 @@ class Analyzer:
             since_date=collection.since_date,
             until_date=collection.until_date,
         )
+
+        # Generate comprehensive retrospective analysis
+        console.log("Generating retrospective analysis", f"repo={collection.repo}")
+        retrospective_analyzer = RetrospectiveAnalyzer()
+        retrospective = retrospective_analyzer.analyze(metrics_snapshot)
+        metrics_snapshot.retrospective = retrospective
+
+        return metrics_snapshot
 
     def _calculate_scores(
         self, collection: CollectionResult
