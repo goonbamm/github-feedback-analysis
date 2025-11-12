@@ -2,7 +2,7 @@
 
 GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 자동으로 생성하는 CLI 도구입니다. GitHub.com과 GitHub Enterprise 환경을 지원하며, LLM을 활용한 자동 리뷰 기능을 제공합니다.
 
-한국어 | [English](README_EN.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [Español](README_ES.md)
+한국어 | [English](translations/README_EN.md) | [简体中文](translations/README_ZH.md) | [日本語](translations/README_JA.md) | [Español](translations/README_ES.md)
 
 ## ✨ 주요 기능
 

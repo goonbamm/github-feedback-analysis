@@ -2,7 +2,7 @@
 
 A CLI tool that analyzes GitHub repository activity and automatically generates insightful reports. Supports both GitHub.com and GitHub Enterprise, with LLM-powered automated review capabilities.
 
-English | [한국어](README.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [Español](README_ES.md)
+English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
 ## ✨ Key Features
 

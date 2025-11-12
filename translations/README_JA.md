@@ -2,7 +2,7 @@
 
 GitHubリポジトリのアクティビティを分析し、インサイトに富んだレポートを自動生成するCLIツールです。GitHub.comとGitHub Enterpriseの両方をサポートし、LLMベースの自動レビュー機能を提供します。
 
-日本語 | [한국어](README.md) | [English](README_EN.md) | [简体中文](README_ZH.md) | [Español](README_ES.md)
+日本語 | [한국어](../README.md) | [English](README_EN.md) | [简体中文](README_ZH.md) | [Español](README_ES.md)
 
 ## ✨ 主な機能
 
