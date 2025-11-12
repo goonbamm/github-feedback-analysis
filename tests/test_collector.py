@@ -67,7 +67,7 @@ def test_collector_filters_bots_and_counts_resources(monkeypatch):
             return []
         raise AssertionError(f"Unhandled path {path}")
 
-    monkeypatch.setattr(collector, "_request", fake_request)
+    monkeypatch.setattr(collector.api_client, "request_list", fake_request)
 
     collection = collector.collect(
         repo="example/repo",
@@ -115,13 +115,13 @@ def test_collector_excludes_commits_from_excluded_branches(monkeypatch):
             return []
         raise AssertionError(f"Unhandled path {path}")
 
-    def fake_request_all(self, path, params=None):  # type: ignore[override]
+    def fake_request_all(path, params=None):  # type: ignore[override]
         assert path == "repos/example/repo/branches"
         assert params == {"per_page": 100}
         return branches_payload
 
-    monkeypatch.setattr(collector, "_request", fake_request)
-    monkeypatch.setattr(Collector, "_request_all", fake_request_all)
+    monkeypatch.setattr(collector.api_client, "request_list", fake_request)
+    monkeypatch.setattr(collector.api_client, "request_all", fake_request_all)
 
     filters = AnalysisFilters(exclude_branches=["feature"])
     collection = collector.collect(
@@ -135,7 +135,7 @@ def test_collector_excludes_commits_from_excluded_branches(monkeypatch):
 
     requested_branches.clear()
     zero_filters = AnalysisFilters(exclude_branches=["main", "feature"])
-    commits = collector._count_commits(
+    commits = collector.commit_collector.count_commits(
         repo="example/repo",
         since=datetime.now(timezone.utc),
         filters=zero_filters,
@@ -212,8 +212,9 @@ def test_collect_pull_request_details_paginates(monkeypatch):
             "changed_files": 2,
         }
 
-    monkeypatch.setattr(collector, "_request", fake_request)
-    monkeypatch.setattr(collector, "_request_json", fake_request_json)
+    monkeypatch.setattr(collector.api_client, "request_list", fake_request)
+    monkeypatch.setattr(collector.api_client, "request_json", fake_request_json)
+    monkeypatch.setattr(collector.api_client, "request_all", fake_request)
 
     bundle = collector.collect_pull_request_details(repo="example/repo", number=7)
 
@@ -367,8 +368,18 @@ def test_collector_applies_branch_path_and_language_filters(
             return commit_details[sha]
         raise AssertionError(f"Unhandled json path {path}")
 
-    monkeypatch.setattr(collector, "_request", fake_request)
-    monkeypatch.setattr(collector, "_request_json", fake_request_json)
+    def fake_paginate(path, base_params, per_page=100, early_stop=None):  # type: ignore[override]
+        # For PR collection with early_stop
+        if path.endswith("/pulls"):
+            page = 1
+            params = base_params | {"page": page, "per_page": per_page}
+            return fake_request(path, params)
+        # For other paginated requests
+        return fake_request(path, base_params)
+
+    monkeypatch.setattr(collector.api_client, "request_list", fake_request)
+    monkeypatch.setattr(collector.api_client, "request_json", fake_request_json)
+    monkeypatch.setattr(collector.api_client, "paginate", fake_paginate)
 
     filters = AnalysisFilters(
         include_branches=["main", "feature"],
@@ -404,12 +415,12 @@ def test_list_authored_pull_requests_filters_prs(monkeypatch):
         {"number": 1, "pull_request": {}},
     ]
 
-    def fake_request_all(self, path, params=None):  # type: ignore[override]
+    def fake_request_all(path, params=None):  # type: ignore[override]
         assert path == "repos/example/repo/issues"
         assert params == {"creator": "octocat", "state": "closed", "per_page": 100}
         return issues_payload
 
-    monkeypatch.setattr(Collector, "_request_all", fake_request_all)
+    monkeypatch.setattr(collector.api_client, "request_all", fake_request_all)
 
     numbers = collector.list_authored_pull_requests(
         repo="example/repo",
@@ -440,11 +451,11 @@ def test_get_authenticated_user(monkeypatch):
 
     user_payload = {"login": "octocat", "id": 1}
 
-    def fake_request_json(self, path, params=None):  # type: ignore[override]
+    def fake_request_json(path, params=None):  # type: ignore[override]
         assert path == "user"
         return user_payload
 
-    monkeypatch.setattr(Collector, "_request_json", fake_request_json)
+    monkeypatch.setattr(collector.api_client, "request_json", fake_request_json)
 
     username = collector.get_authenticated_user()
 
@@ -460,10 +471,10 @@ def test_get_authenticated_user_raises_on_missing_login(monkeypatch):
 
     user_payload = {"id": 1}
 
-    def fake_request_json(self, path, params=None):  # type: ignore[override]
+    def fake_request_json(path, params=None):  # type: ignore[override]
         return user_payload
 
-    monkeypatch.setattr(Collector, "_request_json", fake_request_json)
+    monkeypatch.setattr(collector.api_client, "request_json", fake_request_json)
 
     with pytest.raises(ValueError, match="Failed to retrieve authenticated user"):
         collector.get_authenticated_user()
