@@ -138,10 +138,12 @@ class Collector:
     def _request_impl(
         self, path: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
+        timeout = getattr(self.config, 'api', None)
+        timeout_value = timeout.timeout if timeout else 30
         response = self._get_session().get(
             self._build_api_url(path),
             params=params,
-            timeout=30,
+            timeout=timeout_value,
         )
         if response.status_code == 401:
             raise PermissionError("GitHub API rejected the provided PAT.")
@@ -154,10 +156,12 @@ class Collector:
     def _request_json_impl(
         self, path: str, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
+        timeout = getattr(self.config, 'api', None)
+        timeout_value = timeout.timeout if timeout else 30
         response = self._get_session().get(
             self._build_api_url(path),
             params=params,
-            timeout=30,
+            timeout=timeout_value,
         )
         if response.status_code == 401:
             raise PermissionError("GitHub API rejected the provided PAT.")
@@ -945,8 +949,9 @@ class Collector:
                         "state": review.get("state", ""),
                         "submitted_at": review.get("submitted_at", ""),
                     })
-            except Exception:
+            except (requests.HTTPError, ValueError) as exc:
                 # Skip PRs that fail to fetch reviews
+                logger.warning(f"Failed to fetch reviews for PR #{number}: {exc}")
                 continue
 
         return review_comments[:limit]
@@ -1069,7 +1074,8 @@ class Collector:
 
                 month_key = created_at.strftime("%Y-%m")
                 monthly_data[month_key]["pull_requests"] += 1
-        except Exception:
+        except (requests.HTTPError, ValueError) as exc:
+            logger.warning(f"Failed to collect PRs for monthly trends: {exc}")
             pass
 
         # Convert to list and sort by month

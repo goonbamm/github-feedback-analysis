@@ -10,7 +10,7 @@ import pytest
 requests = pytest.importorskip("requests")
 
 from github_feedback.collector import Collector
-from github_feedback.config import AuthConfig, Config
+from github_feedback.config import Config
 from github_feedback.models import PullRequestFile, PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from github_feedback.reviewer import Reviewer
 from github_feedback.llm import (
@@ -82,7 +82,10 @@ def _make_bundle() -> PullRequestReviewBundle:
 
 
 def test_collect_pull_request_details_gathers_expected_fields(monkeypatch):
-    config = Config(auth=AuthConfig(pat="dummy"))
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "dummy")
+
+    config = Config()
     collector = Collector(config)
 
     pr_payload = {

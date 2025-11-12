@@ -9,7 +9,7 @@ import pytest
 import typer
 
 from github_feedback import cli
-from github_feedback.config import AuthConfig, Config
+from github_feedback.config import Config
 from github_feedback.models import AnalysisFilters
 
 
@@ -104,7 +104,10 @@ def _capturing_console(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def _stub_config(monkeypatch: pytest.MonkeyPatch) -> Config:
-    config = Config(auth=AuthConfig(pat="token"))
+    # Mock keyring to return a test token
+    import keyring
+    monkeypatch.setattr(keyring, "get_password", lambda service, username: "test-token")
+    config = Config()
     monkeypatch.setattr(cli, "_load_config", lambda: config)
     return config
 

@@ -47,6 +47,13 @@ class DefaultsConfig(BaseModel):
     months: int = 12
 
 
+class APIConfig(BaseModel):
+    """Configuration for API requests."""
+
+    timeout: int = 30
+    max_retries: int = 3
+
+
 @dataclass(slots=True)
 class Config:
     """Top-level configuration container."""
@@ -54,6 +61,7 @@ class Config:
     version: str = CONFIG_VERSION
     server: ServerConfig = field(default_factory=ServerConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
+    api: APIConfig = field(default_factory=APIConfig)
     defaults: DefaultsConfig = field(default_factory=DefaultsConfig)
 
     @classmethod
@@ -88,11 +96,12 @@ class Config:
         try:
             server = ServerConfig(**raw.get("server", {}))
             llm = LLMConfig(**raw.get("llm", {}))
+            api = APIConfig(**raw.get("api", {}))
             defaults = DefaultsConfig(**raw.get("defaults", {}))
         except ValidationError as exc:
             raise ValueError(f"Invalid configuration: {exc}") from exc
 
-        return cls(version=version, server=server, llm=llm, defaults=defaults)
+        return cls(version=version, server=server, llm=llm, api=api, defaults=defaults)
 
     def dump(self, path: Path = CONFIG_FILE, backup: bool = True) -> None:
         """Persist the configuration to disk.
@@ -114,6 +123,7 @@ class Config:
             "version": self.version,
             "server": self.server.model_dump(),
             "llm": self.llm.model_dump(),
+            "api": self.api.model_dump(),
             "defaults": self.defaults.model_dump(),
         }
 
@@ -175,5 +185,6 @@ class Config:
             "auth": {"pat": auth_display},
             "server": self.server.model_dump(),
             "llm": self.llm.model_dump(),
+            "api": self.api.model_dump(),
             "defaults": self.defaults.model_dump(),
         }
