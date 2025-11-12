@@ -201,3 +201,98 @@ class Config:
             "defaults": self.defaults.model_dump(),
             "reporter": self.reporter.model_dump(),
         }
+
+    def set_value(self, key: str, value: str) -> None:
+        """Set a configuration value using dot notation.
+
+        Args:
+            key: Configuration key in dot notation (e.g., 'llm.model', 'defaults.months')
+            value: Value to set (will be converted to appropriate type)
+
+        Raises:
+            ValueError: If key is invalid or value cannot be converted
+        """
+        parts = key.split(".")
+        if len(parts) != 2:
+            raise ValueError(f"Invalid key format '{key}'. Expected format: section.field")
+
+        section, field = parts
+
+        # Map section names to config objects
+        sections = {
+            "server": self.server,
+            "llm": self.llm,
+            "api": self.api,
+            "defaults": self.defaults,
+            "reporter": self.reporter,
+        }
+
+        if section not in sections:
+            valid_sections = ", ".join(sections.keys())
+            raise ValueError(f"Invalid section '{section}'. Valid sections: {valid_sections}")
+
+        config_obj = sections[section]
+
+        # Check if field exists
+        if not hasattr(config_obj, field):
+            valid_fields = ", ".join(config_obj.model_fields.keys())
+            raise ValueError(f"Invalid field '{field}' for section '{section}'. Valid fields: {valid_fields}")
+
+        # Get field type and convert value
+        field_info = config_obj.model_fields[field]
+        field_type = field_info.annotation
+
+        try:
+            # Handle basic types
+            if field_type == int or field_type == "int":
+                converted_value = int(value)
+            elif field_type == float or field_type == "float":
+                converted_value = float(value)
+            elif field_type == bool or field_type == "bool":
+                converted_value = value.lower() in ("true", "1", "yes", "on")
+            else:
+                converted_value = value
+
+            # Set the value
+            setattr(config_obj, field, converted_value)
+
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"Cannot convert '{value}' to {field_type} for {key}") from exc
+
+    def get_value(self, key: str) -> Any:
+        """Get a configuration value using dot notation.
+
+        Args:
+            key: Configuration key in dot notation (e.g., 'llm.model')
+
+        Returns:
+            The configuration value
+
+        Raises:
+            ValueError: If key is invalid
+        """
+        parts = key.split(".")
+        if len(parts) != 2:
+            raise ValueError(f"Invalid key format '{key}'. Expected format: section.field")
+
+        section, field = parts
+
+        sections = {
+            "server": self.server,
+            "llm": self.llm,
+            "api": self.api,
+            "defaults": self.defaults,
+            "reporter": self.reporter,
+        }
+
+        if section not in sections:
+            valid_sections = ", ".join(sections.keys())
+            raise ValueError(f"Invalid section '{section}'. Valid sections: {valid_sections}")
+
+        config_obj = sections[section]
+
+        if not hasattr(config_obj, field):
+            valid_fields = ", ".join(config_obj.model_fields.keys())
+            raise ValueError(f"Invalid field '{field}' for section '{section}'. Valid fields: {valid_fields}")
+
+        return getattr(config_obj, field)

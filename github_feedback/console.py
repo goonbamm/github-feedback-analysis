@@ -31,11 +31,42 @@ try:  # pragma: no cover - exercised implicitly
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - mirror rich API
             # Use Christmas theme if in season (Nov 1 - Dec 31)
-            if is_christmas_season():
+            import os
+            disable_theme = os.getenv("GHF_NO_THEME", "").lower() in ("1", "true", "yes")
+
+            if is_christmas_season() and not disable_theme:
                 theme = kwargs.pop("theme", None) or get_christmas_theme()
             else:
                 theme = kwargs.pop("theme", None) or _default_theme
             super().__init__(*args, theme=theme, **kwargs)
+            self._verbose = False
+            self._quiet = False
+
+        def set_verbose(self, verbose: bool) -> None:
+            """Enable or disable verbose output."""
+            self._verbose = verbose
+
+        def set_quiet(self, quiet: bool) -> None:
+            """Enable or disable quiet mode."""
+            self._quiet = quiet
+
+        def is_verbose(self) -> bool:
+            """Check if verbose mode is enabled."""
+            return self._verbose
+
+        def is_quiet(self) -> bool:
+            """Check if quiet mode is enabled."""
+            return self._quiet
+
+        def print(self, *args: Any, **kwargs: Any) -> None:
+            """Print with respect to quiet mode."""
+            if not self._quiet:
+                super().print(*args, **kwargs)
+
+        def log(self, *args: Any, **kwargs: Any) -> None:
+            """Log with respect to verbose mode."""
+            if self._verbose and not self._quiet:
+                super().log(*args, **kwargs)
 
 except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envs
     class Console:  # type: ignore[override]

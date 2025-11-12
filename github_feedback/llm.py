@@ -189,6 +189,47 @@ class LLMClient:
 
         raise RuntimeError("LLM request failed without raising an explicit error")
 
+    def test_connection(self) -> None:
+        """Test connection to the LLM endpoint with a simple request.
+
+        Raises:
+            requests.RequestException: If connection fails
+            ValueError: If response format is invalid
+        """
+        test_messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant.",
+            },
+            {
+                "role": "user",
+                "content": "Hello",
+            },
+        ]
+
+        payload = {
+            "model": self.model or "default-model",
+            "messages": test_messages,
+            "temperature": 0.1,
+            "max_tokens": 10,
+        }
+
+        response = requests.post(
+            self.endpoint,
+            json=payload,
+            timeout=min(self.timeout, 10),  # Use shorter timeout for test
+        )
+        response.raise_for_status()
+
+        try:
+            response_payload = response.json()
+        except ValueError as exc:
+            raise ValueError("LLM endpoint returned invalid JSON") from exc
+
+        choices = response_payload.get("choices")
+        if not choices:
+            raise ValueError("LLM endpoint response format is invalid (missing 'choices')")
+
     def complete(
         self,
         messages: List[Dict[str, str]],
