@@ -100,7 +100,9 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
     with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
         try:
             suggestions = collector.suggest_repositories(limit=10, min_activity_days=90)
-        except Exception as exc:
+        except KeyboardInterrupt:
+            raise
+        except (requests.RequestException, ValueError) as exc:
             console.print(f"[danger]Error fetching suggestions:[/] {exc}")
             return None
 
@@ -204,7 +206,7 @@ def init(
     llm_endpoint: Optional[str] = typer.Option(
         None,
         "--llm-endpoint",
-        help="LLM endpoint URL (e.g. http://localhost:8000/v1/chat/completions)",
+        help="LLM endpoint URL (e.g. https://api.openai.com/v1/chat/completions)",
     ),
     llm_model: Optional[str] = typer.Option(
         None,
@@ -308,7 +310,9 @@ def init(
                 )
                 test_client.test_connection()
                 console.print("[success]✓ LLM connection successful[/]")
-            except Exception as exc:
+            except KeyboardInterrupt:
+                raise
+            except (requests.RequestException, ValueError, ConnectionError) as exc:
                 console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
                 if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
                     console.print("[info]Configuration not saved[/]")
@@ -489,6 +493,8 @@ def _collect_detailed_feedback(
                     collected_data[key] = future.result()
                     completed += 1
                     console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
+                except KeyboardInterrupt:
+                    raise
                 except Exception as e:
                     console.print(f"[warning]✗ {label} collection failed: {e}", style="warning")
                     collected_data[key] = []
@@ -534,6 +540,8 @@ def _collect_detailed_feedback(
                     results[key] = future.result()
                     completed += 1
                     console.print(f"[success]✓ {label} analyzed ({completed}/{total})", style="success")
+                except KeyboardInterrupt:
+                    raise
                 except Exception as e:
                     console.print(f"[warning]✗ {label} analysis failed: {e}", style="warning")
                     results[key] = None
@@ -744,7 +752,7 @@ def brief(
     console.print("[accent]Collecting year-end review data in parallel...", style="accent")
 
     # Get PR metadata once for reuse
-    _, pr_metadata = collector._list_pull_requests(repo_input, since, filters)
+    _, pr_metadata = collector.pr_collector.list_pull_requests(repo_input, since, filters)
 
     yearend_tasks = {
         "monthly_trends": (
@@ -779,6 +787,8 @@ def brief(
                 yearend_data[key] = future.result()
                 completed += 1
                 console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
+            except KeyboardInterrupt:
+                raise
             except Exception as exc:
                 console.print(f"[warning]✗ {label} collection failed: {exc}", style="warning")
                 yearend_data[key] = None
@@ -1064,7 +1074,7 @@ def config_set(
 
     Examples:
         ghf config set llm.model gpt-4
-        ghf config set llm.endpoint http://localhost:8000/v1/chat/completions
+        ghf config set llm.endpoint https://api.openai.com/v1/chat/completions
         ghf config set defaults.months 6
     """
     try:

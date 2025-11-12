@@ -34,7 +34,7 @@ class ServerConfig(BaseModel):
 class LLMConfig(BaseModel):
     """Configuration for the LLM backend."""
 
-    endpoint: str = "http://localhost:8000/v1/chat/completions"
+    endpoint: str = ""
     model: str = ""
     timeout: int = 60
     max_files_in_prompt: int = 10
@@ -179,7 +179,7 @@ class Config:
             errors.append("GitHub Personal Access Token is not set. Run 'gf init' to configure.")
 
         # Check LLM endpoint
-        if not self.llm.endpoint or self.llm.endpoint == "http://localhost:8000/v1/chat/completions":
+        if not self.llm.endpoint:
             errors.append("LLM endpoint is not configured.")
 
         # Check LLM model
