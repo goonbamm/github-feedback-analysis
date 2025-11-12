@@ -12,7 +12,7 @@ try:
     import tomllib as tomli  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover - fallback for older runtimes
     import tomli  # type: ignore[no-redef]
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 from tomli_w import dump as toml_dump
 import keyring
 
@@ -41,11 +41,35 @@ class LLMConfig(BaseModel):
     max_files_with_patch_snippets: int = 5
     max_retries: int = 3
 
+    @field_validator("timeout", "max_files_in_prompt", "max_files_with_patch_snippets", "max_retries")
+    @classmethod
+    def validate_positive(cls, v: int, info) -> int:
+        """Validate that numeric fields are positive."""
+        if v <= 0:
+            raise ValueError(f"{info.field_name} must be positive, got {v}")
+        return v
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, v: str) -> str:
+        """Validate endpoint URL format if provided."""
+        if v and not v.startswith(("http://", "https://")):
+            raise ValueError(f"endpoint must be a valid HTTP(S) URL, got: {v}")
+        return v
+
 
 class DefaultsConfig(BaseModel):
     """Default values used when running analyses."""
 
     months: int = 12
+
+    @field_validator("months")
+    @classmethod
+    def validate_positive(cls, v: int) -> int:
+        """Validate that months is positive."""
+        if v <= 0:
+            raise ValueError(f"months must be positive, got {v}")
+        return v
 
 
 class APIConfig(BaseModel):
@@ -54,6 +78,14 @@ class APIConfig(BaseModel):
     timeout: int = 30
     max_retries: int = 3
 
+    @field_validator("timeout", "max_retries")
+    @classmethod
+    def validate_positive(cls, v: int, info) -> int:
+        """Validate that numeric fields are positive."""
+        if v <= 0:
+            raise ValueError(f"{info.field_name} must be positive, got {v}")
+        return v
+
 
 class ReporterConfig(BaseModel):
     """Configuration for report generation."""
@@ -61,6 +93,14 @@ class ReporterConfig(BaseModel):
     chart_width: int = 520
     chart_height_per_item: int = 24
     chart_bar_color: str = "#4CAF50"
+
+    @field_validator("chart_width", "chart_height_per_item")
+    @classmethod
+    def validate_positive(cls, v: int, info) -> int:
+        """Validate that chart dimensions are positive."""
+        if v <= 0:
+            raise ValueError(f"{info.field_name} must be positive, got {v}")
+        return v
 
 
 @dataclass(slots=True)
@@ -253,11 +293,22 @@ class Config:
             else:
                 converted_value = value
 
-            # Set the value
-            setattr(config_obj, field, converted_value)
+            # Validate and set the value using Pydantic's validation
+            # Create a new model instance with the updated value to trigger validators
+            current_data = config_obj.model_dump()
+            current_data[field] = converted_value
+            validated_model = type(config_obj).model_validate(current_data)
+
+            # Copy all fields from validated model to current config object
+            for field_name in validated_model.model_fields.keys():
+                setattr(config_obj, field_name, getattr(validated_model, field_name))
 
         except (ValueError, TypeError) as exc:
             raise ValueError(f"Cannot convert '{value}' to {field_type} for {key}") from exc
+        except ValidationError as exc:
+            # Extract error message from Pydantic validation error
+            error_msg = "; ".join([f"{'.'.join(str(loc) for loc in e['loc'])}: {e['msg']}" for e in exc.errors()])
+            raise ValueError(f"Validation error for {key}: {error_msg}") from exc
 
     def get_value(self, key: str) -> Any:
         """Get a configuration value using dot notation.

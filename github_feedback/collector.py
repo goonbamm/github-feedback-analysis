@@ -119,6 +119,24 @@ class Collector:
         )
 
     # Pull request methods
+    def list_pull_requests(
+        self,
+        repo: str,
+        since: datetime,
+        filters: Optional[AnalysisFilters] = None,
+    ) -> tuple[int, List[Dict[str, Any]]]:
+        """List pull requests with metadata.
+
+        Args:
+            repo: Repository name (owner/repo)
+            since: Start date for PR collection
+            filters: Optional analysis filters
+
+        Returns:
+            Tuple of (PR count, PR metadata list)
+        """
+        return self.pr_collector.list_pull_requests(repo, since, filters)
+
     def list_authored_pull_requests(
         self, repo: str, author: str, state: str = "all"
     ) -> List[int]:

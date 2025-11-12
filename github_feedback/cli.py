@@ -487,14 +487,17 @@ def _collect_detailed_feedback(
 
             completed = 0
             total = len(futures)
-            for future in as_completed(futures):
+            for future in as_completed(futures, timeout=120):
                 key, label = futures[future]
                 try:
-                    collected_data[key] = future.result()
+                    collected_data[key] = future.result(timeout=120)
                     completed += 1
                     console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
                 except KeyboardInterrupt:
                     raise
+                except TimeoutError:
+                    console.print(f"[warning]✗ {label} collection timed out after 120s", style="warning")
+                    collected_data[key] = []
                 except Exception as e:
                     console.print(f"[warning]✗ {label} collection failed: {e}", style="warning")
                     collected_data[key] = []
@@ -534,14 +537,17 @@ def _collect_detailed_feedback(
             # Collect results with progress indication
             completed = 0
             total = len(futures)
-            for future in as_completed(futures):
+            for future in as_completed(futures, timeout=180):
                 key, label = futures[future]
                 try:
-                    results[key] = future.result()
+                    results[key] = future.result(timeout=180)
                     completed += 1
                     console.print(f"[success]✓ {label} analyzed ({completed}/{total})", style="success")
                 except KeyboardInterrupt:
                     raise
+                except TimeoutError:
+                    console.print(f"[warning]✗ {label} analysis timed out after 180s", style="warning")
+                    results[key] = None
                 except Exception as e:
                     console.print(f"[warning]✗ {label} analysis failed: {e}", style="warning")
                     results[key] = None
@@ -652,6 +658,104 @@ def _generate_artifacts(
     return artifacts
 
 
+def _check_repository_activity(
+    collection: CollectionResult, repo_input: str, months: int
+) -> None:
+    """Check if repository has any activity and exit if not.
+
+    Args:
+        collection: Collection result to check
+        repo_input: Repository name
+        months: Number of months analyzed
+
+    Raises:
+        typer.Exit: If no activity is found
+    """
+    if (collection.commits == 0 and collection.pull_requests == 0 and
+        collection.reviews == 0 and collection.issues == 0):
+        console.print("[warning]No activity found in the repository for the specified period.[/]")
+        console.print(f"[info]Repository:[/] {repo_input}")
+        console.print(f"[info]Period:[/] Last {months} months")
+        console.print("[info]Suggestions:[/]")
+        console.print("  • Try increasing the analysis period: [accent]ghf init --months 24[/]")
+        console.print("  • Verify the repository has commits, PRs, or issues")
+        console.print("  • Check if your PAT has access to this repository")
+        raise typer.Exit(code=1)
+
+
+def _collect_yearend_data(
+    collector: Collector,
+    repo_input: str,
+    since: datetime,
+    filters: AnalysisFilters,
+) -> tuple[Optional[Any], Optional[Any], Optional[Any]]:
+    """Collect year-end review data in parallel.
+
+    Args:
+        collector: Data collector instance
+        repo_input: Repository name
+        since: Start date for data collection
+        filters: Analysis filters
+
+    Returns:
+        Tuple of (monthly_trends_data, tech_stack_data, collaboration_data)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    console.print("[accent]Collecting year-end review data in parallel...", style="accent")
+
+    # Get PR metadata once for reuse
+    _, pr_metadata = collector.list_pull_requests(repo_input, since, filters)
+
+    yearend_tasks = {
+        "monthly_trends": (
+            collector.collect_monthly_trends,
+            (repo_input, since, filters),
+            "monthly trends"
+        ),
+        "tech_stack": (
+            collector.collect_tech_stack,
+            (repo_input, pr_metadata),
+            "tech stack"
+        ),
+        "collaboration": (
+            collector.collect_collaboration_network,
+            (repo_input, pr_metadata, filters),
+            "collaboration network"
+        ),
+    }
+
+    yearend_data = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {
+            executor.submit(func, *args): (key, label)
+            for key, (func, args, label) in yearend_tasks.items()
+        }
+
+        completed = 0
+        total = len(futures)
+        for future in as_completed(futures, timeout=180):
+            key, label = futures[future]
+            try:
+                yearend_data[key] = future.result(timeout=180)
+                completed += 1
+                console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
+            except KeyboardInterrupt:
+                raise
+            except TimeoutError:
+                console.print(f"[warning]✗ {label} collection timed out after 180s", style="warning")
+                yearend_data[key] = None
+            except Exception as exc:
+                console.print(f"[warning]✗ {label} collection failed: {exc}", style="warning")
+                yearend_data[key] = None
+
+    return (
+        yearend_data.get("monthly_trends"),
+        yearend_data.get("tech_stack"),
+        yearend_data.get("collaboration"),
+    )
+
+
 @app.command()
 def brief(
     repo: Optional[str] = typer.Option(
@@ -729,16 +833,7 @@ def brief(
         collection = collector.collect(repo=repo_input, months=months, filters=filters)
 
     # Check if repository has any activity
-    if (collection.commits == 0 and collection.pull_requests == 0 and
-        collection.reviews == 0 and collection.issues == 0):
-        console.print("[warning]No activity found in the repository for the specified period.[/]")
-        console.print(f"[info]Repository:[/] {repo_input}")
-        console.print(f"[info]Period:[/] Last {months} months")
-        console.print("[info]Suggestions:[/]")
-        console.print("  • Try increasing the analysis period: [accent]ghf init --months 24[/]")
-        console.print("  • Verify the repository has commits, PRs, or issues")
-        console.print("  • Check if your PAT has access to this repository")
-        raise typer.Exit(code=1)
+    _check_repository_activity(collection, repo_input, months)
 
     # Phase 2: Collect detailed feedback
     since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
@@ -747,55 +842,9 @@ def brief(
     )
 
     # Phase 2.5: Collect year-end review data in parallel
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    console.print("[accent]Collecting year-end review data in parallel...", style="accent")
-
-    # Get PR metadata once for reuse
-    _, pr_metadata = collector.pr_collector.list_pull_requests(repo_input, since, filters)
-
-    yearend_tasks = {
-        "monthly_trends": (
-            collector.collect_monthly_trends,
-            (repo_input, since, filters),
-            "monthly trends"
-        ),
-        "tech_stack": (
-            collector.collect_tech_stack,
-            (repo_input, pr_metadata),
-            "tech stack"
-        ),
-        "collaboration": (
-            collector.collect_collaboration_network,
-            (repo_input, pr_metadata, filters),
-            "collaboration network"
-        ),
-    }
-
-    yearend_data = {}
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {
-            executor.submit(func, *args): (key, label)
-            for key, (func, args, label) in yearend_tasks.items()
-        }
-
-        completed = 0
-        total = len(futures)
-        for future in as_completed(futures):
-            key, label = futures[future]
-            try:
-                yearend_data[key] = future.result()
-                completed += 1
-                console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
-            except KeyboardInterrupt:
-                raise
-            except Exception as exc:
-                console.print(f"[warning]✗ {label} collection failed: {exc}", style="warning")
-                yearend_data[key] = None
-
-    monthly_trends_data = yearend_data.get("monthly_trends")
-    tech_stack_data = yearend_data.get("tech_stack")
-    collaboration_data = yearend_data.get("collaboration")
+    monthly_trends_data, tech_stack_data, collaboration_data = _collect_yearend_data(
+        collector, repo_input, since, filters
+    )
 
     # Phase 3: Compute metrics
     with console.status("[accent]Synthesizing insights...", spinner="dots"):
