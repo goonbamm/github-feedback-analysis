@@ -233,6 +233,14 @@ class ReviewCollector(BaseCollector):
         Returns:
             True if PR matches filters
         """
+        # Early exit if no file filters are specified
+        if not (
+            filters.include_paths
+            or filters.exclude_paths
+            or filters.include_languages
+        ):
+            return True
+
         # Get PR files from cache or fetch from API
         number = int(pr.get("number", 0))
         files = cache.get(number)

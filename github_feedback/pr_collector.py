@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
@@ -102,10 +103,8 @@ class PullRequestCollector(BaseCollector):
             f"repos/{repo}/issues", base_params=params, per_page=100
         )
 
-        # Filter for pull requests only and fetch full PR data
-        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
-        metadata: List[Dict[str, Any]] = []
-
+        # Filter issues for PRs and date range
+        pr_numbers_to_fetch = []
         for issue in all_issues:
             # Skip non-PRs
             if "pull_request" not in issue:
@@ -118,17 +117,37 @@ class PullRequestCollector(BaseCollector):
                 if created_at < since:
                     continue
 
-            # Fetch full PR data (issue API doesn't include all PR fields)
             pr_number = issue.get("number")
-            if not pr_number:
-                continue
+            if pr_number:
+                pr_numbers_to_fetch.append(pr_number)
 
+        # Fetch full PR data in parallel (solving N+1 query problem)
+        def fetch_pr_data(pr_number: int) -> Optional[Dict[str, Any]]:
+            """Fetch PR data with error handling."""
             try:
-                pr = self.api_client.request_json(f"repos/{repo}/pulls/{pr_number}")
-            except Exception:
-                # If PR fetch fails, skip it
-                continue
+                return self.api_client.request_json(f"repos/{repo}/pulls/{pr_number}")
+            except Exception as exc:
+                logger.warning(f"Failed to fetch PR #{pr_number}: {exc}")
+                return None
 
+        # Parallel fetch of PR details
+        prs_raw: List[Dict[str, Any]] = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_pr = {
+                executor.submit(fetch_pr_data, pr_num): pr_num
+                for pr_num in pr_numbers_to_fetch
+            }
+
+            for future in as_completed(future_to_pr):
+                pr_data = future.result()
+                if pr_data:
+                    prs_raw.append(pr_data)
+
+        # Apply filters to fetched PRs
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+        metadata: List[Dict[str, Any]] = []
+
+        for pr in prs_raw:
             # Apply filters
             author_obj = pr.get("user")
             if self.filter_bot(author_obj, filters):
@@ -394,6 +413,14 @@ class PullRequestCollector(BaseCollector):
         Returns:
             True if PR matches filters
         """
+        # Early exit if no file filters are specified
+        if not (
+            filters.include_paths
+            or filters.exclude_paths
+            or filters.include_languages
+        ):
+            return True
+
         # Get PR files from cache or fetch from API
         number = int(pr.get("number", 0))
         files = cache.get(number)

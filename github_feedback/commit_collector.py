@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -29,19 +30,32 @@ class CommitCollector(BaseCollector):
         Returns:
             Number of commits matching filters
         """
-        total = 0
-        seen_shas: Set[str] = set()
         include_branches = self._get_branches_to_process(repo, filters)
 
         if not include_branches:
             return 0
 
-        path_filters = filters.include_paths or [None]
-        commit_file_cache: Dict[str, List[str]] = {}
+        # Check if we need file filtering
+        has_file_filters = bool(
+            filters.include_paths
+            or filters.exclude_paths
+            or filters.include_languages
+        )
 
-        for branch in include_branches:
+        # Use shared cache across all branches to avoid duplicate fetches
+        commit_file_cache: Dict[str, List[str]] = {}
+        seen_shas: Set[str] = set()
+
+        # Process branches in parallel for better performance
+        def count_commits_for_branch(branch: Optional[str]) -> tuple[int, Set[str], Dict[str, List[str]]]:
+            """Count commits for a single branch."""
+            local_count = 0
+            local_shas: Set[str] = set()
+            local_cache: Dict[str, List[str]] = {}
+
+            path_filters = filters.include_paths or [None]
+
             for path_filter in path_filters:
-                page = 1
                 base_params: Dict[str, Any] = {
                     "since": since.isoformat(),
                     "per_page": 100,
@@ -53,31 +67,60 @@ class CommitCollector(BaseCollector):
                 if author:
                     base_params["author"] = author
 
-                while True:
-                    page_params = base_params | {"page": page}
-                    data = self.api_client.request_list(
-                        f"repos/{repo}/commits", page_params
-                    )
-                    if not data:
-                        break
+                # Use paginate helper for cleaner code
+                commits_data = self.api_client.paginate(
+                    f"repos/{repo}/commits",
+                    base_params=base_params,
+                    per_page=100,
+                )
 
-                    for commit in data:
-                        author = commit.get("author")
-                        if self.filter_bot(author, filters):
-                            continue
-                        sha = commit.get("sha")
-                        if not sha or sha in seen_shas:
-                            continue
+                for commit in commits_data:
+                    commit_author = commit.get("author")
+                    if self.filter_bot(commit_author, filters):
+                        continue
+
+                    sha = commit.get("sha")
+                    if not sha or sha in local_shas:
+                        continue
+
+                    # Only check file filters if needed
+                    if has_file_filters:
                         if not self._commit_matches_path_filters(
-                            repo, sha, filters, commit_file_cache
+                            repo, sha, filters, local_cache
                         ):
                             continue
-                        seen_shas.add(sha)
-                        total += 1
 
-                    if len(data) < 100:
-                        break
-                    page += 1
+                    local_shas.add(sha)
+                    local_count += 1
+
+            return local_count, local_shas, local_cache
+
+        # For single branch, no need for parallelization overhead
+        if len(include_branches) == 1:
+            total, seen_shas, commit_file_cache = count_commits_for_branch(include_branches[0])
+            return total
+
+        # Parallel processing for multiple branches
+        total = 0
+        with ThreadPoolExecutor(max_workers=min(3, len(include_branches))) as executor:
+            futures = {
+                executor.submit(count_commits_for_branch, branch): branch
+                for branch in include_branches
+            }
+
+            for future in as_completed(futures):
+                branch = futures[future]
+                try:
+                    count, shas, cache = future.result()
+                    # Merge results, avoiding duplicates
+                    for sha in shas:
+                        if sha not in seen_shas:
+                            seen_shas.add(sha)
+                            total += 1
+                    # Merge cache
+                    commit_file_cache.update(cache)
+                except Exception as exc:
+                    logger.warning(f"Failed to count commits for branch {branch}: {exc}")
 
         return total
 
