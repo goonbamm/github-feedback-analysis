@@ -163,8 +163,8 @@ def test_reviewer_persists_outputs(tmp_path, monkeypatch):
 
     assert "cache.py" in artefacts
     assert "Pull request #7" in summary
-    assert "## Strengths" in markdown
-    assert "## Areas To Improve" in markdown
+    assert "## 장점" in markdown
+    assert "## 개선할 부분" in markdown
 
 
 def test_llm_client_falls_back_when_json_object_not_supported(monkeypatch):
