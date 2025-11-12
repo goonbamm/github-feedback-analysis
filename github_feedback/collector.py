@@ -294,3 +294,16 @@ class Collector:
             List of repository dictionaries
         """
         return self.repository_manager.search_repositories(query, sort, limit)
+
+    def close(self) -> None:
+        """Close API client and release resources."""
+        if hasattr(self, 'api_client') and self.api_client is not None:
+            self.api_client.close()
+
+    def __enter__(self) -> "Collector":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit - close resources."""
+        self.close()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 import requests
@@ -80,10 +81,39 @@ class GitHubApiClient:
         timeout = getattr(self.config, "api", None)
         return timeout.timeout if timeout else 30
 
+    def _get_max_retries(self) -> int:
+        """Get max retries from config.
+
+        Returns:
+            Maximum number of retries
+        """
+        api_config = getattr(self.config, "api", None)
+        return api_config.max_retries if api_config else 3
+
+    def _should_retry(self, exc: Exception) -> bool:
+        """Determine if request should be retried based on exception.
+
+        Args:
+            exc: Exception that occurred
+
+        Returns:
+            True if request should be retried
+        """
+        # Retry on network errors and rate limiting
+        if isinstance(exc, requests.ConnectionError):
+            return True
+        if isinstance(exc, requests.Timeout):
+            return True
+        if isinstance(exc, requests.HTTPError):
+            if exc.response is not None:
+                # Retry on rate limiting (403) and server errors (5xx)
+                return exc.response.status_code in (403, 429, 500, 502, 503, 504)
+        return False
+
     def request_list(
         self, path: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """Execute API request expecting list response.
+        """Execute API request expecting list response with retry logic.
 
         Args:
             path: API endpoint path
@@ -94,38 +124,57 @@ class GitHubApiClient:
 
         Raises:
             AuthenticationError: If authentication fails
-            ApiError: If request fails
+            ApiError: If request fails after retries
         """
-        try:
-            response = self._get_session().get(
-                self._build_api_url(path),
-                params=params,
-                timeout=self._get_timeout(),
-            )
+        logger.debug(f"Requesting list from {path}")
+        max_retries = self._get_max_retries()
+        last_exception = None
 
-            if response.status_code == 401:
-                raise AuthenticationError("GitHub API rejected the provided PAT")
-
-            response.raise_for_status()
-            payload = response.json()
-
-            if not isinstance(payload, list):
-                raise ApiError(
-                    f"Expected list response from {path}, got {type(payload).__name__}"
+        for attempt in range(max_retries + 1):
+            try:
+                response = self._get_session().get(
+                    self._build_api_url(path),
+                    params=params,
+                    timeout=self._get_timeout(),
                 )
 
-            return payload
+                if response.status_code == 401:
+                    raise AuthenticationError("GitHub API rejected the provided PAT")
 
-        except requests.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response else None
-            raise ApiError(f"API request failed: {path}", status_code) from exc
-        except requests.RequestException as exc:
-            raise ApiError(f"Network error for {path}: {exc}") from exc
+                response.raise_for_status()
+                payload = response.json()
+
+                if not isinstance(payload, list):
+                    raise ApiError(
+                        f"Expected list response from {path}, got {type(payload).__name__}"
+                    )
+
+                return payload
+
+            except requests.HTTPError as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    status_code = exc.response.status_code if exc.response else None
+                    raise ApiError(f"API request failed: {path}", status_code) from exc
+
+            except requests.RequestException as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    raise ApiError(f"Network error for {path}: {exc}") from exc
+
+            # Exponential backoff before retry
+            if attempt < max_retries:
+                sleep_time = 2 ** attempt  # 1s, 2s, 4s
+                logger.debug(f"Retrying {path} after {sleep_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(sleep_time)
+
+        # All retries exhausted
+        raise ApiError(f"Request failed after {max_retries} retries: {path}") from last_exception
 
     def request_json(
         self, path: str, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Execute API request expecting dict response.
+        """Execute API request expecting dict response with retry logic.
 
         Args:
             path: API endpoint path
@@ -136,33 +185,52 @@ class GitHubApiClient:
 
         Raises:
             AuthenticationError: If authentication fails
-            ApiError: If request fails
+            ApiError: If request fails after retries
         """
-        try:
-            response = self._get_session().get(
-                self._build_api_url(path),
-                params=params,
-                timeout=self._get_timeout(),
-            )
+        logger.debug(f"Requesting JSON from {path}")
+        max_retries = self._get_max_retries()
+        last_exception = None
 
-            if response.status_code == 401:
-                raise AuthenticationError("GitHub API rejected the provided PAT")
-
-            response.raise_for_status()
-            payload = response.json()
-
-            if not isinstance(payload, dict):
-                raise ApiError(
-                    f"Expected dict response from {path}, got {type(payload).__name__}"
+        for attempt in range(max_retries + 1):
+            try:
+                response = self._get_session().get(
+                    self._build_api_url(path),
+                    params=params,
+                    timeout=self._get_timeout(),
                 )
 
-            return payload
+                if response.status_code == 401:
+                    raise AuthenticationError("GitHub API rejected the provided PAT")
 
-        except requests.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response else None
-            raise ApiError(f"API request failed: {path}", status_code) from exc
-        except requests.RequestException as exc:
-            raise ApiError(f"Network error for {path}: {exc}") from exc
+                response.raise_for_status()
+                payload = response.json()
+
+                if not isinstance(payload, dict):
+                    raise ApiError(
+                        f"Expected dict response from {path}, got {type(payload).__name__}"
+                    )
+
+                return payload
+
+            except requests.HTTPError as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    status_code = exc.response.status_code if exc.response else None
+                    raise ApiError(f"API request failed: {path}", status_code) from exc
+
+            except requests.RequestException as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    raise ApiError(f"Network error for {path}: {exc}") from exc
+
+            # Exponential backoff before retry
+            if attempt < max_retries:
+                sleep_time = 2 ** attempt  # 1s, 2s, 4s
+                logger.debug(f"Retrying {path} after {sleep_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(sleep_time)
+
+        # All retries exhausted
+        raise ApiError(f"Request failed after {max_retries} retries: {path}") from last_exception
 
     def request_all(
         self, path: str, params: Optional[Dict[str, Any]] = None
@@ -176,22 +244,9 @@ class GitHubApiClient:
         Returns:
             All items from all pages
         """
-        results: List[Dict[str, Any]] = []
         base_params: Dict[str, Any] = dict(params or {})
         per_page = int(base_params.get("per_page") or 100)
-        page = 1
-
-        while True:
-            page_params = base_params | {"page": page, "per_page": per_page}
-            data = self.request_list(path, page_params)
-            if not data:
-                break
-            results.extend(data)
-            if len(data) < per_page:
-                break
-            page += 1
-
-        return results
+        return self.paginate(path, base_params, per_page=per_page)
 
     def paginate(
         self,
@@ -236,3 +291,17 @@ class GitHubApiClient:
             page += 1
 
         return results
+
+    def close(self) -> None:
+        """Close the requests session and release resources."""
+        if self.session is not None:
+            self.session.close()
+            self.session = None
+
+    def __enter__(self) -> "GitHubApiClient":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit - close session."""
+        self.close()
