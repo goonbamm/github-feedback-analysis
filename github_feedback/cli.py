@@ -765,6 +765,182 @@ def _collect_yearend_data(
     )
 
 
+def _run_feedback_analysis(
+    config: Config,
+    repo_input: str,
+    output_dir: Path,
+) -> tuple[Path | None, list[tuple[int, Path, Path, Path]]]:
+    """Run feedback analysis for all PRs authored by the authenticated user.
+
+    Args:
+        config: Configuration object
+        repo_input: Repository name in owner/repo format
+        output_dir: Output directory for review artifacts
+
+    Returns:
+        Tuple of (integrated_report_path, pr_results)
+        where pr_results is a list of (pr_number, artefact_path, summary_path, markdown_path)
+    """
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        return None, []
+
+    llm_client = LLMClient(
+        endpoint=config.llm.endpoint,
+        model=config.llm.model,
+        timeout=config.llm.timeout,
+        max_files_in_prompt=config.llm.max_files_in_prompt,
+        max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
+    )
+
+    reviewer = Reviewer(collector=collector, llm=llm_client)
+
+    # Get authenticated user
+    with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
+        try:
+            author = collector.get_authenticated_user()
+        except (ValueError, PermissionError) as exc:
+            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
+            return None, []
+
+    # Find user's PRs
+    with console.status("[accent]Finding your pull requests...", spinner="dots"):
+        numbers = collector.list_authored_pull_requests(
+            repo=repo_input,
+            author=author,
+            state="all",
+        )
+
+    if not numbers:
+        console.print(
+            f"[warning]No pull requests found authored by '{author}' in {repo_input}.[/]"
+        )
+        return None, []
+
+    pr_numbers = sorted(set(numbers))
+    total_prs = len(pr_numbers)
+    results = []
+
+    # Generate PR reviews
+    for idx, pr_number in enumerate(pr_numbers, 1):
+        with console.status(
+            f"[accent]Analyzing PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
+        ):
+            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
+                repo=repo_input,
+                number=pr_number,
+            )
+        results.append((pr_number, artefact_path, summary_path, markdown_path))
+        console.print(f"[success]✓ PR #{pr_number} reviewed ({idx}/{total_prs})", style="success")
+
+    # Generate integrated report
+    output_dir_resolved = _resolve_output_dir(output_dir)
+    review_reporter = ReviewReporter(
+        output_dir=output_dir_resolved,
+        llm=llm_client,
+    )
+
+    try:
+        with console.status("[accent]Creating integrated report...", spinner="dots"):
+            report_path = review_reporter.create_integrated_report(repo_input)
+    except ValueError as exc:
+        console.print(f"[warning]{exc}[/]")
+        return None, results
+
+    return report_path, results
+
+
+def _generate_integrated_full_report(
+    output_dir: Path,
+    repo_name: str,
+    brief_report_path: Path,
+    feedback_report_path: Path,
+) -> Path:
+    """Generate an integrated report combining brief and feedback reports.
+
+    Args:
+        output_dir: Output directory for the integrated report
+        repo_name: Repository name in owner/repo format
+        brief_report_path: Path to the brief report markdown file
+        feedback_report_path: Path to the feedback integrated report markdown file
+
+    Returns:
+        Path to the generated integrated report
+    """
+    # Read brief report
+    try:
+        with open(brief_report_path, "r", encoding="utf-8") as f:
+            brief_content = f.read()
+    except FileNotFoundError:
+        console.print(f"[warning]Brief report not found at {brief_report_path}[/]")
+        brief_content = "_Brief report not available._"
+
+    # Read feedback report
+    try:
+        with open(feedback_report_path, "r", encoding="utf-8") as f:
+            feedback_content = f.read()
+    except FileNotFoundError:
+        console.print(f"[warning]Feedback report not found at {feedback_report_path}[/]")
+        feedback_content = "_Feedback report not available._"
+
+    # Generate integrated report
+    integrated_content = f"""# {repo_name} 전체 분석 및 PR 리뷰 보고서
+
+이 보고서는 레포지토리 전체 분석(brief)과 PR 리뷰 분석(feedback)을 통합한 종합 보고서입니다.
+
+## 목차
+
+1. [레포지토리 개요 (Repository Brief)](#1-레포지토리-개요-repository-brief)
+2. [PR 리뷰 분석 (PR Feedback)](#2-pr-리뷰-분석-pr-feedback)
+3. [종합 요약](#3-종합-요약)
+
+---
+
+## 1. 레포지토리 개요 (Repository Brief)
+
+{brief_content}
+
+---
+
+## 2. PR 리뷰 분석 (PR Feedback)
+
+{feedback_content}
+
+---
+
+## 3. 종합 요약
+
+이 보고서는 **{repo_name}** 레포지토리에 대한 전체 분석과 PR 리뷰를 통합하여 제공합니다.
+
+### 주요 내용
+
+- **레포지토리 분석**: 커밋, PR, 리뷰, 이슈 등 전체 활동 지표와 인사이트
+- **PR 리뷰 분석**: 인증된 사용자의 PR들에 대한 AI 기반 상세 리뷰
+
+### 활용 방법
+
+1. **레포지토리 개요**: 프로젝트의 전체적인 건강도와 트렌드를 파악하세요
+2. **PR 리뷰**: 개별 PR의 강점과 개선 사항을 확인하여 코드 품질을 향상시키세요
+3. **지속적 개선**: 정기적으로 분석을 실행하여 팀의 성장을 추적하세요
+
+---
+
+*Generated by GitHub Feedback Analysis Tool*
+*Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
+"""
+
+    # Save integrated report
+    output_dir.mkdir(parents=True, exist_ok=True)
+    integrated_report_path = output_dir / "integrated_full_report.md"
+
+    with open(integrated_report_path, "w", encoding="utf-8") as f:
+        f.write(integrated_content)
+
+    return integrated_report_path
+
+
 @app.command()
 def brief(
     repo: Optional[str] = typer.Option(
@@ -785,6 +961,12 @@ def brief(
         "-i",
         help="Interactively select repository from suggestions",
     ),
+    with_feedback: bool = typer.Option(
+        False,
+        "--with-feedback",
+        "-f",
+        help="Include PR feedback analysis after repository brief",
+    ),
 ) -> None:
     """Analyze repository activity and generate detailed reports.
 
@@ -796,6 +978,7 @@ def brief(
         ghf brief --repo torvalds/linux
         ghf brief --repo myorg/myrepo --output custom_reports/
         ghf brief --interactive
+        ghf brief --repo myorg/myrepo --with-feedback
     """
     from datetime import datetime, timedelta, timezone
 
@@ -869,18 +1052,69 @@ def brief(
     metrics_payload = _prepare_metrics_payload(metrics)
     artifacts = _generate_artifacts(metrics, reporter, output_dir, metrics_payload)
 
-    # Phase 5: Display results
+    # Phase 5: Display brief results
     console.rule("Analysis Summary")
     _render_metrics(metrics)
     console.rule("Artifacts")
     for label, path in artifacts:
         console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
     console.print()
-    console.print("[success]✓ Analysis complete![/]")
+    console.print("[success]✓ Repository analysis complete![/]")
+
+    # Phase 6: Run feedback analysis if requested
+    feedback_report_path = None
+    pr_results = []
+    if with_feedback:
+        console.print()
+        console.rule("Phase 6: PR Feedback Analysis")
+        console.print("[accent]Running feedback analysis for your PRs...[/]")
+        console.print()
+
+        reviews_output_dir = Path("reviews")
+        feedback_report_path, pr_results = _run_feedback_analysis(
+            config=config,
+            repo_input=repo_input,
+            output_dir=reviews_output_dir,
+        )
+
+        if pr_results:
+            console.print()
+            console.print("[success]✓ Feedback analysis complete![/]")
+            console.print(f"[success]Analyzed {len(pr_results)} pull request(s)[/]")
+        else:
+            console.print()
+            console.print("[warning]No PRs found or feedback analysis failed.[/]")
+
+    # Phase 7: Generate integrated full report if feedback was run
+    if with_feedback and feedback_report_path:
+        console.print()
+        console.rule("Phase 7: Generating Integrated Report")
+
+        integrated_report_path = _generate_integrated_full_report(
+            output_dir=output_dir_resolved,
+            repo_name=repo_input,
+            brief_report_path=output_dir_resolved / "report.md",
+            feedback_report_path=feedback_report_path,
+        )
+
+        console.print()
+        console.print("[success]✓ Integrated report generated![/]")
+        console.print(f"[success]Full report:[/] [value]{integrated_report_path}[/]")
+
+    # Final summary
+    console.print()
+    console.rule("Summary")
+    console.print("[success]✓ All tasks complete![/]")
     console.print()
     console.print("[info]Next steps:[/]")
-    console.print("  • View the report: [accent]cat reports/report.md[/]")
-    console.print("  • Review your PRs: [accent]ghf feedback --repo {}[/]".format(repo_input))
+    if with_feedback and feedback_report_path:
+        console.print("  • View the integrated report: [accent]cat {}[/]".format(
+            output_dir_resolved / "integrated_full_report.md"
+        ))
+    else:
+        console.print("  • View the report: [accent]cat reports/report.md[/]")
+        console.print("  • Review your PRs: [accent]ghf feedback --repo {}[/]".format(repo_input))
+        console.print("  • Or run both together: [accent]ghf brief --repo {} --with-feedback[/]".format(repo_input))
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
