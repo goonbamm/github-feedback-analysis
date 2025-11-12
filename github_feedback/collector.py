@@ -22,6 +22,7 @@ from .models import (
     PullRequestSummary,
 )
 from .pr_collector import PullRequestCollector
+from .repository_manager import RepositoryManager
 from .review_collector import ReviewCollector
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class Collector:
         self.review_collector = ReviewCollector(self.config, self.api_client)
         self.issue_collector = IssueCollector(self.config, self.api_client)
         self.analytics_collector = AnalyticsCollector(self.config, self.api_client)
+        self.repository_manager = RepositoryManager(self.api_client)
 
     def collect(
         self,
@@ -200,3 +202,77 @@ class Collector:
         return self.analytics_collector.collect_collaboration_network(
             repo, pr_metadata, filters
         )
+
+    # Repository management methods
+    def list_user_repositories(
+        self,
+        sort: str = "updated",
+        affiliation: str = "owner,collaborator,organization_member",
+    ) -> List[Dict[str, Any]]:
+        """List repositories accessible to the authenticated user.
+
+        Args:
+            sort: Sort field (created, updated, pushed, full_name)
+            affiliation: Comma-separated list of affiliation types
+
+        Returns:
+            List of repository dictionaries with metadata
+        """
+        return self.repository_manager.get_user_repositories(sort, affiliation)
+
+    def list_org_repositories(
+        self, org: str, sort: str = "updated"
+    ) -> List[Dict[str, Any]]:
+        """List repositories for a specific organization.
+
+        Args:
+            org: Organization name
+            sort: Sort field (created, updated, pushed, full_name)
+
+        Returns:
+            List of repository dictionaries
+        """
+        return self.repository_manager.get_org_repositories(org, sort)
+
+    def list_user_organizations(self) -> List[Dict[str, Any]]:
+        """List organizations the authenticated user belongs to.
+
+        Returns:
+            List of organization dictionaries
+        """
+        return self.repository_manager.get_user_organizations()
+
+    def suggest_repositories(
+        self,
+        limit: int = 10,
+        min_activity_days: int = 90,
+        sort_by: str = "updated",
+    ) -> List[Dict[str, Any]]:
+        """Suggest repositories for analysis based on activity and recency.
+
+        Args:
+            limit: Maximum number of suggestions
+            min_activity_days: Filter repos updated within this many days
+            sort_by: Sorting criteria (updated, stars, activity)
+
+        Returns:
+            List of suggested repository dictionaries with metadata
+        """
+        return self.repository_manager.suggest_repositories(
+            limit, min_activity_days, sort_by
+        )
+
+    def search_repositories(
+        self, query: str, sort: str = "stars", limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Search for repositories matching a query.
+
+        Args:
+            query: Search query string
+            sort: Sort field (stars, forks, help-wanted-issues, updated)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of repository dictionaries
+        """
+        return self.repository_manager.search_repositories(query, sort, limit)
