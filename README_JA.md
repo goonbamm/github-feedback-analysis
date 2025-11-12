@@ -201,14 +201,8 @@ ghf feedback --repo owner/repo-name
 #### 例
 
 ```bash
-# すべてのPR（オープン + クローズ）をレビュー
-ghf feedback --repo myusername/my-project --state all
-
-# オープンなPRのみレビュー
-ghf feedback --repo myusername/my-project --state open
-
-# クローズされたPRのみレビュー
-ghf feedback --repo myusername/my-project --state closed
+# あなたが作成したすべてのPRをレビュー
+ghf feedback --repo myusername/my-project
 ```
 
 #### オプション説明
@@ -216,7 +210,6 @@ ghf feedback --repo myusername/my-project --state closed
 | オプション | 説明 | 必須 | デフォルト |
 |-----------|------|------|-----------|
 | `--repo` | リポジトリ（owner/name） | ✅ | - |
-| `--state` | PR状態（`open`、`closed`、`all`） | ❌ | `all` |
 
 #### 実行プロセス
 
@@ -501,7 +494,7 @@ ghf list-repos --sort updated --limit 10
 ghf brief --repo myname/my-awesome-project
 
 # 自分のPRを自動レビュー
-ghf feedback --repo myname/my-awesome-project --state all
+ghf feedback --repo myname/my-awesome-project
 
 # 統合振り返りレポートを表示
 cat reviews/myname_my-awesome-project/integrated_report.md
@@ -520,7 +513,7 @@ ghf config set defaults.months 6
 ghf brief --repo mycompany/product-service
 
 # チームメンバーのPRをレビュー（各自のPATで実行）
-ghf feedback --repo mycompany/product-service --state closed
+ghf feedback --repo mycompany/product-service
 ```
 
 ## 🎯 アワードシステム
