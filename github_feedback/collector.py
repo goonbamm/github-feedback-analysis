@@ -58,6 +58,7 @@ class Collector:
         repo: str,
         months: int,
         filters: Optional[AnalysisFilters] = None,
+        author: Optional[str] = None,
     ) -> CollectionResult:
         """Collect repository artefacts via the GitHub REST API.
 
@@ -65,6 +66,7 @@ class Collector:
             repo: Repository name (owner/repo)
             months: Number of months to collect data for
             filters: Optional analysis filters
+            author: Optional GitHub username to filter by author (for personal activity tracking)
 
         Returns:
             CollectionResult with all collected data
@@ -75,21 +77,22 @@ class Collector:
             "Collecting GitHub data",
             f"repo={repo}",
             f"months={months}",
+            f"author={author or 'all'}",
         )
 
         since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
         until = datetime.now(timezone.utc)
 
         # Delegate to specialized collectors
-        commits = self.commit_collector.count_commits(repo, since, filters)
+        commits = self.commit_collector.count_commits(repo, since, filters, author)
         pull_requests, pr_metadata = self.pr_collector.list_pull_requests(
-            repo, since, filters
+            repo, since, filters, author
         )
         pull_request_examples = self.pr_collector.build_pull_request_examples(
             pr_metadata
         )
         reviews = self.review_collector.count_reviews(repo, pr_metadata, since, filters)
-        issues = self.issue_collector.count_issues(repo, since, filters)
+        issues = self.issue_collector.count_issues(repo, since, filters, author)
 
         return CollectionResult(
             repo=repo,
@@ -112,10 +115,11 @@ class Collector:
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect commit messages for quality analysis."""
         return self.commit_collector.collect_commit_messages(
-            repo, since, filters, limit
+            repo, since, filters, limit, author
         )
 
     # Pull request methods
@@ -160,9 +164,10 @@ class Collector:
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect pull request titles for quality analysis."""
-        return self.pr_collector.collect_pr_titles(repo, since, filters, limit)
+        return self.pr_collector.collect_pr_titles(repo, since, filters, limit, author)
 
     # Review methods
     def get_authenticated_user(self) -> str:
@@ -175,10 +180,11 @@ class Collector:
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect review comments for tone analysis."""
         return self.review_collector.collect_review_comments_detailed(
-            repo, since, filters, limit
+            repo, since, filters, limit, author
         )
 
     # Issue methods
@@ -188,9 +194,10 @@ class Collector:
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect issue details for quality analysis."""
-        return self.issue_collector.collect_issue_details(repo, since, filters, limit)
+        return self.issue_collector.collect_issue_details(repo, since, filters, limit, author)
 
     # Analytics methods
     def collect_monthly_trends(

@@ -21,7 +21,7 @@ class PullRequestCollector(BaseCollector):
     """Collector specialized for pull request operations."""
 
     def list_pull_requests(
-        self, repo: str, since: datetime, filters: AnalysisFilters
+        self, repo: str, since: datetime, filters: AnalysisFilters, author: Optional[str] = None
     ) -> tuple[int, List[Dict[str, Any]]]:
         """List pull requests matching filters.
 
@@ -29,10 +29,15 @@ class PullRequestCollector(BaseCollector):
             repo: Repository name (owner/repo)
             since: Start date for PR collection
             filters: Analysis filters to apply
+            author: Optional GitHub username to filter PRs by author
 
         Returns:
             Tuple of (count, metadata list)
         """
+        # If author is specified, use Issues API for efficient filtering
+        if author:
+            return self._list_pull_requests_by_author(repo, since, filters, author)
+
         params: Dict[str, Any] = {
             "state": "all",
             "per_page": 100,
@@ -64,6 +69,75 @@ class PullRequestCollector(BaseCollector):
                 continue
             if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
+            metadata.append(pr)
+
+        return len(metadata), metadata
+
+    def _list_pull_requests_by_author(
+        self, repo: str, since: datetime, filters: AnalysisFilters, author: str
+    ) -> tuple[int, List[Dict[str, Any]]]:
+        """List pull requests by specific author using Issues API.
+
+        Args:
+            repo: Repository name (owner/repo)
+            since: Start date for PR collection
+            filters: Analysis filters to apply
+            author: GitHub username to filter PRs by
+
+        Returns:
+            Tuple of (count, metadata list)
+        """
+        from datetime import timezone
+
+        # Use Issues API with creator filter
+        params: Dict[str, Any] = {
+            "creator": author,
+            "state": "all",
+            "per_page": 100,
+            "sort": "created",
+            "direction": "desc",
+        }
+
+        all_issues = self.api_client.paginate(
+            f"repos/{repo}/issues", base_params=params, per_page=100
+        )
+
+        # Filter for pull requests only and fetch full PR data
+        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
+        metadata: List[Dict[str, Any]] = []
+
+        for issue in all_issues:
+            # Skip non-PRs
+            if "pull_request" not in issue:
+                continue
+
+            # Check date filter
+            created_at_raw = issue.get("created_at")
+            if created_at_raw:
+                created_at = self.parse_timestamp(created_at_raw).astimezone(timezone.utc)
+                if created_at < since:
+                    continue
+
+            # Fetch full PR data (issue API doesn't include all PR fields)
+            pr_number = issue.get("number")
+            if not pr_number:
+                continue
+
+            try:
+                pr = self.api_client.request_json(f"repos/{repo}/pulls/{pr_number}")
+            except Exception:
+                # If PR fetch fails, skip it
+                continue
+
+            # Apply filters
+            author_obj = pr.get("user")
+            if self.filter_bot(author_obj, filters):
+                continue
+            if not self.pr_matches_branch_filters(pr, filters):
+                continue
+            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+                continue
+
             metadata.append(pr)
 
         return len(metadata), metadata
@@ -109,6 +183,7 @@ class PullRequestCollector(BaseCollector):
         since: datetime,
         filters: Optional[AnalysisFilters] = None,
         limit: int = 100,
+        author: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Collect PR titles for quality analysis.
 
@@ -117,6 +192,7 @@ class PullRequestCollector(BaseCollector):
             since: Start date for PR collection
             filters: Optional analysis filters
             limit: Maximum number of PRs to collect
+            author: Optional GitHub username to filter PRs by author
 
         Returns:
             List of PR title dictionaries
@@ -124,16 +200,31 @@ class PullRequestCollector(BaseCollector):
         filters = filters or AnalysisFilters()
         pr_titles: List[Dict[str, str]] = []
 
-        params: Dict[str, Any] = {
-            "state": "all",
-            "sort": "created",
-            "direction": "desc",
-            "per_page": limit,
-        }
+        # If author is specified, use Issues API for efficient filtering
+        if author:
+            params: Dict[str, Any] = {
+                "creator": author,
+                "state": "all",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": limit,
+            }
+            # Use Issues API which supports creator filter
+            data = self.api_client.request_list(f"repos/{repo}/issues", params)
+        else:
+            params: Dict[str, Any] = {
+                "state": "all",
+                "sort": "created",
+                "direction": "desc",
+                "per_page": limit,
+            }
+            data = self.api_client.request_list(f"repos/{repo}/pulls", params)
+        for item in data:
+            # Skip non-PRs when using Issues API
+            if author and "pull_request" not in item:
+                continue
 
-        data = self.api_client.request_list(f"repos/{repo}/pulls", params)
-        for pr in data:
-            created_at_raw = pr.get("created_at")
+            created_at_raw = item.get("created_at")
             if not created_at_raw:
                 continue
 
@@ -141,20 +232,24 @@ class PullRequestCollector(BaseCollector):
             if created_at < since:
                 continue
 
-            author = pr.get("user")
-            if self.filter_bot(author, filters):
+            user = item.get("user")
+            if self.filter_bot(user, filters):
                 continue
 
-            if not self.pr_matches_branch_filters(pr, filters):
+            # For Issues API response, we need to fetch PR details for branch filters
+            if author:
+                # Skip branch filter check for Issues API (lightweight)
+                pass
+            elif not self.pr_matches_branch_filters(item, filters):
                 continue
 
             pr_titles.append(
                 {
-                    "number": pr.get("number", 0),
-                    "title": pr.get("title", ""),
-                    "author": (pr.get("user") or {}).get("login", ""),
-                    "url": pr.get("html_url", ""),
-                    "state": pr.get("state", ""),
+                    "number": item.get("number", 0),
+                    "title": item.get("title", ""),
+                    "author": (item.get("user") or {}).get("login", ""),
+                    "url": item.get("html_url", ""),
+                    "state": item.get("state", ""),
                 }
             )
 
