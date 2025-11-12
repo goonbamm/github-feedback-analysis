@@ -391,7 +391,7 @@ def _render_metrics(metrics: MetricSnapshot) -> None:
         for key, value in metrics.summary.items():
             summary_grid.add_row(key.title(), str(value))
 
-        summary_panel = Panel(summary_grid, border_style="frame", title="Pulse Check", title_align="left")
+        summary_panel = Panel(summary_grid, border_style="frame", title="핵심 지표", title_align="left")
     else:
         summary_panel = Panel(Text("No summary metrics available", style="muted"), border_style="frame")
 
