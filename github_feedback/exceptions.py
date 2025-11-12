@@ -96,6 +96,20 @@ class RepositoryAccessDeniedError(CollectionError):
     pass
 
 
+class ApiError(CollectionError):
+    """Raised when GitHub API request fails."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        """Initialize API error.
+
+        Args:
+            message: Error message
+            status_code: HTTP status code if available
+        """
+        super().__init__(message)
+        self.status_code = status_code
+
+
 # =============================================================================
 # Analysis Errors
 # =============================================================================

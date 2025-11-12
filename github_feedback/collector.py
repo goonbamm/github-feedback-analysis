@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -74,7 +75,7 @@ class Collector:
         filters = filters or AnalysisFilters()
 
         console.log(
-            "Collecting GitHub data",
+            "Collecting GitHub data (parallel mode)",
             f"repo={repo}",
             f"months={months}",
             f"author={author or 'all'}",
@@ -83,16 +84,49 @@ class Collector:
         since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
         until = datetime.now(timezone.utc)
 
-        # Delegate to specialized collectors
-        commits = self.commit_collector.count_commits(repo, since, filters, author)
-        pull_requests, pr_metadata = self.pr_collector.list_pull_requests(
-            repo, since, filters, author
+        # Phase 1: Parallel collection of independent data
+        # (commits, PRs, and issues can be collected in parallel)
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            console.log("Phase 1: Collecting commits, PRs, and issues in parallel")
+
+            future_commits = executor.submit(
+                self.commit_collector.count_commits, repo, since, filters, author
+            )
+            future_prs = executor.submit(
+                self.pr_collector.list_pull_requests, repo, since, filters, author
+            )
+            future_issues = executor.submit(
+                self.issue_collector.count_issues, repo, since, filters, author
+            )
+
+            # Wait for all to complete
+            commits = future_commits.result()
+            pull_requests, pr_metadata = future_prs.result()
+            issues = future_issues.result()
+
+        console.log(
+            "Phase 1 complete",
+            f"commits={commits}",
+            f"pull_requests={pull_requests}",
+            f"issues={issues}",
         )
-        pull_request_examples = self.pr_collector.build_pull_request_examples(
-            pr_metadata
-        )
-        reviews = self.review_collector.count_reviews(repo, pr_metadata, since, filters)
-        issues = self.issue_collector.count_issues(repo, since, filters, author)
+
+        # Phase 2: Process dependent data in parallel
+        # (PR examples and reviews depend on pr_metadata)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            console.log("Phase 2: Building PR examples and counting reviews in parallel")
+
+            future_examples = executor.submit(
+                self.pr_collector.build_pull_request_examples, pr_metadata
+            )
+            future_reviews = executor.submit(
+                self.review_collector.count_reviews, repo, pr_metadata, since, filters
+            )
+
+            pull_request_examples = future_examples.result()
+            reviews = future_reviews.result()
+
+        console.log("Phase 2 complete", f"reviews={reviews}")
 
         return CollectionResult(
             repo=repo,
