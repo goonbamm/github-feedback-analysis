@@ -24,6 +24,9 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
 
 ## 🔑 GitHub Personal Access Token 발급
 
+<details>
+<summary><b>📖 토큰 발급 방법 보기 (클릭하여 펼치기)</b></summary>
+
 이 도구를 사용하려면 GitHub Personal Access Token(PAT)이 필요합니다.
 
 ### 발급 방법
@@ -87,6 +90,8 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
 - [GitHub 공식 문서: Fine-grained PAT](https://docs.github.com/ko/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 - [GitHub Enterprise Server 문서](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
+</details>
+
 ## 🔧 설치
 
 ```bash
@@ -137,7 +142,8 @@ cat reports/report.md
 
 ## 📚 명령어 상세 가이드
 
-### 🎯 `gfainit` - 초기 설정
+<details>
+<summary><b>🎯 gfainit - 초기 설정</b></summary>
 
 GitHub 접속 정보와 LLM 설정을 저장합니다.
 
@@ -177,7 +183,10 @@ gfainit \
 | `--months` | 기본 분석 기간 (개월) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 호스트 | ❌ | github.com |
 
-### 📊 `gfa feedback` - 저장소 분석
+</details>
+
+<details>
+<summary><b>📊 gfa feedback - 저장소 분석</b></summary>
 
 저장소를 분석하고 상세 피드백 보고서를 생성합니다.
 
@@ -252,7 +261,10 @@ reports/
 - 🏆 **어워드**: 기여도에 따른 자동 어워드 부여
 - 📈 **트렌드**: 월별 활동 추이 및 속도 분석
 
-### 🎯 `gfafeedback` - PR 자동 리뷰
+</details>
+
+<details>
+<summary><b>🎯 gfafeedback - PR 자동 리뷰</b></summary>
 
 인증된 사용자(PAT 소유자)의 PR을 자동으로 리뷰하고 통합 회고 보고서를 생성합니다.
 
@@ -303,7 +315,10 @@ reviews/
     └── integrated_report.md        # 통합 회고 보고서
 ```
 
-### ⚙️ `gfaconfig` - 설정 관리
+</details>
+
+<details>
+<summary><b>⚙️ gfaconfig - 설정 관리</b></summary>
 
 설정을 확인하거나 수정합니다.
 
@@ -374,7 +389,10 @@ gfaconfig get llm.model
 gfaconfig get defaults.months
 ```
 
-### 🔍 `gfalist-repos` - 저장소 목록
+</details>
+
+<details>
+<summary><b>🔍 gfalist-repos - 저장소 목록</b></summary>
 
 접근 가능한 저장소 목록을 조회합니다.
 
@@ -406,7 +424,10 @@ gfalist-repos --sort created --limit 50
 | `--limit`, `-l` | 최대 표시 개수 | 20 |
 | `--org`, `-o` | 조직 이름으로 필터링 | - |
 
-### 💡 `gfasuggest-repos` - 저장소 추천
+</details>
+
+<details>
+<summary><b>💡 gfasuggest-repos - 저장소 추천</b></summary>
 
 분석하기 좋은 활성 저장소를 추천합니다.
 
@@ -440,15 +461,23 @@ gfasuggest-repos --sort activity
 | `--days`, `-d` | 최근 활동 기간 (일) | 90 |
 | `--sort`, `-s` | 정렬 기준 (updated, stars, activity) | activity |
 
+</details>
+
 ## 📁 설정 파일
+
+<details>
+<summary><b>⚙️ 설정 파일 구조 보기</b></summary>
 
 설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gfainit` 실행 시 자동으로 생성됩니다.
 
 ### 설정 파일 예시
 
 ```toml
+[version]
+version = "1.0.0"
+
 [auth]
-pat = "<set>"  # 보안을 위해 실제 값은 표시되지 않음
+# PAT는 시스템 키링에 안전하게 저장됩니다 (이 파일에 저장되지 않음)
 
 [server]
 api_url = "https://api.github.com"
@@ -458,6 +487,9 @@ web_url = "https://github.com"
 [llm]
 endpoint = "http://localhost:8000/v1/chat/completions"
 model = "gpt-4"
+timeout = 60
+max_files_in_prompt = 10
+max_retries = 3
 
 [defaults]
 months = 12
@@ -476,7 +508,12 @@ gfaconfig show
 nano ~/.config/github_feedback/config.toml
 ```
 
+</details>
+
 ## 📊 생성되는 파일 구조
+
+<details>
+<summary><b>📁 출력 파일 구조 보기</b></summary>
 
 ### `gfa feedback` 출력
 
@@ -511,7 +548,12 @@ reviews/
     └── integrated_report.md        # 🎯 통합 회고 보고서 (모든 PR 종합)
 ```
 
+</details>
+
 ## 💡 사용 예시
+
+<details>
+<summary><b>📚 사용 시나리오 예시 보기</b></summary>
 
 ### 예시 1: 빠른 시작 - 대화형 모드
 
@@ -571,10 +613,15 @@ gfaconfig set defaults.months 6
 gfa feedback --repo mycompany/product-service
 
 # 팀원별 PR 리뷰 (각자 PAT로 실행)
-gfafeedback --repo mycompany/product-service --state closed
+gfafeedback --repo mycompany/product-service
 ```
 
+</details>
+
 ## 🎯 어워드 시스템
+
+<details>
+<summary><b>🏆 어워드 목록 보기</b></summary>
 
 저장소 활동에 따라 자동으로 어워드가 부여됩니다:
 
@@ -606,7 +653,12 @@ gfafeedback --repo mycompany/product-service --state closed
 - 📅 **꾸준함의 달인** (6개월 이상 지속적 활동)
 - 🌟 **다재다능** (모든 영역 균형있는 기여)
 
+</details>
+
 ## 🐛 문제 해결
+
+<details>
+<summary><b>🔧 트러블슈팅 가이드 보기</b></summary>
 
 ### PAT 권한 오류
 
@@ -651,7 +703,12 @@ Error: Repository not found
 - 분석 기간을 늘려보세요: `gfainit --months 24`
 - 저장소가 활성화된 저장소인지 확인
 
+</details>
+
 ## 👩‍💻 개발자 가이드
+
+<details>
+<summary><b>🛠️ 개발 환경 설정 보기</b></summary>
 
 ### 개발 환경 설정
 
@@ -688,6 +745,14 @@ github_feedback/
 ├── models.py          # 📦 데이터 모델
 └── utils.py           # 🔧 유틸리티 함수
 ```
+
+</details>
+
+## 🔒 보안
+
+- **PAT 저장**: GitHub 토큰은 시스템 키링에 안전하게 저장됩니다 (평문 파일에 저장되지 않음)
+- **설정 백업**: 설정 파일 덮어쓰기 전 자동으로 백업 생성
+- **입력 검증**: 모든 사용자 입력 검증 (PAT 형식, URL 형식, 저장소 형식)
 
 ## 📄 라이선스
 

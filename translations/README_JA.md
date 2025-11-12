@@ -24,6 +24,9 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
 
 ## 🔑 GitHub Personal Access Token の発行
 
+<details>
+<summary><b>🔑 GitHub Personal Access Token の発行方法</b></summary>
+
 このツールを使用するには、GitHub Personal Access Token（PAT）が必要です。
 
 ### 発行手順
@@ -87,6 +90,8 @@ GitHubリポジトリのアクティビティを分析し、インサイトに�
 - [GitHub公式ドキュメント：Fine-grained PAT](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 - [GitHub Enterprise Server ドキュメント](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
+</details>
+
 ## 🔧 インストール
 
 ```bash
@@ -137,7 +142,8 @@ cat reports/report.md
 
 ## 📚 コマンドリファレンス
 
-### 🎯 `gfainit` - 初期設定
+<details>
+<summary><b>🎯 `gfainit` - 初期設定</b></summary>
 
 GitHubアクセス情報とLLM設定を保存します。
 
@@ -177,7 +183,10 @@ gfainit \
 | `--months` | デフォルト分析期間（月） | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterpriseホスト | ❌ | github.com |
 
-### 📊 `gfa feedback` - リポジトリ分析
+</details>
+
+<details>
+<summary><b>📊 `gfa feedback` - リポジトリ分析</b></summary>
 
 リポジトリを分析し、詳細なフィードバックレポートを生成します。
 
@@ -253,7 +262,10 @@ reports/
 - 🏆 **アワード**：貢献度に基づく自動アワード
 - 📈 **トレンド**：月次アクティビティトレンドと速度分析
 
-### 🎯 `gfafeedback` - 自動PRレビュー
+</details>
+
+<details>
+<summary><b>🎯 `gfafeedback` - 自動PRレビュー</b></summary>
 
 認証ユーザー（PATオーナー）のPRを自動レビューし、統合振り返りレポートを生成します。
 
@@ -304,7 +316,10 @@ reviews/
     └── integrated_report.md        # 統合振り返りレポート
 ```
 
-### ⚙️ `gfaconfig` - 設定管理
+</details>
+
+<details>
+<summary><b>⚙️ `gfaconfig` - 設定管理</b></summary>
 
 設定を確認または変更します。
 
@@ -375,7 +390,10 @@ gfaconfig get llm.model
 gfaconfig get defaults.months
 ```
 
-### 🔍 `gfalist-repos` - リポジトリ一覧
+</details>
+
+<details>
+<summary><b>🔍 `gfalist-repos` - リポジトリ一覧</b></summary>
 
 アクセス可能なリポジトリをリストします。
 
@@ -407,7 +425,10 @@ gfalist-repos --sort created --limit 50
 | `--limit`, `-l` | 最大表示数 | 20 |
 | `--org`, `-o` | 組織名でフィルタ | - |
 
-### 💡 `gfasuggest-repos` - リポジトリ推奨
+</details>
+
+<details>
+<summary><b>💡 `gfasuggest-repos` - リポジトリ推奨</b></summary>
 
 分析に適したアクティブなリポジトリを推奨します。
 
@@ -441,7 +462,12 @@ gfasuggest-repos --sort activity
 | `--days`, `-d` | 最近のアクティビティ期間（日） | 90 |
 | `--sort`, `-s` | ソート基準（updated、stars、activity） | activity |
 
+</details>
+
 ## 📁 設定ファイル
+
+<details>
+<summary><b>📁 設定ファイル</b></summary>
 
 設定は`~/.config/github_feedback/config.toml`に保存され、`gfainit`実行時に自動作成されます。
 
@@ -452,7 +478,7 @@ gfasuggest-repos --sort activity
 version = "1.0.0"
 
 [auth]
-# PATはシステムキーリングに安全に保存されます（このファイルには記載されません）
+# PAT はシステムキーリングに安全に保存されます（このファイルには保存されません）
 
 [server]
 api_url = "https://api.github.com"
@@ -483,7 +509,12 @@ gfaconfig show
 nano ~/.config/github_feedback/config.toml
 ```
 
+</details>
+
 ## 📊 生成されるファイル構造
+
+<details>
+<summary><b>📊 生成されるファイル構造</b></summary>
 
 ### `gfa feedback`の出力
 
@@ -518,7 +549,12 @@ reviews/
     └── integrated_report.md        # 🎯 統合振り返りレポート（すべてのPR統合）
 ```
 
+</details>
+
 ## 💡 使用例
+
+<details>
+<summary><b>💡 使用例</b></summary>
 
 ### 例1：クイックスタート - インタラクティブモード
 
@@ -581,7 +617,12 @@ gfa feedback --repo mycompany/product-service
 gfafeedback --repo mycompany/product-service
 ```
 
+</details>
+
 ## 🎯 アワードシステム
+
+<details>
+<summary><b>🎯 アワードシステム</b></summary>
 
 リポジトリアクティビティに基づいてアワードが自動授与されます：
 
@@ -613,7 +654,12 @@ gfafeedback --repo mycompany/product-service
 - 📅 **一貫性マスター**（6ヶ月以上の継続的アクティビティ）
 - 🌟 **マルチタレント**（すべての領域でバランスの取れた貢献）
 
+</details>
+
 ## 🐛 トラブルシューティング
+
+<details>
+<summary><b>🐛 トラブルシューティング</b></summary>
 
 ### PAT権限エラー
 
@@ -658,7 +704,12 @@ No activity detected during analysis period.
 - 分析期間を増やしてみる：`gfainit --months 24`
 - リポジトリがアクティブであることを確認
 
+</details>
+
 ## 👩‍💻 開発者ガイド
+
+<details>
+<summary><b>👩‍💻 開発者ガイド</b></summary>
 
 ### 開発環境セットアップ
 
@@ -696,11 +747,13 @@ github_feedback/
 └── utils.py           # 🔧 ユーティリティ関数
 ```
 
+</details>
+
 ## 🔒 セキュリティ
 
-- **PAT保存**：GitHubトークンはシステムキーリングに安全に保存されます（プレーンテキストファイルではありません）
-- **設定バックアップ**：設定を上書きする前に自動的にバックアップを作成
-- **入力検証**：すべてのユーザー入力を検証（PAT形式、URL形式、リポジトリ形式）
+- **PAT ストレージ**：GitHub トークンはシステムキーリングに安全に保存されます（プレーンテキストファイルには保存されません）
+- **設定バックアップ**：設定を上書きする前に自動的にバックアップを作成します
+- **入力検証**：すべてのユーザー入力を検証します（PAT 形式、URL 形式、リポジトリ形式）
 
 ## 📄 ライセンス
 
