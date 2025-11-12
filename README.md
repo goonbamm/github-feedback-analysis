@@ -61,10 +61,31 @@ GitHub 저장소의 활동을 분석하고 인사이트를 담은 보고서를 �
    - **Pull requests**: Read-only (필수)
    - **Issues**: Read-only (필수)
 
+### GitHub Enterprise 사용자를 위한 안내
+
+사내 GitHub Enterprise를 사용하는 경우:
+1. **Enterprise 서버의 토큰 페이지 접속**
+   - `https://github.your-company.com/settings/tokens` (회사 도메인으로 변경)
+   - 또는: 프로필 → Settings → Developer settings → Personal access tokens
+
+2. **권한 설정은 동일**
+   - 비공개 저장소: `repo` 권한
+   - 공개 저장소: `public_repo` 권한
+
+3. **초기 설정 시 Enterprise 호스트 지정**
+   ```bash
+   ghf init --enterprise-host https://github.your-company.com
+   ```
+
+4. **관리자 문의**
+   - 일부 Enterprise 환경에서는 PAT 생성이 제한될 수 있습니다
+   - 문제 발생 시 GitHub 관리자에게 문의하세요
+
 ### 참고 자료
 
 - [GitHub 공식 문서: Personal Access Token 관리](https://docs.github.com/ko/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 - [GitHub 공식 문서: Fine-grained PAT](https://docs.github.com/ko/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
+- [GitHub Enterprise Server 문서](https://docs.github.com/en/enterprise-server@latest/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
 ## 🔧 설치
 
