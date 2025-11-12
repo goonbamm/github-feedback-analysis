@@ -103,7 +103,7 @@ cd github-feedback-analysis
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# 패키지 설치
+# 패키지 설치 (필요한 모든 의존성 자동 설치)
 uv pip install -e .
 ```
 

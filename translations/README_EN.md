@@ -103,7 +103,7 @@ cd github-feedback-analysis
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install package
+# Install package (all required dependencies are installed automatically)
 uv pip install -e .
 ```
 
