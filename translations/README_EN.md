@@ -103,15 +103,9 @@ cd github-feedback-analysis
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install package
+# Install package (all required dependencies are installed automatically)
 uv pip install -e .
-
-# (Optional) Install keyrings.alt if system keyring is not available
-# Required on Linux systems without gnome-keyring or kwallet
-uv pip install keyrings.alt
 ```
-
-> **💡 Note for Linux users**: If your system doesn't have a keyring service (gnome-keyring, kwallet, etc.), install `keyrings.alt`. See [docs/KEYRING_TROUBLESHOOTING.md](../docs/KEYRING_TROUBLESHOOTING.md) for details.
 
 ## 🚀 Quick Start
 

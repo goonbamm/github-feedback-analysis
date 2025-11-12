@@ -227,33 +227,9 @@ def init(
     Interactive mode: Run without options to be prompted for each value.
     Non-interactive mode: Provide all required options for scripting.
     """
-    from .config import _setup_keyring_fallback
-    import keyring
 
     # Determine if we're in interactive mode
     is_interactive = sys.stdin.isatty()
-
-    # Check keyring accessibility early
-    console.print("[info]Checking keyring accessibility...[/]")
-    try:
-        # Try to access keyring
-        keyring.get_password("test-service", "test-user")
-        console.print("[success]✓ System keyring is accessible[/]")
-    except Exception:
-        # Try fallback
-        if not _setup_keyring_fallback():
-            console.print("[warning]⚠ System keyring is not accessible[/]")
-            console.print()
-            console.print("[info]This tool requires a secure keyring to store your GitHub token.[/]")
-            console.print()
-            console.print("[info]To fix this, please install keyrings.alt:[/]")
-            console.print("  [accent]pip install keyrings.alt[/]")
-            console.print()
-            console.print("[info]After installation, run this command again.[/]")
-            raise typer.Exit(code=1)
-        else:
-            console.print("[success]✓ Fallback keyring backend is available[/]")
-    console.print()
 
     # Prompt for missing required values only in interactive mode
     try:
@@ -317,21 +293,7 @@ def init(
         web_url = "https://github.com"
 
     config = Config.load()
-
-    # Try to store credentials with helpful error handling
-    try:
-        config.update_auth(pat)
-    except RuntimeError as exc:
-        console.print(f"[danger]Error:[/] Failed to store credentials securely.")
-        console.print()
-        console.print("[info]To fix this issue, please install keyrings.alt:[/]")
-        console.print("  [accent]pip install keyrings.alt[/]")
-        console.print()
-        console.print("[info]Then run this command again.[/]")
-        console.print()
-        console.print("[muted]Technical details: {exc}[/]".format(exc=exc))
-        raise typer.Exit(code=1) from exc
-
+    config.update_auth(pat)
     config.server.api_url = api_url
     config.server.graphql_url = graphql_url
     config.server.web_url = web_url

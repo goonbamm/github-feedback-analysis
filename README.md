@@ -103,15 +103,9 @@ cd github-feedback-analysis
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# 패키지 설치
+# 패키지 설치 (필요한 모든 의존성 자동 설치)
 uv pip install -e .
-
-# (선택사항) 시스템 keyring이 없는 경우 keyrings.alt 설치
-# Linux 환경에서 gnome-keyring이나 kwallet이 설치되어 있지 않은 경우 필요
-uv pip install keyrings.alt
 ```
-
-> **💡 Linux 사용자 참고**: 시스템 keyring(gnome-keyring, kwallet 등)이 설치되어 있지 않은 경우 `keyrings.alt`를 설치하세요. 자세한 내용은 [docs/KEYRING_TROUBLESHOOTING.md](docs/KEYRING_TROUBLESHOOTING.md)를 참조하세요.
 
 ## 🚀 빠른 시작
 
