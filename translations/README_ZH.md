@@ -2,7 +2,7 @@
 
 一个用于分析 GitHub 仓库活动并自动生成深度洞察报告的命令行工具。支持 GitHub.com 和 GitHub Enterprise，具备基于 LLM 的自动审查功能。
 
-简体中文 | [한국어](README.md) | [English](README_EN.md) | [日本語](README_JA.md) | [Español](README_ES.md)
+简体中文 | [한국어](../README.md) | [English](README_EN.md) | [日本語](README_JA.md) | [Español](README_ES.md)
 
 ## ✨ 核心功能
 
