@@ -68,6 +68,40 @@ app.add_typer(config_app, name="config")
 console = Console()
 
 
+def _format_relative_date(date_str: str) -> str:
+    """Format ISO date string as relative time.
+
+    Args:
+        date_str: ISO format date string (e.g., "2024-01-15T10:30:00Z")
+
+    Returns:
+        Human-readable relative time string (e.g., "2d ago", "1mo ago")
+        Returns "unknown" if parsing fails
+    """
+    if not date_str:
+        return ""
+
+    try:
+        from datetime import datetime
+
+        updated_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        updated_dt = updated_dt.replace(tzinfo=None)
+        days_ago = (datetime.now() - updated_dt).days
+
+        if days_ago == 0:
+            return "today"
+        elif days_ago == 1:
+            return "yesterday"
+        elif days_ago < 30:
+            return f"{days_ago}d ago"
+        elif days_ago < 365:
+            return f"{days_ago // 30}mo ago"
+        else:
+            return f"{days_ago // 365}y ago"
+    except (ValueError, AttributeError):
+        return "unknown"
+
+
 def _run_parallel_tasks(
     tasks: Dict[str, tuple],
     max_workers: int,
@@ -800,8 +834,6 @@ def _collect_yearend_data(
     Returns:
         Tuple of (monthly_trends_data, tech_stack_data, collaboration_data)
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
     console.print("[accent]Collecting year-end review data in parallel...", style="accent")
 
     # Get PR metadata once for reuse
@@ -825,40 +857,19 @@ def _collect_yearend_data(
         ),
     }
 
-    yearend_data = {}
-    with ThreadPoolExecutor(max_workers=PARALLEL_CONFIG['max_workers_yearend']) as executor:
-        futures = {
-            executor.submit(func, *args): (key, label)
-            for key, (func, args, label) in yearend_tasks.items()
-        }
+    # Use common parallel task runner
+    yearend_data = _run_parallel_tasks(
+        tasks=yearend_tasks,
+        max_workers=PARALLEL_CONFIG['max_workers_yearend'],
+        timeout=PARALLEL_CONFIG['yearend_timeout'],
+        task_type="collection"
+    )
 
-        completed = 0
-        total = len(futures)
-        yearend_timeout = PARALLEL_CONFIG['yearend_timeout']
-        for future in as_completed(futures, timeout=yearend_timeout):
-            key, label = futures[future]
-            try:
-                yearend_data[key] = future.result(timeout=yearend_timeout)
-                completed += 1
-                console.print(f"[success]✓ {label} collected ({completed}/{total})", style="success")
-            except KeyboardInterrupt:
-                raise
-            except TimeoutError as e:
-                error = CollectionTimeoutError(
-                    f"{label} collection timed out after {yearend_timeout}s",
-                    source=key
-                )
-                console.print(f"[warning]✗ {error}", style="warning")
-                yearend_data[key] = None
-            except Exception as exc:
-                error = CollectionError(f"{label} collection failed: {exc}", source=key)
-                console.print(f"[warning]✗ {error}", style="warning")
-                yearend_data[key] = None
-
+    # Convert empty lists to None for consistency with downstream code
     return (
-        yearend_data.get("monthly_trends"),
-        yearend_data.get("tech_stack"),
-        yearend_data.get("collaboration"),
+        yearend_data.get("monthly_trends") or None,
+        yearend_data.get("tech_stack") or None,
+        yearend_data.get("collaboration") or None,
     )
 
 
@@ -1397,27 +1408,7 @@ def list_repos(
 
             # Format updated date
             updated_at = repo.get("updated_at", "")
-            updated_str = ""
-            if updated_at:
-                try:
-                    from datetime import datetime
-
-                    updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                    updated_dt = updated_dt.replace(tzinfo=None)
-                    days_ago = (datetime.now() - updated_dt).days
-
-                    if days_ago == 0:
-                        updated_str = "today"
-                    elif days_ago == 1:
-                        updated_str = "yesterday"
-                    elif days_ago < 30:
-                        updated_str = f"{days_ago}d ago"
-                    elif days_ago < 365:
-                        updated_str = f"{days_ago // 30}mo ago"
-                    else:
-                        updated_str = f"{days_ago // 365}y ago"
-                except (ValueError, AttributeError):
-                    updated_str = "unknown"
+            updated_str = _format_relative_date(updated_at)
 
             table.add_row(full_name, description, stars, forks, updated_str)
 
@@ -1512,25 +1503,7 @@ def suggest_repos(
 
             # Format updated date
             updated_at = repo.get("updated_at", "")
-            updated_str = ""
-            if updated_at:
-                try:
-                    from datetime import datetime
-
-                    updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                    updated_dt = updated_dt.replace(tzinfo=None)
-                    days_ago = (datetime.now() - updated_dt).days
-
-                    if days_ago == 0:
-                        updated_str = "today"
-                    elif days_ago == 1:
-                        updated_str = "yesterday"
-                    elif days_ago < 30:
-                        updated_str = f"{days_ago}d ago"
-                    else:
-                        updated_str = f"{days_ago // 30}mo ago"
-                except (ValueError, AttributeError):
-                    updated_str = "unknown"
+            updated_str = _format_relative_date(updated_at)
 
             rank_str = f"#{i}"
             table.add_row(rank_str, full_name, description, activity, updated_str)

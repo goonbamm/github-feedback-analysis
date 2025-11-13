@@ -472,7 +472,7 @@ class Reporter:
 
         return lines
 
-    def _build_commit_feedback(self, cf) -> List[str]:
+    def _build_commit_feedback(self, commit_feedback) -> List[str]:
         """Build commit feedback subsection."""
         def format_commit_example(example):
             if isinstance(example, dict):
@@ -481,7 +481,7 @@ class Reporter:
 
         return self._build_feedback_section(
             title="### 📝 커밋 메시지 품질",
-            feedback_data=cf,
+            feedback_data=commit_feedback,
             stats_config={
                 'total': ('total_commits', '총 커밋', '개'),
                 'good': ('good_messages', '좋은 메시지', '개'),
@@ -490,7 +490,7 @@ class Reporter:
             example_formatter=format_commit_example,
         )
 
-    def _build_pr_title_feedback(self, pf) -> List[str]:
+    def _build_pr_title_feedback(self, pr_title_feedback) -> List[str]:
         """Build PR title feedback subsection."""
         def format_pr_example(example):
             if isinstance(example, dict):
@@ -499,7 +499,7 @@ class Reporter:
 
         return self._build_feedback_section(
             title="### 🔀 PR 제목 품질",
-            feedback_data=pf,
+            feedback_data=pr_title_feedback,
             stats_config={
                 'total': ('total_prs', '총 PR', '개'),
                 'good': ('clear_titles', '명확한 제목', '개'),
@@ -508,11 +508,11 @@ class Reporter:
             example_formatter=format_pr_example,
         )
 
-    def _build_review_tone_feedback(self, rf) -> List[str]:
+    def _build_review_tone_feedback(self, review_tone_feedback) -> List[str]:
         """Build review tone feedback subsection."""
         return self._build_feedback_section(
             title="### 👀 리뷰 톤 분석",
-            feedback_data=rf,
+            feedback_data=review_tone_feedback,
             stats_config={
                 'total': ('total_reviews', '총 리뷰', '개'),
                 'good': ('constructive_reviews', '건설적인 리뷰', '개'),
@@ -522,7 +522,7 @@ class Reporter:
             examples_poor_attr='examples_improve',
         )
 
-    def _build_issue_feedback(self, isf) -> List[str]:
+    def _build_issue_feedback(self, issue_feedback) -> List[str]:
         """Build issue feedback subsection."""
         def format_issue_example(example):
             if isinstance(example, dict):
@@ -531,7 +531,7 @@ class Reporter:
 
         return self._build_feedback_section(
             title="### 🐛 이슈 품질",
-            feedback_data=isf,
+            feedback_data=issue_feedback,
             stats_config={
                 'total': ('total_issues', '총 이슈', '개'),
                 'good': ('well_described', '잘 작성됨', '개'),
@@ -646,24 +646,19 @@ class Reporter:
         lines.append("")
         return lines
 
-    def _build_retrospective_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build comprehensive retrospective analysis section."""
-        if not metrics.retrospective:
-            return []
-
-        retro = metrics.retrospective
-        lines = ["## 🔍 Deep Retrospective Analysis", ""]
-        lines.append("> 데이터 기반의 심층적인 회고와 인사이트")
-        lines.append("")
-
-        # Executive Summary
+    def _build_executive_summary_subsection(self, retro) -> List[str]:
+        """Build executive summary subsection of retrospective."""
+        lines = []
         if retro.executive_summary:
             lines.append("### 📋 회고 요약")
             lines.append("")
             lines.append(retro.executive_summary)
             lines.append("")
+        return lines
 
-        # Key Wins
+    def _build_key_wins_subsection(self, retro) -> List[str]:
+        """Build key wins subsection of retrospective."""
+        lines = []
         if retro.key_wins:
             lines.append("### 🎉 주요 성과")
             lines.append("")
@@ -672,8 +667,11 @@ class Reporter:
             for i, win in enumerate(retro.key_wins, 1):
                 lines.append(f"{i}. **{win}**")
             lines.append("")
+        return lines
 
-        # Time Comparisons
+    def _build_time_comparisons_subsection(self, retro) -> List[str]:
+        """Build time comparisons subsection of retrospective."""
+        lines = []
         if retro.time_comparisons:
             lines.append("### 📊 기간 비교 분석")
             lines.append("")
@@ -696,8 +694,11 @@ class Reporter:
                     f"{direction_emoji} {significance_text} |"
                 )
             lines.append("")
+        return lines
 
-        # Behavior Patterns
+    def _build_behavior_patterns_subsection(self, retro) -> List[str]:
+        """Build behavior patterns subsection of retrospective."""
+        lines = []
         if retro.behavior_patterns:
             lines.append("### 🧠 행동 패턴 분석")
             lines.append("")
@@ -719,8 +720,11 @@ class Reporter:
                     lines.append(f"**제안:** {pattern.recommendation}")
                     lines.append("")
             lines.append("")
+        return lines
 
-        # Learning Insights
+    def _build_learning_insights_subsection(self, retro) -> List[str]:
+        """Build learning insights subsection of retrospective."""
+        lines = []
         if retro.learning_insights:
             lines.append("### 📚 학습 및 성장 분석")
             lines.append("")
@@ -743,8 +747,11 @@ class Reporter:
                         lines.append(f"- {indicator}")
                     lines.append("")
             lines.append("")
+        return lines
 
-        # Impact Assessments
+    def _build_impact_assessments_subsection(self, retro) -> List[str]:
+        """Build impact assessments subsection of retrospective."""
+        lines = []
         if retro.impact_assessments:
             lines.append("### 💎 영향도 평가")
             lines.append("")
@@ -766,8 +773,11 @@ class Reporter:
                         lines.append(f"- {achievement}")
                     lines.append("")
             lines.append("")
+        return lines
 
-        # Collaboration Insights
+    def _build_collaboration_insights_subsection(self, retro) -> List[str]:
+        """Build collaboration insights subsection of retrospective."""
+        lines = []
         if retro.collaboration_insights:
             collab = retro.collaboration_insights
             lines.append("### 🤝 협업 심층 분석")
@@ -797,8 +807,11 @@ class Reporter:
                     lines.append(f"- {area}")
                 lines.append("")
             lines.append("")
+        return lines
 
-        # Balance Metrics
+    def _build_balance_metrics_subsection(self, retro) -> List[str]:
+        """Build balance metrics subsection of retrospective."""
+        lines = []
         if retro.balance_metrics:
             balance = retro.balance_metrics
             lines.append("### ⚖️ 업무 밸런스 분석")
@@ -828,8 +841,11 @@ class Reporter:
                     lines.append(f"- 💡 {rec}")
                 lines.append("")
             lines.append("")
+        return lines
 
-        # Code Health
+    def _build_code_health_subsection(self, retro) -> List[str]:
+        """Build code health subsection of retrospective."""
+        lines = []
         if retro.code_health:
             health = retro.code_health
             lines.append("### 🏥 코드 건강도 분석")
@@ -850,8 +866,11 @@ class Reporter:
                     lines.append(f"- 💡 {suggestion}")
                 lines.append("")
             lines.append("")
+        return lines
 
-        # Actionable Insights
+    def _build_actionable_insights_subsection(self, retro) -> List[str]:
+        """Build actionable insights subsection of retrospective."""
+        lines = []
         if retro.actionable_insights:
             lines.append("### 🎯 실행 가능한 인사이트")
             lines.append("")
@@ -885,7 +904,7 @@ class Reporter:
             if medium_priority:
                 lines.append("#### 🟡 중간 우선순위")
                 lines.append("")
-                for insight in medium_priority[:DISPLAY_LIMITS['medium_priority_insights']]:  # Limit to top N for readability
+                for insight in medium_priority[:DISPLAY_LIMITS['medium_priority_insights']]:
                     lines.append(f"**{insight.title}**")
                     lines.append("")
                     lines.append(f"*{insight.description}*")
@@ -895,8 +914,11 @@ class Reporter:
                         lines.append(f"- {action}")
                     lines.append("")
             lines.append("")
+        return lines
 
-        # Areas for Growth
+    def _build_areas_for_growth_subsection(self, retro) -> List[str]:
+        """Build areas for growth subsection of retrospective."""
+        lines = []
         if retro.areas_for_growth:
             lines.append("### 🌱 성장 기회")
             lines.append("")
@@ -905,8 +927,11 @@ class Reporter:
             for i, area in enumerate(retro.areas_for_growth, 1):
                 lines.append(f"{i}. {area}")
             lines.append("")
+        return lines
 
-        # Narrative
+    def _build_narrative_subsection(self, retro) -> List[str]:
+        """Build narrative subsection of retrospective."""
+        lines = []
         if retro.retrospective_narrative:
             lines.append("### 📖 회고 스토리")
             lines.append("")
@@ -915,6 +940,34 @@ class Reporter:
             for paragraph in retro.retrospective_narrative:
                 lines.append(paragraph)
                 lines.append("")
+        return lines
+
+    def _build_retrospective_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build comprehensive retrospective analysis section.
+
+        Refactored to use smaller, focused subsection methods for better maintainability.
+        """
+        if not metrics.retrospective:
+            return []
+
+        retro = metrics.retrospective
+        lines = ["## 🔍 Deep Retrospective Analysis", ""]
+        lines.append("> 데이터 기반의 심층적인 회고와 인사이트")
+        lines.append("")
+
+        # Build all subsections using dedicated methods
+        lines.extend(self._build_executive_summary_subsection(retro))
+        lines.extend(self._build_key_wins_subsection(retro))
+        lines.extend(self._build_time_comparisons_subsection(retro))
+        lines.extend(self._build_behavior_patterns_subsection(retro))
+        lines.extend(self._build_learning_insights_subsection(retro))
+        lines.extend(self._build_impact_assessments_subsection(retro))
+        lines.extend(self._build_collaboration_insights_subsection(retro))
+        lines.extend(self._build_balance_metrics_subsection(retro))
+        lines.extend(self._build_code_health_subsection(retro))
+        lines.extend(self._build_actionable_insights_subsection(retro))
+        lines.extend(self._build_areas_for_growth_subsection(retro))
+        lines.extend(self._build_narrative_subsection(retro))
 
         lines.append("---")
         lines.append("")
