@@ -345,7 +345,7 @@ class ReviewReporter:
     # ------------------------------------------------------------------
 
     def _render_personal_development(
-        self, analysis: PersonalDevelopmentAnalysis
+        self, analysis: PersonalDevelopmentAnalysis, reviews: List[StoredReview]
     ) -> List[str]:
         """Render personal development analysis section."""
         lines: List[str] = []
@@ -360,25 +360,50 @@ class ReviewReporter:
             lines.append("---")
             lines.append("")
 
+        # Create PR number to review mapping for link lookup
+        pr_map = {review.number: review for review in reviews}
+
+        def extract_pr_number(evidence: str) -> int | None:
+            """Extract PR number from evidence string like 'PR #123: description'"""
+            import re
+            match = re.search(r'PR #(\d+)', evidence)
+            return int(match.group(1)) if match else None
+
         # Strengths section
         lines.append("### ✨ 장점 (구체적 근거)")
         lines.append("")
         if analysis.strengths:
-            for i, strength in enumerate(analysis.strengths, 1):
+            lines.append("| 장점 | 근거/내용 | 링크 |")
+            lines.append("|------|-----------|------|")
+            for strength in analysis.strengths:
                 impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(
                     strength.impact, "⭐"
                 )
-                lines.append(
-                    f"{i}. **{strength.category}** {impact_emoji} (영향도: {strength.impact})"
-                )
-                lines.append(f"   - {strength.description}")
+                category = f"**{strength.category}** {impact_emoji}"
+
+                # Combine description and evidence
+                content_parts = [strength.description]
                 if strength.evidence:
-                    lines.append("   - **구체적 근거:**")
+                    content_parts.append("<br>**구체적 근거:**")
                     for evidence in strength.evidence:
-                        lines.append(f"     - {evidence}")
-                lines.append("")
+                        content_parts.append(f"• {evidence}")
+                content = "<br>".join(content_parts)
+
+                # Extract links from evidence
+                links = []
+                if strength.evidence:
+                    for evidence in strength.evidence:
+                        pr_num = extract_pr_number(evidence)
+                        if pr_num and pr_num in pr_map:
+                            review = pr_map[pr_num]
+                            if review.html_url:
+                                links.append(f"[PR #{pr_num}]({review.html_url})")
+
+                link_cell = "<br>".join(links) if links else "-"
+                lines.append(f"| {category} | {content} | {link_cell} |")
+            lines.append("")
         else:
-            lines.append("- 분석된 장점이 없습니다.")
+            lines.append("분석된 장점이 없습니다.")
             lines.append("")
 
         lines.append("---")
@@ -394,27 +419,44 @@ class ReviewReporter:
                 analysis.improvement_areas,
                 key=lambda x: priority_order.get(x.priority, 1),
             )
-            for i, area in enumerate(sorted_improvements, 1):
+
+            lines.append("| 개선점 | 근거/내용 | 링크 |")
+            lines.append("|--------|-----------|------|")
+            for area in sorted_improvements:
                 priority_emoji = {
                     "critical": "🚨",
                     "important": "⚠️",
                     "nice-to-have": "💭",
                 }.get(area.priority, "⚠️")
-                lines.append(
-                    f"{i}. **{area.category}** {priority_emoji} (우선순위: {area.priority})"
-                )
-                lines.append(f"   - {area.description}")
+                category = f"**{area.category}** {priority_emoji}"
+
+                # Combine description, evidence, and suggestions
+                content_parts = [area.description]
                 if area.evidence:
-                    lines.append("   - **구체적 예시:**")
+                    content_parts.append("<br>**구체적 예시:**")
                     for evidence in area.evidence:
-                        lines.append(f"     - {evidence}")
+                        content_parts.append(f"• {evidence}")
                 if area.suggestions:
-                    lines.append("   - **개선 제안:**")
+                    content_parts.append("<br>**개선 제안:**")
                     for suggestion in area.suggestions:
-                        lines.append(f"     - {suggestion}")
-                lines.append("")
+                        content_parts.append(f"• {suggestion}")
+                content = "<br>".join(content_parts)
+
+                # Extract links from evidence
+                links = []
+                if area.evidence:
+                    for evidence in area.evidence:
+                        pr_num = extract_pr_number(evidence)
+                        if pr_num and pr_num in pr_map:
+                            review = pr_map[pr_num]
+                            if review.html_url:
+                                links.append(f"[PR #{pr_num}]({review.html_url})")
+
+                link_cell = "<br>".join(links) if links else "-"
+                lines.append(f"| {category} | {content} | {link_cell} |")
+            lines.append("")
         else:
-            lines.append("- 분석된 보완점이 없습니다.")
+            lines.append("분석된 보완점이 없습니다.")
             lines.append("")
 
         lines.append("---")
@@ -492,23 +534,31 @@ class ReviewReporter:
 
         # Add personal development analysis
         personal_dev = self._fallback_personal_development(reviews)
-        lines.extend(self._render_personal_development(personal_dev))
+        lines.extend(self._render_personal_development(personal_dev, reviews))
 
         def _render_points(title: str, emoji: str, entries: List[tuple[StoredReview, ReviewPoint]]) -> None:
             lines.append(f"## {emoji} {title}")
             lines.append("")
             if not entries:
-                lines.append("- 수집된 항목이 없습니다.")
+                lines.append("수집된 항목이 없습니다.")
                 lines.append("")
                 return
 
-            for i, (review, point) in enumerate(entries, 1):
-                bullet = f"{i}. **PR #{review.number}** `{review.title}`"
-                lines.append(bullet)
-                lines.append(f"   - {point.message}")
+            lines.append(f"| {title} | 근거/내용 | 링크 |")
+            lines.append("|--------|-----------|------|")
+            for review, point in entries:
+                category = f"**PR #{review.number}**<br>`{review.title}`"
+
+                # Combine message and example
+                content_parts = [point.message]
                 if point.example:
-                    lines.append(f"   - 💡 예시: `{point.example}`")
-                lines.append("")
+                    content_parts.append(f"<br>💡 **예시:**<br>`{point.example}`")
+                content = "".join(content_parts)
+
+                # Create link
+                link_cell = f"[PR #{review.number}]({review.html_url})" if review.html_url else "-"
+                lines.append(f"| {category} | {content} | {link_cell} |")
+            lines.append("")
             lines.append("---")
             lines.append("")
 
@@ -670,7 +720,7 @@ class ReviewReporter:
                     break
 
             # Insert personal development section
-            personal_dev_lines = self._render_personal_development(personal_dev)
+            personal_dev_lines = self._render_personal_development(personal_dev, reviews)
             lines = lines[:insert_idx] + personal_dev_lines + lines[insert_idx:]
             report_text = "\n".join(lines)
 
