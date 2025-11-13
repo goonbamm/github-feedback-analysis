@@ -570,22 +570,42 @@ class Reporter:
         return lines
 
     def _build_commit_feedback(self, commit_feedback) -> List[str]:
-        """Build commit feedback subsection."""
-        def format_commit_example(example):
-            if isinstance(example, dict):
-                return f"`{example.get('message', '')}` ({example.get('sha', '')[:7]})"
-            return str(example)
+        """Build commit feedback subsection with new table format."""
+        lines = ["### 📝 커밋 메시지 품질", ""]
 
-        return self._build_feedback_section(
-            title="### 📝 커밋 메시지 품질",
-            feedback_data=commit_feedback,
-            stats_config={
-                'total': ('total_commits', '총 커밋', '개'),
-                'good': ('good_messages', '좋은 메시지', '개'),
-                'poor': ('poor_messages', '개선 필요', '개'),
-            },
-            example_formatter=format_commit_example,
-        )
+        # Build the new table format: 장점 혹은 개선점/보완점 | 근거 | 링크
+        lines.append("| 장점 혹은 개선점/보완점 | 근거 (코드, 메세지 등) | 링크 |")
+        lines.append("|------------------------|----------------------|------|")
+
+        # Add good examples as strengths (장점)
+        if hasattr(commit_feedback, 'examples_good') and commit_feedback.examples_good:
+            for example in commit_feedback.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**장점**: 명확하고 의미있는 커밋 메시지"
+                    evidence = f"`{example.get('message', '')}`"
+                    link = f"[{example.get('sha', '')[:7]}]({example.get('url', '')})" if example.get('url') else example.get('sha', '')[:7]
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **장점**: 좋은 커밋 메시지 | {example} | - |")
+
+        # Add poor examples as improvement areas (개선점)
+        if hasattr(commit_feedback, 'examples_poor') and commit_feedback.examples_poor:
+            for example in commit_feedback.examples_poor[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**개선점**: 커밋 메시지 구체화 필요"
+                    evidence = f"`{example.get('message', '')}`"
+                    link = f"[{example.get('sha', '')[:7]}]({example.get('url', '')})" if example.get('url') else example.get('sha', '')[:7]
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **개선점**: 커밋 메시지 개선 필요 | {example} | - |")
+
+        # Add suggestions as additional improvement areas
+        if hasattr(commit_feedback, 'suggestions') and commit_feedback.suggestions:
+            for suggestion in commit_feedback.suggestions[:3]:  # Limit to 3 suggestions
+                lines.append(f"| **보완점**: {suggestion} | 전반적인 커밋 패턴 분석 결과 | - |")
+
+        lines.append("")
+        return lines
 
     def _build_pr_title_feedback(self, pr_title_feedback) -> List[str]:
         """Build PR title feedback subsection."""
@@ -606,36 +626,80 @@ class Reporter:
         )
 
     def _build_review_tone_feedback(self, review_tone_feedback) -> List[str]:
-        """Build review tone feedback subsection."""
-        return self._build_feedback_section(
-            title="### 👀 리뷰 톤 분석",
-            feedback_data=review_tone_feedback,
-            stats_config={
-                'total': ('total_reviews', '총 리뷰', '개'),
-                'good': ('constructive_reviews', '건설적인 리뷰', '개'),
-                'poor': ('harsh_reviews', '가혹한 리뷰', '개'),
-                'neutral': ('neutral_reviews', '중립적인 리뷰', '개'),
-            },
-            examples_poor_attr='examples_improve',
-        )
+        """Build review tone feedback subsection with new table format."""
+        lines = ["### 👀 리뷰 톤 분석", ""]
+
+        # Build the new table format: 장점 혹은 개선점/보완점 | 근거 | 링크
+        lines.append("| 장점 혹은 개선점/보완점 | 근거 (코드, 메세지 등) | 링크 |")
+        lines.append("|------------------------|----------------------|------|")
+
+        # Add good examples as strengths (장점)
+        if hasattr(review_tone_feedback, 'examples_good') and review_tone_feedback.examples_good:
+            for example in review_tone_feedback.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**장점**: 건설적이고 도움이 되는 리뷰"
+                    evidence = f"{example.get('body', '')[:100]}..."
+                    link = f"[리뷰 보기]({example.get('url', '')})" if example.get('url') else "-"
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **장점**: 좋은 리뷰 톤 | {example} | - |")
+
+        # Add improve examples as improvement areas (개선점)
+        if hasattr(review_tone_feedback, 'examples_improve') and review_tone_feedback.examples_improve:
+            for example in review_tone_feedback.examples_improve[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**개선점**: 리뷰 톤 개선 필요"
+                    evidence = f"{example.get('body', '')[:100]}..."
+                    link = f"[리뷰 보기]({example.get('url', '')})" if example.get('url') else "-"
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **개선점**: 리뷰 톤 개선 필요 | {example} | - |")
+
+        # Add suggestions as additional improvement areas
+        if hasattr(review_tone_feedback, 'suggestions') and review_tone_feedback.suggestions:
+            for suggestion in review_tone_feedback.suggestions[:3]:  # Limit to 3 suggestions
+                lines.append(f"| **보완점**: {suggestion} | 전반적인 리뷰 패턴 분석 결과 | - |")
+
+        lines.append("")
+        return lines
 
     def _build_issue_feedback(self, issue_feedback) -> List[str]:
-        """Build issue feedback subsection."""
-        def format_issue_example(example):
-            if isinstance(example, dict):
-                return f"#{example.get('number', '')}: `{example.get('title', '')}`"
-            return str(example)
+        """Build issue feedback subsection with new table format."""
+        lines = ["### 🐛 이슈 품질", ""]
 
-        return self._build_feedback_section(
-            title="### 🐛 이슈 품질",
-            feedback_data=issue_feedback,
-            stats_config={
-                'total': ('total_issues', '총 이슈', '개'),
-                'good': ('well_described', '잘 작성됨', '개'),
-                'poor': ('poorly_described', '개선 필요', '개'),
-            },
-            example_formatter=format_issue_example,
-        )
+        # Build the new table format: 장점 혹은 개선점/보완점 | 근거 | 링크
+        lines.append("| 장점 혹은 개선점/보완점 | 근거 (코드, 메세지 등) | 링크 |")
+        lines.append("|------------------------|----------------------|------|")
+
+        # Add good examples as strengths (장점)
+        if hasattr(issue_feedback, 'examples_good') and issue_feedback.examples_good:
+            for example in issue_feedback.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**장점**: 명확하고 상세한 이슈 작성"
+                    evidence = f"#{example.get('number', '')}: `{example.get('title', '')}`"
+                    link = f"[이슈 보기]({example.get('url', '')})" if example.get('url') else "-"
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **장점**: 좋은 이슈 작성 | {example} | - |")
+
+        # Add poor examples as improvement areas (개선점)
+        if hasattr(issue_feedback, 'examples_poor') and issue_feedback.examples_poor:
+            for example in issue_feedback.examples_poor[:DISPLAY_LIMITS['feedback_examples']]:
+                if isinstance(example, dict):
+                    category = "**개선점**: 이슈 설명 보완 필요"
+                    evidence = f"#{example.get('number', '')}: `{example.get('title', '')}`"
+                    link = f"[이슈 보기]({example.get('url', '')})" if example.get('url') else "-"
+                    lines.append(f"| {category} | {evidence} | {link} |")
+                else:
+                    lines.append(f"| **개선점**: 이슈 설명 개선 필요 | {example} | - |")
+
+        # Add suggestions as additional improvement areas
+        if hasattr(issue_feedback, 'suggestions') and issue_feedback.suggestions:
+            for suggestion in issue_feedback.suggestions[:3]:  # Limit to 3 suggestions
+                lines.append(f"| **보완점**: {suggestion} | 전반적인 이슈 패턴 분석 결과 | - |")
+
+        lines.append("")
+        return lines
 
     def _build_monthly_trends_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build monthly trends section."""
