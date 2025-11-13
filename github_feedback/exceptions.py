@@ -164,16 +164,6 @@ class MarkdownGenerationError(ReportGenerationError):
     pass
 
 
-class HTMLGenerationError(ReportGenerationError):
-    """Raised when HTML report generation fails."""
-    pass
-
-
-class ChartGenerationError(ReportGenerationError):
-    """Raised when chart generation fails."""
-    pass
-
-
 # =============================================================================
 # Validation Errors
 # =============================================================================
