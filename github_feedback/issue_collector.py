@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from .api_params import build_list_params
 from .base_collector import BaseCollector
 from .filters import FilterHelper
 from .models import AnalysisFilters
@@ -25,16 +26,12 @@ class IssueCollector(BaseCollector):
         Returns:
             Number of issues matching filters
         """
-        params: Dict[str, Any] = {
-            "state": "all",
-            "per_page": 100,
-            "since": since.isoformat(),
-        }
+        params = build_list_params(since=since.isoformat())
         if author:
             params["creator"] = author
 
         all_issues = self.api_client.paginate(
-            f"repos/{repo}/issues", base_params=params, per_page=100
+            f"repos/{repo}/issues", base_params=params
         )
 
         # Count issues that pass filters

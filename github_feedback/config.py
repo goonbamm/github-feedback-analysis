@@ -423,6 +423,21 @@ class Config:
             "reporter": self.reporter.model_dump(),
         }
 
+    @property
+    def _config_sections(self) -> Dict[str, BaseModel]:
+        """Return mapping of section names to config objects.
+
+        Returns:
+            Dictionary mapping section names to their config model instances
+        """
+        return {
+            "server": self.server,
+            "llm": self.llm,
+            "api": self.api,
+            "defaults": self.defaults,
+            "reporter": self.reporter,
+        }
+
     def set_value(self, key: str, value: str) -> None:
         """Set a configuration value using dot notation.
 
@@ -440,13 +455,7 @@ class Config:
         section, field = parts
 
         # Map section names to config objects
-        sections = {
-            "server": self.server,
-            "llm": self.llm,
-            "api": self.api,
-            "defaults": self.defaults,
-            "reporter": self.reporter,
-        }
+        sections = self._config_sections
 
         if section not in sections:
             valid_sections = ", ".join(sections.keys())
@@ -509,13 +518,7 @@ class Config:
 
         section, field = parts
 
-        sections = {
-            "server": self.server,
-            "llm": self.llm,
-            "api": self.api,
-            "defaults": self.defaults,
-            "reporter": self.reporter,
-        }
+        sections = self._config_sections
 
         if section not in sections:
             valid_sections = ", ".join(sections.keys())

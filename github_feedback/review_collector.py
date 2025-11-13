@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
+from .api_params import build_pagination_params
 from .base_collector import BaseCollector
 from .console import Console
 from .constants import THREAD_POOL_CONFIG
@@ -58,8 +59,7 @@ class ReviewCollector(BaseCollector):
             # Fetch all reviews for this PR using paginate
             all_reviews = self.api_client.paginate(
                 f"repos/{repo}/pulls/{number}/reviews",
-                base_params={"per_page": 100},
-                per_page=100,
+                base_params=build_pagination_params(),
             )
 
             # Count reviews that pass filters
@@ -171,7 +171,7 @@ class ReviewCollector(BaseCollector):
             try:
                 reviews = self.api_client.request_list(
                     f"repos/{repo}/pulls/{number}/reviews",
-                    {"per_page": 100},
+                    build_pagination_params(),
                 )
 
                 for review in reviews:
@@ -248,7 +248,7 @@ class ReviewCollector(BaseCollector):
         files = cache.get(number)
         if files is None:
             files = self.api_client.request_all(
-                f"repos/{repo}/pulls/{number}/files", {"per_page": 100}
+                f"repos/{repo}/pulls/{number}/files", build_pagination_params()
             )
             cache[number] = files
 
