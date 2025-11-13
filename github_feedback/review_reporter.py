@@ -38,7 +38,7 @@ class StoredReview:
 class ReviewReporter:
     """Build integrated Korean reports from individual pull request reviews."""
 
-    def __init__(self, *, output_dir: Path = Path("reviews"), llm: LLMClient | None = None) -> None:
+    def __init__(self, *, output_dir: Path = Path("reports/reviews"), llm: LLMClient | None = None) -> None:
         self.output_dir = output_dir
         self.llm = llm
 

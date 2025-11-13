@@ -899,7 +899,8 @@ def _run_feedback_analysis(
         max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
     )
 
-    reviewer = Reviewer(collector=collector, llm=llm_client)
+    reviews_dir = output_dir / "reviews"
+    reviewer = Reviewer(collector=collector, llm=llm_client, output_dir=reviews_dir)
 
     # Get authenticated user
     with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
@@ -941,8 +942,9 @@ def _run_feedback_analysis(
 
     # Generate integrated report
     output_dir_resolved = _resolve_output_dir(output_dir)
+    reviews_dir = output_dir_resolved / "reviews"
     review_reporter = ReviewReporter(
-        output_dir=output_dir_resolved,
+        output_dir=reviews_dir,
         llm=llm_client,
     )
 
@@ -1237,7 +1239,7 @@ def feedback(
     console.print()
     console.print("[info]Next steps:[/]")
     console.print("  • View the full integrated report: [accent]cat reports/integrated_full_report.md[/]")
-    console.print("  • View individual PR reviews in: [accent]reports/[/]")
+    console.print("  • View individual PR reviews in: [accent]reports/reviews/[/]")
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:

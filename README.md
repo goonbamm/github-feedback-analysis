@@ -244,18 +244,20 @@ gfa feedback --interactive
 
 ```
 reports/
-├── metrics.json              # 원본 데이터 (JSON)
-├── report.md                 # 분석 보고서 (마크다운)
-├── report.html               # 분석 보고서 (HTML, 차트 포함)
-├── charts/                   # 시각화 차트
-│   ├── quality.svg          # 품질 지표 차트
-│   ├── activity.svg         # 활동 지표 차트
-│   └── ...                  # 기타 도메인별 차트
-└── prompts/
-    ├── commit_feedback.txt   # 커밋 메시지 피드백
-    ├── pr_feedback.txt       # PR 제목 피드백
-    ├── review_feedback.txt   # 리뷰 톤 피드백
-    └── issue_feedback.txt    # 이슈 품질 피드백
+├── metrics.json                     # 원본 데이터 (JSON)
+├── report.md                        # 분석 보고서 (마크다운)
+├── integrated_full_report.md        # 통합 보고서 (brief + PR 리뷰)
+├── prompts/                         # LLM 프롬프트 파일들
+│   ├── strengths_overview.txt
+│   ├── collaboration_improvements.txt
+│   └── ...
+└── reviews/                         # PR 리뷰 (서브디렉토리)
+    └── {repo_name}/
+        ├── pr-{number}/
+        │   ├── artefacts.json
+        │   ├── review_summary.json
+        │   └── review.md
+        └── integrated_report.md
 ```
 
 #### 분석 내용
@@ -471,19 +473,23 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 개인 활동 분석 데이터 (JSON)
-├── report.md                 # 📄 마크다운 보고서
-├── report.html               # 🎨 HTML 보고서 (시각화 차트 포함)
-├── charts/                   # 📊 시각화 차트 (SVG)
-│   ├── quality.svg          # 품질 지표 차트
-│   ├── activity.svg         # 활동 지표 차트
-│   ├── engagement.svg       # 참여도 차트
-│   └── ...                  # 기타 도메인별 차트
-└── prompts/
-    ├── commit_feedback.txt   # 💬 커밋 메시지 품질 분석
-    ├── pr_feedback.txt       # 🔀 PR 제목 분석
-    ├── review_feedback.txt   # 👀 리뷰 톤 분석
-    └── issue_feedback.txt    # 🐛 이슈 품질 분석
+├── metrics.json                     # 📈 개인 활동 분석 데이터 (JSON)
+├── report.md                        # 📄 마크다운 보고서
+├── integrated_full_report.md        # 🎯 통합 보고서 (brief + PR 리뷰)
+├── prompts/                         # 💬 LLM 프롬프트 패킷
+│   ├── strengths_overview.txt
+│   ├── collaboration_improvements.txt
+│   ├── quality_balance.txt
+│   ├── growth_story.txt
+│   └── next_half_goals.txt
+└── reviews/                         # 🔍 PR 리뷰 (서브디렉토리)
+    └── {repo_name}/
+        ├── pr-{number}/
+        │   ├── artefacts.json       # 원본 PR 데이터
+        │   ├── review_summary.json  # 구조화된 리뷰
+        │   ├── review.md            # 마크다운 리뷰
+        │   └── personal_development.json  # 개인 성장 분석
+        └── integrated_report.md     # 통합 PR 리뷰 보고서
 ```
 
 </details>
