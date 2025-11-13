@@ -108,19 +108,34 @@ class Collector:
             try:
                 commits = future_commits.result(timeout=collection_timeout)
             except TimeoutError:
-                console.log(f"[warning]Commit collection timed out after {collection_timeout}s")
+                logger.warning(f"Commit collection timed out after {collection_timeout}s for {repo}")
+                console.log(f"[warning]⚠ Commit collection timed out - data may be incomplete")
+                commits = 0
+            except Exception as exc:
+                logger.error(f"Commit collection failed for {repo}: {exc}")
+                console.log(f"[warning]⚠ Commit collection failed: {type(exc).__name__}")
                 commits = 0
 
             try:
                 pull_requests, pr_metadata = future_prs.result(timeout=collection_timeout)
             except TimeoutError:
-                console.log(f"[warning]PR collection timed out after {collection_timeout}s")
+                logger.warning(f"PR collection timed out after {collection_timeout}s for {repo}")
+                console.log(f"[warning]⚠ PR collection timed out - data may be incomplete")
+                pull_requests, pr_metadata = 0, []
+            except Exception as exc:
+                logger.error(f"PR collection failed for {repo}: {exc}")
+                console.log(f"[warning]⚠ PR collection failed: {type(exc).__name__}")
                 pull_requests, pr_metadata = 0, []
 
             try:
                 issues = future_issues.result(timeout=collection_timeout)
             except TimeoutError:
-                console.log(f"[warning]Issue collection timed out after {collection_timeout}s")
+                logger.warning(f"Issue collection timed out after {collection_timeout}s for {repo}")
+                console.log(f"[warning]⚠ Issue collection timed out - data may be incomplete")
+                issues = 0
+            except Exception as exc:
+                logger.error(f"Issue collection failed for {repo}: {exc}")
+                console.log(f"[warning]⚠ Issue collection failed: {type(exc).__name__}")
                 issues = 0
 
         console.log(
@@ -146,13 +161,23 @@ class Collector:
             try:
                 pull_request_examples = future_examples.result(timeout=collection_timeout)
             except TimeoutError:
-                console.log(f"[warning]PR examples building timed out after {collection_timeout}s")
+                logger.warning(f"PR examples building timed out after {collection_timeout}s for {repo}")
+                console.log(f"[warning]⚠ PR examples building timed out - data may be incomplete")
+                pull_request_examples = []
+            except Exception as exc:
+                logger.error(f"PR examples building failed for {repo}: {exc}")
+                console.log(f"[warning]⚠ PR examples building failed: {type(exc).__name__}")
                 pull_request_examples = []
 
             try:
                 reviews = future_reviews.result(timeout=collection_timeout)
             except TimeoutError:
-                console.log(f"[warning]Review collection timed out after {collection_timeout}s")
+                logger.warning(f"Review collection timed out after {collection_timeout}s for {repo}")
+                console.log(f"[warning]⚠ Review collection timed out - data may be incomplete")
+                reviews = 0
+            except Exception as exc:
+                logger.error(f"Review collection failed for {repo}: {exc}")
+                console.log(f"[warning]⚠ Review collection failed: {type(exc).__name__}")
                 reviews = 0
 
         console.log("Phase 2 complete", f"reviews={reviews}")

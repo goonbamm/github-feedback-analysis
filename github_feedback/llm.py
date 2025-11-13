@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 import requests
 
 from .console import Console
-from .constants import LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
+from .constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import limit_items, safe_truncate_str, truncate_patch
 
@@ -271,7 +271,7 @@ class LLMClient:
         base_payload = {
             "model": self.model or "default-model",
             "messages": self._build_messages(bundle),
-            "temperature": 0.3,
+            "temperature": HEURISTIC_THRESHOLDS['llm_temperature'],
         }
 
         request_payloads: List[Dict[str, Any]] = [
@@ -279,7 +279,7 @@ class LLMClient:
         ]
         request_payloads.append(base_payload)
 
-        last_error: Exception | None = None
+        last_error: Optional[Exception] = None
         for request_payload in request_payloads:
             try:
                 response = requests.post(
@@ -353,8 +353,8 @@ class LLMClient:
         payload = {
             "model": self.model or "default-model",
             "messages": test_messages,
-            "temperature": 0.1,
-            "max_tokens": 10,
+            "temperature": HEURISTIC_THRESHOLDS['llm_temperature'],
+            "max_tokens": HEURISTIC_THRESHOLDS['llm_test_max_tokens'],
         }
 
         # Use shorter timeout for test connection
@@ -379,7 +379,7 @@ class LLMClient:
         self,
         messages: List[Dict[str, str]],
         *,
-        temperature: float = 0.3,
+        temperature: Optional[float] = None,
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ) -> str:
@@ -387,7 +387,7 @@ class LLMClient:
 
         Args:
             messages: Chat messages for the LLM
-            temperature: Sampling temperature
+            temperature: Sampling temperature (default: from HEURISTIC_THRESHOLDS)
             max_retries: Maximum number of retry attempts (default: 3)
             retry_delay: Base delay between retries in seconds (default: 2.0)
 
@@ -398,6 +398,10 @@ class LLMClient:
             ValueError: If response is invalid after all retries
             requests.HTTPError: If HTTP error persists after all retries
         """
+
+        # Use default temperature if not specified
+        if temperature is None:
+            temperature = HEURISTIC_THRESHOLDS['llm_temperature']
 
         # Check cache first if enabled
         cache_key = None
@@ -571,7 +575,7 @@ class LLMClient:
                 },
             ]
 
-            response = self.complete(messages, temperature=0.3)
+            response = self.complete(messages)
             result = json.loads(response)
 
             return {
@@ -667,7 +671,7 @@ class LLMClient:
             },
             ]
 
-            response = self.complete(messages, temperature=0.3)
+            response = self.complete(messages)
             result = json.loads(response)
 
             return {
@@ -774,7 +778,7 @@ class LLMClient:
             },
             ]
 
-            response = self.complete(messages, temperature=0.3)
+            response = self.complete(messages)
             result = json.loads(response)
 
             return {
@@ -884,7 +888,7 @@ class LLMClient:
             },
             ]
 
-            response = self.complete(messages, temperature=0.3)
+            response = self.complete(messages)
             result = json.loads(response)
 
             return {
@@ -936,11 +940,15 @@ class LLMClient:
             issues = []
 
             # Check length
-            if 10 <= len(first_line) <= 72:
+            min_len = HEURISTIC_THRESHOLDS['commit_min_length']
+            max_len = HEURISTIC_THRESHOLDS['commit_max_length']
+            too_long = HEURISTIC_THRESHOLDS['commit_too_long']
+
+            if min_len <= len(first_line) <= max_len:
                 score += 1
-            elif len(first_line) < 10:
+            elif len(first_line) < min_len:
                 issues.append("메시지가 너무 짧습니다")
-            elif len(first_line) > 100:
+            elif len(first_line) > too_long:
                 issues.append("첫 줄이 너무 깁니다")
 
             # Check for good patterns
@@ -958,11 +966,13 @@ class LLMClient:
                     break
 
             # Check for body (explains why)
-            if len(lines) > 2 and len(lines[2].strip()) > 20:
+            min_body_len = HEURISTIC_THRESHOLDS['commit_min_body_length']
+            if len(lines) > 2 and len(lines[2].strip()) > min_body_len:
                 score += 1
 
             # Classify based on score
-            is_good = score >= 2
+            good_score = HEURISTIC_THRESHOLDS['review_good_score']
+            is_good = score >= good_score
 
             if is_good:
                 good_count += 1
@@ -1017,16 +1027,20 @@ class LLMClient:
             'stuff', 'things', 'code', 'work'
         ]
 
+        min_len = HEURISTIC_THRESHOLDS['pr_title_min_length']
+        max_len = HEURISTIC_THRESHOLDS['pr_title_max_length']
+        min_words = HEURISTIC_THRESHOLDS['pr_title_min_words']
+
         for pr in prs:
             title = pr["title"].strip()
             score = 0
             reasons = []
 
             # Check length
-            if 15 <= len(title) <= 80:
+            if min_len <= len(title) <= max_len:
                 score += 1
             else:
-                if len(title) < 15:
+                if len(title) < min_len:
                     reasons.append("제목이 너무 짧습니다")
                 else:
                     reasons.append("제목이 너무 깁니다")
@@ -1046,11 +1060,12 @@ class LLMClient:
                 reasons.append("너무 일반적인 단어로 시작합니다")
 
             # Check for specificity (has specific terms, not just generic words)
-            if len(title.split()) >= 4:  # At least 4 words
+            if len(title.split()) >= min_words:
                 score += 1
 
             # Classify
-            is_clear = score >= 2
+            good_score = HEURISTIC_THRESHOLDS['review_good_score']
+            is_clear = score >= good_score
 
             if is_clear:
                 clear_count += 1
@@ -1115,6 +1130,10 @@ class LLMClient:
         examples_good = []
         examples_poor = []
 
+        body_short = HEURISTIC_THRESHOLDS['issue_body_short']
+        body_detailed = HEURISTIC_THRESHOLDS['issue_body_detailed']
+        good_score = HEURISTIC_THRESHOLDS['issue_good_score']
+
         for issue in issues:
             body = issue.get("body", "").strip()
             title = issue.get("title", "").strip()
@@ -1123,10 +1142,10 @@ class LLMClient:
             missing = []
 
             # Check body length
-            if len(body) > 200:
+            if len(body) > body_detailed:
                 score += 2
                 strengths.append("상세한 설명")
-            elif len(body) > 100:
+            elif len(body) > body_short:
                 score += 1
             else:
                 missing.append("본문이 너무 짧습니다")
@@ -1158,7 +1177,7 @@ class LLMClient:
                 score += 1
 
             # Detect common missing elements
-            if score < 3:
+            if score < good_score - 1:
                 if not re.search(r'(steps|재현|how to)', body, re.IGNORECASE):
                     missing.append("재현 단계")
                 if not re.search(r'(expected|actual|예상|실제)', body, re.IGNORECASE):
@@ -1167,7 +1186,7 @@ class LLMClient:
                     missing.append("환경 정보")
 
             # Classify
-            is_good = score >= 4
+            is_good = score >= good_score
 
             if is_good:
                 well_described += 1
