@@ -30,6 +30,35 @@ logger = logging.getLogger(__name__)
 console = Console()
 
 
+# ============================================================================
+# Helper Functions for Error Handling
+# ============================================================================
+
+def handle_future_result(future, task_name: str, repo: str, timeout: int, default_value):
+    """Handle future result with timeout and error handling.
+
+    Args:
+        future: The future to await
+        task_name: Name of the task for logging
+        repo: Repository name for logging
+        timeout: Timeout in seconds
+        default_value: Default value to return on error
+
+    Returns:
+        Result from future or default_value on error/timeout
+    """
+    try:
+        return future.result(timeout=timeout)
+    except TimeoutError:
+        logger.warning(f"{task_name} timed out after {timeout}s for {repo}")
+        console.log(f"[warning]⚠ {task_name} timed out - data may be incomplete")
+        return default_value
+    except Exception as exc:
+        logger.error(f"{task_name} failed for {repo}: {exc}")
+        console.log(f"[warning]⚠ {task_name} failed: {type(exc).__name__}")
+        return default_value
+
+
 @dataclass
 class Collector:
     """Facade for GitHub data collection using specialized collectors.
@@ -104,39 +133,16 @@ class Collector:
                 self.issue_collector.count_issues, repo, since, filters, author
             )
 
-            # Wait for all to complete with timeout
-            try:
-                commits = future_commits.result(timeout=collection_timeout)
-            except TimeoutError:
-                logger.warning(f"Commit collection timed out after {collection_timeout}s for {repo}")
-                console.log(f"[warning]⚠ Commit collection timed out - data may be incomplete")
-                commits = 0
-            except Exception as exc:
-                logger.error(f"Commit collection failed for {repo}: {exc}")
-                console.log(f"[warning]⚠ Commit collection failed: {type(exc).__name__}")
-                commits = 0
-
-            try:
-                pull_requests, pr_metadata = future_prs.result(timeout=collection_timeout)
-            except TimeoutError:
-                logger.warning(f"PR collection timed out after {collection_timeout}s for {repo}")
-                console.log(f"[warning]⚠ PR collection timed out - data may be incomplete")
-                pull_requests, pr_metadata = 0, []
-            except Exception as exc:
-                logger.error(f"PR collection failed for {repo}: {exc}")
-                console.log(f"[warning]⚠ PR collection failed: {type(exc).__name__}")
-                pull_requests, pr_metadata = 0, []
-
-            try:
-                issues = future_issues.result(timeout=collection_timeout)
-            except TimeoutError:
-                logger.warning(f"Issue collection timed out after {collection_timeout}s for {repo}")
-                console.log(f"[warning]⚠ Issue collection timed out - data may be incomplete")
-                issues = 0
-            except Exception as exc:
-                logger.error(f"Issue collection failed for {repo}: {exc}")
-                console.log(f"[warning]⚠ Issue collection failed: {type(exc).__name__}")
-                issues = 0
+            # Wait for all to complete with timeout using helper
+            commits = handle_future_result(
+                future_commits, "Commit collection", repo, collection_timeout, 0
+            )
+            pull_requests, pr_metadata = handle_future_result(
+                future_prs, "PR collection", repo, collection_timeout, (0, [])
+            )
+            issues = handle_future_result(
+                future_issues, "Issue collection", repo, collection_timeout, 0
+            )
 
         console.log(
             "Phase 1 complete",
@@ -157,28 +163,13 @@ class Collector:
                 self.review_collector.count_reviews, repo, pr_metadata, since, filters
             )
 
-            # Wait for all to complete with timeout
-            try:
-                pull_request_examples = future_examples.result(timeout=collection_timeout)
-            except TimeoutError:
-                logger.warning(f"PR examples building timed out after {collection_timeout}s for {repo}")
-                console.log(f"[warning]⚠ PR examples building timed out - data may be incomplete")
-                pull_request_examples = []
-            except Exception as exc:
-                logger.error(f"PR examples building failed for {repo}: {exc}")
-                console.log(f"[warning]⚠ PR examples building failed: {type(exc).__name__}")
-                pull_request_examples = []
-
-            try:
-                reviews = future_reviews.result(timeout=collection_timeout)
-            except TimeoutError:
-                logger.warning(f"Review collection timed out after {collection_timeout}s for {repo}")
-                console.log(f"[warning]⚠ Review collection timed out - data may be incomplete")
-                reviews = 0
-            except Exception as exc:
-                logger.error(f"Review collection failed for {repo}: {exc}")
-                console.log(f"[warning]⚠ Review collection failed: {type(exc).__name__}")
-                reviews = 0
+            # Wait for all to complete with timeout using helper
+            pull_request_examples = handle_future_result(
+                future_examples, "PR examples building", repo, collection_timeout, []
+            )
+            reviews = handle_future_result(
+                future_reviews, "Review collection", repo, collection_timeout, 0
+            )
 
         console.log("Phase 2 complete", f"reviews={reviews}")
 

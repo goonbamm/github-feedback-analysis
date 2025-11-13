@@ -27,6 +27,73 @@ console = Console()
 MAX_PATCH_LINES_PER_FILE = LLM_DEFAULTS['max_patch_lines_per_file']
 MAX_FILES_WITH_PATCH_SNIPPETS = LLM_DEFAULTS['max_files_with_patch_snippets']
 
+
+# ============================================================================
+# Helper Classes for Heuristic Analysis
+# ============================================================================
+
+class HeuristicAnalyzer:
+    """Base class for heuristic-based analysis with common scoring patterns."""
+
+    @staticmethod
+    def classify_by_score(
+        score: int,
+        threshold: int,
+        examples_good: list,
+        examples_poor: list,
+        item: dict,
+        good_reason: str,
+        poor_reason: str,
+        max_examples: int = 3
+    ) -> tuple[bool, int, int]:
+        """Classify item by score and update example lists.
+
+        Returns:
+            tuple of (is_good, good_count_delta, poor_count_delta)
+        """
+        is_good = score >= threshold
+
+        if is_good:
+            if len(examples_good) < max_examples:
+                examples_good.append({**item, "reason": good_reason})
+            return True, 1, 0
+        else:
+            if len(examples_poor) < max_examples:
+                examples_poor.append({**item, "reason": poor_reason})
+            return False, 0, 1
+
+    @staticmethod
+    def check_length_score(text: str, min_len: int, max_len: int) -> tuple[int, list[str]]:
+        """Check text length and return score and issues.
+
+        Returns:
+            tuple of (score, issues_list)
+        """
+        issues = []
+        length = len(text)
+
+        if min_len <= length <= max_len:
+            return 1, issues
+
+        if length < min_len:
+            issues.append("텍스트가 너무 짧습니다")
+        else:
+            issues.append("텍스트가 너무 깁니다")
+
+        return 0, issues
+
+    @staticmethod
+    def check_patterns(text: str, patterns: list[str], flags=0) -> bool:
+        """Check if text matches any of the given regex patterns."""
+        import re
+        return any(re.match(pattern, text, flags) for pattern in patterns)
+
+    @staticmethod
+    def search_patterns(text: str, patterns: list[str], flags=0) -> bool:
+        """Check if text contains any of the given regex patterns."""
+        import re
+        return any(re.search(pattern, text, flags) for pattern in patterns)
+
 # Cache settings
 DEFAULT_CACHE_EXPIRE_DAYS = 7
 LLM_CACHE_DIR = Path.home() / ".cache" / "github_feedback" / "llm_cache"
@@ -956,71 +1023,47 @@ class LLMClient:
     # Fallback analysis methods ----------------------------------------
 
     def _fallback_commit_analysis(self, commits: list[dict[str, str]]) -> dict[str, Any]:
-        """Enhanced heuristic-based commit message analysis."""
+        """Enhanced heuristic-based commit message analysis using helper class."""
+        import re
+
         good_count = 0
         poor_count = 0
         examples_good = []
         examples_poor = []
 
-        # Enhanced patterns
+        # Patterns for classification
         good_patterns = [
-            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+',  # Conventional Commits
-            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize) [A-Z].+',  # Capitalized imperative
-            r'^[A-Z][a-z]+ .+ (#\d+|issue|pr)',  # With issue/PR reference
+            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+',
+            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize) [A-Z].+',
+            r'^[A-Z][a-z]+ .+ (#\d+|issue|pr)',
+        ]
+        poor_patterns = [
+            r'^(wip|tmp|test|debug|asdf|aaa|zzz)',
+            r'^fix$|^update$|^bug$',
+            r'^.{1,5}$',
+            r'^.{150,}',
         ]
 
-        poor_patterns = [
-            r'^(wip|tmp|test|debug|asdf|aaa|zzz)',  # Work-in-progress markers
-            r'^fix$|^update$|^bug$',  # Too vague
-            r'^.{1,5}$',  # Too short (1-5 chars)
-            r'^.{150,}',  # Too long (150+ chars)
-        ]
+        # Thresholds
+        min_len = HEURISTIC_THRESHOLDS['commit_min_length']
+        max_len = HEURISTIC_THRESHOLDS['commit_max_length']
+        too_long = HEURISTIC_THRESHOLDS['commit_too_long']
+        min_body_len = HEURISTIC_THRESHOLDS['commit_min_body_length']
+        good_score_threshold = HEURISTIC_THRESHOLDS['review_good_score']
 
         for commit in commits:
             message = commit["message"].strip()
             lines = message.split("\n")
             first_line = lines[0] if lines else ""
 
-            # Enhanced scoring
-            score = 0
-            issues = []
+            # Score and classify
+            score, issues = self._score_commit_message(
+                first_line, lines, good_patterns, poor_patterns,
+                min_len, max_len, too_long, min_body_len
+            )
 
-            # Check length
-            min_len = HEURISTIC_THRESHOLDS['commit_min_length']
-            max_len = HEURISTIC_THRESHOLDS['commit_max_length']
-            too_long = HEURISTIC_THRESHOLDS['commit_too_long']
-
-            if min_len <= len(first_line) <= max_len:
-                score += 1
-            elif len(first_line) < min_len:
-                issues.append("메시지가 너무 짧습니다")
-            elif len(first_line) > too_long:
-                issues.append("첫 줄이 너무 깁니다")
-
-            # Check for good patterns
-            import re
-            for pattern in good_patterns:
-                if re.match(pattern, first_line, re.IGNORECASE):
-                    score += 2
-                    break
-
-            # Check for poor patterns
-            for pattern in poor_patterns:
-                if re.match(pattern, first_line.lower()):
-                    score -= 2
-                    issues.append("모호하거나 임시 메시지입니다")
-                    break
-
-            # Check for body (explains why)
-            min_body_len = HEURISTIC_THRESHOLDS['commit_min_body_length']
-            if len(lines) > 2 and len(lines[2].strip()) > min_body_len:
-                score += 1
-
-            # Classify based on score
-            good_score = HEURISTIC_THRESHOLDS['review_good_score']
-            is_good = score >= good_score
-
-            if is_good:
+            # Use helper to classify
+            if score >= good_score_threshold:
                 good_count += 1
                 if len(examples_good) < TEXT_LIMITS['example_display_limit']:
                     examples_good.append({
@@ -1052,8 +1095,41 @@ class LLMClient:
             "examples_poor": examples_poor,
         }
 
+    def _score_commit_message(
+        self, first_line: str, lines: list[str],
+        good_patterns: list[str], poor_patterns: list[str],
+        min_len: int, max_len: int, too_long: int, min_body_len: int
+    ) -> tuple[int, list[str]]:
+        """Score a commit message and return score with issues list."""
+        import re
+        score = 0
+        issues = []
+
+        # Check length
+        if min_len <= len(first_line) <= max_len:
+            score += 1
+        elif len(first_line) < min_len:
+            issues.append("메시지가 너무 짧습니다")
+        elif len(first_line) > too_long:
+            issues.append("첫 줄이 너무 깁니다")
+
+        # Check for good patterns
+        if HeuristicAnalyzer.check_patterns(first_line, good_patterns, re.IGNORECASE):
+            score += 2
+
+        # Check for poor patterns
+        if HeuristicAnalyzer.check_patterns(first_line.lower(), poor_patterns):
+            score -= 2
+            issues.append("모호하거나 임시 메시지입니다")
+
+        # Check for body
+        if len(lines) > 2 and len(lines[2].strip()) > min_body_len:
+            score += 1
+
+        return score, issues
+
     def _fallback_pr_title_analysis(self, prs: list[dict[str, str]]) -> dict[str, Any]:
-        """Enhanced heuristic-based PR title analysis."""
+        """Enhanced heuristic-based PR title analysis using helper class."""
         import re
 
         clear_count = 0
@@ -1061,59 +1137,27 @@ class LLMClient:
         examples_good = []
         examples_poor = []
 
-        # Enhanced patterns
+        # Patterns and configuration
         clear_patterns = [
-            r'^\[(feat|fix|docs|style|refactor|test|chore|perf|ci|build)\].+',  # [type] format
-            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build):.+',  # type: format
-            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve) .+',  # Imperative verb
+            r'^\[(feat|fix|docs|style|refactor|test|chore|perf|ci|build)\].+',
+            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build):.+',
+            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve) .+',
         ]
-
-        vague_keywords = [
-            'update', 'fix', 'change', 'modify', 'edit', 'misc', 'various',
-            'stuff', 'things', 'code', 'work'
-        ]
+        vague_keywords = {'update', 'fix', 'change', 'modify', 'edit', 'misc', 'various', 'stuff', 'things', 'code', 'work'}
 
         min_len = HEURISTIC_THRESHOLDS['pr_title_min_length']
         max_len = HEURISTIC_THRESHOLDS['pr_title_max_length']
         min_words = HEURISTIC_THRESHOLDS['pr_title_min_words']
+        good_score = HEURISTIC_THRESHOLDS['review_good_score']
 
         for pr in prs:
             title = pr["title"].strip()
-            score = 0
-            reasons = []
+            score, reasons = self._score_pr_title(
+                title, clear_patterns, vague_keywords, min_len, max_len, min_words
+            )
 
-            # Check length
-            if min_len <= len(title) <= max_len:
-                score += 1
-            else:
-                if len(title) < min_len:
-                    reasons.append("제목이 너무 짧습니다")
-                else:
-                    reasons.append("제목이 너무 깁니다")
-
-            # Check for clear patterns
-            has_clear_pattern = False
-            for pattern in clear_patterns:
-                if re.match(pattern, title, re.IGNORECASE):
-                    score += 2
-                    has_clear_pattern = True
-                    break
-
-            # Check for vague keywords (only first word)
-            first_word = title.split()[0].lower() if title.split() else ""
-            if first_word in vague_keywords and not has_clear_pattern:
-                score -= 1
-                reasons.append("너무 일반적인 단어로 시작합니다")
-
-            # Check for specificity (has specific terms, not just generic words)
-            if len(title.split()) >= min_words:
-                score += 1
-
-            # Classify
-            good_score = HEURISTIC_THRESHOLDS['review_good_score']
-            is_clear = score >= good_score
-
-            if is_clear:
+            # Classify and collect examples
+            if score >= good_score:
                 clear_count += 1
                 if len(examples_good) < 3:
                     examples_good.append({
@@ -1125,11 +1169,13 @@ class LLMClient:
             else:
                 vague_count += 1
                 if len(examples_poor) < 3:
+                    first_word = title.split()[0].lower() if title.split() else "feat"
+                    suggestion_type = first_word if first_word in {'feat', 'fix', 'docs'} else 'feat'
                     examples_poor.append({
                         "number": pr["number"],
                         "title": title,
                         "reason": ", ".join(reasons) if reasons else "제목이 모호합니다",
-                        "suggestion": f"[{first_word if first_word in ['feat', 'fix', 'docs'] else 'feat'}] {title if len(title) > 10 else title + ' - 구체적인 변경 내용 설명'}"
+                        "suggestion": f"[{suggestion_type}] {title if len(title) > 10 else title + ' - 구체적인 변경 내용 설명'}"
                     })
 
         return {
@@ -1145,6 +1191,40 @@ class LLMClient:
             "examples_good": examples_good,
             "examples_poor": examples_poor,
         }
+
+    def _score_pr_title(
+        self, title: str, clear_patterns: list[str], vague_keywords: set[str],
+        min_len: int, max_len: int, min_words: int
+    ) -> tuple[int, list[str]]:
+        """Score a PR title and return score with reasons list."""
+        import re
+        score = 0
+        reasons = []
+
+        # Check length
+        if min_len <= len(title) <= max_len:
+            score += 1
+        elif len(title) < min_len:
+            reasons.append("제목이 너무 짧습니다")
+        else:
+            reasons.append("제목이 너무 깁니다")
+
+        # Check for clear patterns
+        has_clear_pattern = HeuristicAnalyzer.check_patterns(title, clear_patterns, re.IGNORECASE)
+        if has_clear_pattern:
+            score += 2
+
+        # Check for vague keywords
+        first_word = title.split()[0].lower() if title.split() else ""
+        if first_word in vague_keywords and not has_clear_pattern:
+            score -= 1
+            reasons.append("너무 일반적인 단어로 시작합니다")
+
+        # Check for specificity
+        if len(title.split()) >= min_words:
+            score += 1
+
+        return score, reasons
 
     def _fallback_review_tone_analysis(
         self, reviews: list[dict[str, str]]
@@ -1168,7 +1248,7 @@ class LLMClient:
         }
 
     def _fallback_issue_analysis(self, issues: list[dict[str, str]]) -> dict[str, Any]:
-        """Enhanced heuristic-based issue quality analysis."""
+        """Enhanced heuristic-based issue quality analysis using helper class."""
         import re
 
         well_described = 0
@@ -1183,65 +1263,20 @@ class LLMClient:
         for issue in issues:
             body = issue.get("body", "").strip()
             title = issue.get("title", "").strip()
-            score = 0
-            strengths = []
-            missing = []
 
-            # Check body length
-            if len(body) > body_detailed:
-                score += 2
-                strengths.append("상세한 설명")
-            elif len(body) > body_short:
-                score += 1
-            else:
-                missing.append("본문이 너무 짧습니다")
+            score, strengths, missing = self._score_issue_quality(
+                body, body_short, body_detailed, good_score
+            )
 
-            # Check for structured information
-            if re.search(r'(steps to reproduce|재현 단계|how to reproduce)', body, re.IGNORECASE):
-                score += 2
-                strengths.append("재현 단계 포함")
-
-            if re.search(r'(expected|actual|예상|실제)', body, re.IGNORECASE):
-                score += 1
-                strengths.append("예상/실제 결과 비교")
-
-            if re.search(r'(environment|version|os|browser|환경)', body, re.IGNORECASE):
-                score += 1
-                strengths.append("환경 정보 포함")
-
-            if re.search(r'(screenshot|image|!\\[|스크린샷)', body, re.IGNORECASE):
-                score += 1
-                strengths.append("스크린샷/이미지 첨부")
-
-            # Check for code blocks
-            if '```' in body or '`' in body:
-                score += 1
-                strengths.append("코드 예시 포함")
-
-            # Check for links/references
-            if re.search(r'(#\\d+|http|related|참고)', body, re.IGNORECASE):
-                score += 1
-
-            # Detect common missing elements
-            if score < good_score - 1:
-                if not re.search(r'(steps|재현|how to)', body, re.IGNORECASE):
-                    missing.append("재현 단계")
-                if not re.search(r'(expected|actual|예상|실제)', body, re.IGNORECASE):
-                    missing.append("예상/실제 결과")
-                if not re.search(r'(environment|version|환경)', body, re.IGNORECASE):
-                    missing.append("환경 정보")
-
-            # Classify
-            is_good = score >= good_score
-
-            if is_good:
+            # Classify and collect examples
+            if score >= good_score:
                 well_described += 1
                 if len(examples_good) < 3:
                     examples_good.append({
                         "number": issue["number"],
                         "title": title,
                         "type": self._detect_issue_type(title, body),
-                        "strengths": strengths[:3],  # Top 3 strengths
+                        "strengths": strengths[:3],
                         "completeness_score": min(10, score)
                     })
             else:
@@ -1267,6 +1302,50 @@ class LLMClient:
             "examples_good": examples_good,
             "examples_poor": examples_poor,
         }
+
+    def _score_issue_quality(
+        self, body: str, body_short: int, body_detailed: int, good_score: int
+    ) -> tuple[int, list[str], list[str]]:
+        """Score issue quality and return score, strengths, and missing elements."""
+        import re
+        score = 0
+        strengths = []
+        missing = []
+
+        # Check body length
+        if len(body) > body_detailed:
+            score += 2
+            strengths.append("상세한 설명")
+        elif len(body) > body_short:
+            score += 1
+        else:
+            missing.append("본문이 너무 짧습니다")
+
+        # Check for structured information
+        structured_checks = [
+            (r'(steps to reproduce|재현 단계|how to reproduce)', "재현 단계 포함", "재현 단계", 2),
+            (r'(expected|actual|예상|실제)', "예상/실제 결과 비교", "예상/실제 결과", 1),
+            (r'(environment|version|os|browser|환경)', "환경 정보 포함", "환경 정보", 1),
+            (r'(screenshot|image|!\\[|스크린샷)', "스크린샷/이미지 첨부", None, 1),
+        ]
+
+        for pattern, strength, missing_name, points in structured_checks:
+            if re.search(pattern, body, re.IGNORECASE):
+                score += points
+                strengths.append(strength)
+            elif missing_name and score < good_score - 1:
+                missing.append(missing_name)
+
+        # Check for code blocks
+        if '```' in body or '`' in body:
+            score += 1
+            strengths.append("코드 예시 포함")
+
+        # Check for links/references
+        if re.search(r'(#\\d+|http|related|참고)', body, re.IGNORECASE):
+            score += 1
+
+        return score, strengths, missing
 
     def _detect_issue_type(self, title: str, body: str) -> str:
         """Detect issue type from title and body."""

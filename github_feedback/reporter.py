@@ -23,6 +23,65 @@ console = Console()
 FeedbackData = Union[CommitMessageFeedback, PRTitleFeedback, ReviewToneFeedback, IssueFeedback]
 
 
+# ============================================================================
+# Helper Classes for Report Generation
+# ============================================================================
+
+class MarkdownSectionBuilder:
+    """Helper class for building markdown sections with common patterns."""
+
+    @staticmethod
+    def build_section(
+        title: str,
+        description: str = "",
+        emoji: str = ""
+    ) -> List[str]:
+        """Build a section header with optional description."""
+        lines = []
+        header = f"### {emoji} {title}" if emoji else f"### {title}"
+        lines.append(header)
+        lines.append("")
+
+        if description:
+            lines.append(f"> {description}")
+            lines.append("")
+
+        return lines
+
+    @staticmethod
+    def build_table(headers: List[str], rows: List[List[str]]) -> List[str]:
+        """Build a markdown table from headers and rows."""
+        lines = []
+        lines.append("| " + " | ".join(headers) + " |")
+        lines.append("|" + "|".join(["---"] * len(headers)) + "|")
+
+        for row in rows:
+            lines.append("| " + " | ".join(str(cell) for cell in row) + " |")
+
+        lines.append("")
+        return lines
+
+    @staticmethod
+    def build_list(items: List[str], prefix: str = "-") -> List[str]:
+        """Build a markdown list from items."""
+        return [f"{prefix} {item}" for item in items] + [""]
+
+    @staticmethod
+    def build_subsection(
+        data_check: Any,
+        title: str,
+        content_builder: Callable[[], List[str]],
+        emoji: str = "",
+        description: str = ""
+    ) -> List[str]:
+        """Build a subsection if data exists, using a content builder function."""
+        lines = []
+        if data_check:
+            lines.extend(MarkdownSectionBuilder.build_section(title, description, emoji))
+            lines.extend(content_builder())
+        return lines
+
+
 def _format_metric_value(value: object) -> str:
     """Format numeric values with separators while keeping strings intact."""
 
@@ -693,55 +752,63 @@ class Reporter:
 
     def _build_executive_summary_subsection(self, retro) -> List[str]:
         """Build executive summary subsection of retrospective."""
-        lines = []
-        if retro.executive_summary:
-            lines.append("### 📋 회고 요약")
-            lines.append("")
-            lines.append(retro.executive_summary)
-            lines.append("")
-        return lines
+        def build_content():
+            return [retro.executive_summary, ""]
+
+        return MarkdownSectionBuilder.build_subsection(
+            retro.executive_summary,
+            "회고 요약",
+            build_content,
+            emoji="📋"
+        )
 
     def _build_key_wins_subsection(self, retro) -> List[str]:
         """Build key wins subsection of retrospective."""
-        lines = []
-        if retro.key_wins:
-            lines.append("### 🎉 주요 성과")
-            lines.append("")
-            lines.append("> 이번 기간 동안 달성한 핵심 성과들입니다")
-            lines.append("")
-            lines.append("| # | 성과 |")
-            lines.append("|---|------|")
-            for i, win in enumerate(retro.key_wins, 1):
-                lines.append(f"| {i} | {win} |")
-            lines.append("")
-        return lines
+        def build_content():
+            rows = [[str(i), win] for i, win in enumerate(retro.key_wins, 1)]
+            return MarkdownSectionBuilder.build_table(["#", "성과"], rows)
+
+        return MarkdownSectionBuilder.build_subsection(
+            retro.key_wins,
+            "주요 성과",
+            build_content,
+            emoji="🎉",
+            description="이번 기간 동안 달성한 핵심 성과들입니다"
+        )
 
     def _build_time_comparisons_subsection(self, retro) -> List[str]:
-        """Build time comparisons subsection of retrospective."""
-        lines = []
-        if retro.time_comparisons:
-            lines.append("### 📊 기간 비교 분석")
-            lines.append("")
-            lines.append("> 전반기와 후반기의 변화 추이를 비교합니다")
-            lines.append("")
-            lines.append("| 지표 | 전반기 | 후반기 | 변화량 | 변화율 | 의미 |")
-            lines.append("|------|--------|--------|--------|--------|------|")
-
+        """Build time comparisons subsection of retrospective using helper."""
+        def build_content():
+            rows = []
             for tc in retro.time_comparisons:
-                direction_emoji = "📈" if tc.direction == "increasing" else "📉" if tc.direction == "decreasing" else "➡️"
+                direction_emoji = {"increasing": "📈", "decreasing": "📉"}.get(tc.direction, "➡️")
                 significance_text = {
                     "major": "큰 변화",
                     "moderate": "중간 변화",
                     "minor": "작은 변화"
                 }.get(tc.significance, tc.significance)
 
-                lines.append(
-                    f"| {tc.metric_name} | {tc.previous_value:.1f} | {tc.current_value:.1f} | "
-                    f"{tc.change_absolute:+.1f} | {tc.change_percentage:+.1f}% | "
-                    f"{direction_emoji} {significance_text} |"
-                )
-            lines.append("")
-        return lines
+                rows.append([
+                    tc.metric_name,
+                    f"{tc.previous_value:.1f}",
+                    f"{tc.current_value:.1f}",
+                    f"{tc.change_absolute:+.1f}",
+                    f"{tc.change_percentage:+.1f}%",
+                    f"{direction_emoji} {significance_text}"
+                ])
+
+            return MarkdownSectionBuilder.build_table(
+                ["지표", "전반기", "후반기", "변화량", "변화율", "의미"],
+                rows
+            )
+
+        return MarkdownSectionBuilder.build_subsection(
+            retro.time_comparisons,
+            "기간 비교 분석",
+            build_content,
+            emoji="📊",
+            description="전반기와 후반기의 변화 추이를 비교합니다"
+        )
 
     def _build_behavior_patterns_subsection(self, retro) -> List[str]:
         """Build behavior patterns subsection of retrospective."""
