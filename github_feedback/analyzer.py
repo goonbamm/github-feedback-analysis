@@ -228,7 +228,6 @@ class Analyzer:
         monthly_insights = self._build_monthly_insights(monthly_trends)
         tech_stack = self._build_tech_stack_analysis(tech_stack_data)
         collaboration = self._build_collaboration_network(collaboration_data)
-        reflection_prompts = self._build_reflection_prompts(collection)
         year_end_review = self._build_year_end_review(collection, highlights, awards)
 
         # Create initial metrics snapshot
@@ -249,7 +248,6 @@ class Analyzer:
             monthly_insights=monthly_insights,
             tech_stack=tech_stack,
             collaboration=collaboration,
-            reflection_prompts=reflection_prompts,
             year_end_review=year_end_review,
             since_date=collection.since_date,
             until_date=collection.until_date,
@@ -744,41 +742,6 @@ class Analyzer:
             review_received_count=collaboration_data.get("review_received_count", 0),
             unique_collaborators=collaboration_data.get("unique_collaborators", 0),
         )
-
-    def _build_reflection_prompts(
-        self, collection: CollectionResult
-    ) -> ReflectionPrompts:
-        """Generate self-reflection questions for year-end review."""
-        questions = [
-            "올해 내가 가장 자랑스러워하는 기술적 성취는 무엇인가요?",
-            "가장 어려웠던 기술적 도전은 무엇이었고, 어떻게 극복했나요?",
-            "올해 새롭게 배운 기술이나 도구 중 가장 유용했던 것은 무엇인가요?",
-            "코드 리뷰를 통해 받은 피드백 중 가장 기억에 남는 것은 무엇인가요?",
-            "팀원들과의 협업에서 가장 뿌듯했던 순간은 언제였나요?",
-            "내 코드가 팀이나 사용자에게 가장 큰 영향을 준 순간은 언제였나요?",
-            "올해 내 개발 프로세스나 습관에서 개선된 점은 무엇인가요?",
-            "앞으로 더 발전시키고 싶은 기술 영역은 무엇인가요?",
-            "내년에 도전하고 싶은 새로운 프로젝트나 기술은 무엇인가요?",
-            "개발자로서 내년의 나는 어떤 모습이길 바라나요?",
-        ]
-
-        # Add context-specific questions based on activity
-        if collection.commits > ACTIVITY_THRESHOLDS['high_commits']:
-            questions.append(
-                f"올해 {collection.commits}회의 커밋을 작성했습니다. 이 중 가장 의미있었던 커밋은 무엇이었나요?"
-            )
-
-        if collection.reviews > ACTIVITY_THRESHOLDS['very_high_reviews']:
-            questions.append(
-                f"{collection.reviews}회의 코드 리뷰를 진행했습니다. 리뷰를 통해 배운 것은 무엇인가요?"
-            )
-
-        if collection.pull_requests > ACTIVITY_THRESHOLDS['high_prs']:
-            questions.append(
-                f"{collection.pull_requests}개의 Pull Request를 작성했습니다. 가장 복잡했던 PR은 무엇이었고, 어떤 점이 어려웠나요?"
-            )
-
-        return ReflectionPrompts(questions=questions)
 
     def _calculate_pr_size(self, pr: PullRequest) -> int:
         """Calculate the total size of a pull request (additions + deletions).

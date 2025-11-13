@@ -397,19 +397,6 @@ class CollaborationNetwork:
 
 
 @dataclass(slots=True)
-class ReflectionPrompts:
-    """Self-reflection questions for year-end review."""
-
-    questions: List[str] = field(default_factory=list)
-
-    def to_dict(self) -> Dict[str, object]:
-        """Serialise reflection prompts."""
-        return {
-            "questions": self.questions,
-        }
-
-
-@dataclass(slots=True)
 class YearEndReview:
     """Year-end specific insights and reflections."""
 
@@ -532,7 +519,6 @@ class MetricSnapshot:
     monthly_insights: Optional[MonthlyTrendInsights] = None
     tech_stack: Optional[TechStackAnalysis] = None
     collaboration: Optional[CollaborationNetwork] = None
-    reflection_prompts: Optional[ReflectionPrompts] = None
     year_end_review: Optional[YearEndReview] = None
     retrospective: Optional[RetrospectiveSnapshot] = None  # For deep analysis
     since_date: Optional[datetime] = None  # Actual analysis start date

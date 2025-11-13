@@ -780,23 +780,6 @@ class Reporter:
         lines.append("")
         return lines
 
-    def _build_reflection_prompts_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build reflection prompts section."""
-        if not (metrics.reflection_prompts and metrics.reflection_prompts.questions):
-            return []
-
-        lines = ["## 🤔 Reflection Prompts", ""]
-        lines.append("> 스스로에게 물어보세요")
-        lines.append("")
-        lines.append("| # | 질문 |")
-        lines.append("|---|------|")
-        for i, question in enumerate(metrics.reflection_prompts.questions, 1):
-            lines.append(f"| {i} | {question} |")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-        return lines
-
     def _build_evidence_section_improved(self, metrics: MetricSnapshot) -> List[str]:
         """Build evidence section."""
         if not metrics.evidence:
@@ -1204,9 +1187,7 @@ class Reporter:
             self._build_collaboration_section(metrics),
             # 12. Year in Review - Complete story (merged with year-end review)
             self._build_year_in_review_section(metrics),
-            # 13. Reflection Prompts - Think deeper
-            self._build_reflection_prompts_section(metrics),
-            # 14. Detailed Metrics - For those who want numbers
+            # 13. Detailed Metrics - For those who want numbers
             self._build_metrics_section(metrics),
             # 15. Evidence Links - Verification
             self._build_evidence_section_improved(metrics),

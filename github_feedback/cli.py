@@ -939,10 +939,6 @@ def _prepare_metrics_payload(metrics: MetricSnapshot) -> dict:
     if metrics.collaboration:
         metrics_payload["collaboration"] = metrics.collaboration.to_dict()
 
-    # Add reflection prompts
-    if metrics.reflection_prompts:
-        metrics_payload["reflection_prompts"] = metrics.reflection_prompts.to_dict()
-
     # Add year-end review
     if metrics.year_end_review:
         metrics_payload["year_end_review"] = metrics.year_end_review.to_dict()
