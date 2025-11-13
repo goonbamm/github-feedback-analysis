@@ -8,13 +8,14 @@ import logging
 import time
 from dataclasses import dataclass
 from functools import wraps
+from itertools import islice
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import requests
 
 from .console import Console
-from .constants import LLM_DEFAULTS, THREAD_POOL_CONFIG
+from .constants import LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import limit_items, safe_truncate_str, truncate_patch
 
@@ -307,7 +308,7 @@ class LLMClient:
                 if exc.response is not None:
                     try:
                         error_text = exc.response.text
-                    except Exception:  # pragma: no cover - defensive guard for rare encodings
+                    except (AttributeError, UnicodeDecodeError, LookupError):  # pragma: no cover - defensive guard for rare encodings
                         error_text = ""
 
                 last_error = exc
@@ -322,7 +323,7 @@ class LLMClient:
                     ):
                         continue
                 raise
-            except Exception as exc:  # pragma: no cover - network failures already handled elsewhere
+            except (OSError, ConnectionError, TimeoutError) as exc:  # pragma: no cover - network failures already handled elsewhere
                 last_error = exc
                 break
 
@@ -509,11 +510,11 @@ class LLMClient:
             }
 
         # Sample commits for analysis
-        sample_commits = commits[:LLM_DEFAULTS['sample_size_commits']]
+        sample_commits = list(islice(commits, LLM_DEFAULTS['sample_size_commits']))
 
         try:
             commit_list = "\n".join([
-                f"{i+1}. {safe_truncate_str(commit['message'], 100)} (SHA: {commit['sha'][:7]})"
+                f"{i+1}. {safe_truncate_str(commit['message'], TEXT_LIMITS['commit_message_display_length'])} (SHA: {commit['sha'][:7]})"
                 for i, commit in enumerate(sample_commits)
             ])
 
@@ -560,7 +561,8 @@ class LLMClient:
                         '    "improvement_areas": ["개선 영역"]\n'
                         "  }\n"
                         "}\n\n"
-                        "최대 20개 샘플만 분석하고, 대표적인 예시를 선정하세요. 모든 응답은 한국어로 작성하세요."
+                        f"최대 {TEXT_LIMITS['max_samples_mentioned_in_prompt']}개 샘플만 분석하고, "
+                        "대표적인 예시를 선정하세요. 모든 응답은 한국어로 작성하세요."
                     ),
                 },
                 {
@@ -600,7 +602,7 @@ class LLMClient:
             }
 
         # Sample PR titles for analysis
-        sample_prs = pr_titles[:LLM_DEFAULTS['sample_size_prs']]
+        sample_prs = list(islice(pr_titles, LLM_DEFAULTS['sample_size_prs']))
 
         try:
             pr_list = "\n".join([
@@ -699,7 +701,7 @@ class LLMClient:
             }
 
         # Sample review comments for analysis
-        sample_reviews = review_comments[:LLM_DEFAULTS['sample_size_reviews']]
+        sample_reviews = list(islice(review_comments, LLM_DEFAULTS['sample_size_reviews']))
 
         try:
             review_list = "\n".join([
@@ -804,7 +806,7 @@ class LLMClient:
             }
 
         # Sample issues for analysis
-        sample_issues = issues[:LLM_DEFAULTS['sample_size_issues']]
+        sample_issues = list(islice(issues, LLM_DEFAULTS['sample_size_issues']))
 
         try:
             issue_list = "\n".join([
@@ -964,7 +966,7 @@ class LLMClient:
 
             if is_good:
                 good_count += 1
-                if len(examples_good) < 3:
+                if len(examples_good) < TEXT_LIMITS['example_display_limit']:
                     examples_good.append({
                         "message": first_line,
                         "sha": commit["sha"][:7],
@@ -972,7 +974,7 @@ class LLMClient:
                     })
             else:
                 poor_count += 1
-                if len(examples_poor) < 3:
+                if len(examples_poor) < TEXT_LIMITS['example_display_limit']:
                     examples_poor.append({
                         "message": first_line,
                         "sha": commit["sha"][:7],

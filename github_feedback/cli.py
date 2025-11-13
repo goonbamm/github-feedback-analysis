@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -68,6 +70,7 @@ config_app = typer.Typer(help="Manage configuration settings")
 app.add_typer(config_app, name="config")
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 def _format_relative_date(date_str: str) -> str:
@@ -102,6 +105,51 @@ def _format_relative_date(date_str: str) -> str:
             return f"{days_ago // 365}y ago"
     except (ValueError, AttributeError):
         return "unknown"
+
+
+def _validate_collected_data(data: Optional[List], data_type: str) -> List:
+    """Validate and log collection results.
+
+    Args:
+        data: Collected data list or None
+        data_type: Type of data being validated (for logging)
+
+    Returns:
+        Empty list if data is None or empty, otherwise the original data
+    """
+    if data is None:
+        logger.warning(
+            "Data collection failed",
+            extra={
+                "component": "feedback_collector",
+                "data_type": data_type,
+                "status": "failed",
+                "count": 0
+            }
+        )
+        return []
+    elif not data:
+        logger.info(
+            "No data found for analysis",
+            extra={
+                "component": "feedback_collector",
+                "data_type": data_type,
+                "status": "empty",
+                "count": 0
+            }
+        )
+        return []
+    else:
+        logger.info(
+            "Data collection completed",
+            extra={
+                "component": "feedback_collector",
+                "data_type": data_type,
+                "status": "success",
+                "count": len(data)
+            }
+        )
+        return data
 
 
 def _run_parallel_tasks(
@@ -168,7 +216,10 @@ def _run_parallel_tasks(
                         console.print(f"[warning]✗ {error}", style="warning")
                         results[key] = None if task_type == "analysis" else []
                         progress.update(task_id, advance=1, description=f"[yellow]⚠ {label}")
-                    except Exception as e:
+                    except (Exception, KeyboardInterrupt) as e:
+                        # Re-raise keyboard interrupts and system exits
+                        if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                            raise
                         if task_type == "analysis":
                             error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
                         else:
@@ -206,7 +257,10 @@ def _run_parallel_tasks(
                         )
                     console.print(f"[warning]✗ {error}", style="warning")
                     results[key] = None if task_type == "analysis" else []
-                except Exception as e:
+                except (Exception, KeyboardInterrupt) as e:
+                    # Re-raise keyboard interrupts and system exits
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
                     if task_type == "analysis":
                         error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
                     else:
@@ -664,8 +718,20 @@ def _collect_detailed_feedback(
         KeyboardInterrupt: User interrupted the operation
     """
     from .llm import LLMClient
+    import time
 
+    start_time = time.time()
     console.print("[accent]Collecting detailed feedback data...", style="accent")
+
+    logger.info(
+        "Starting detailed feedback collection",
+        extra={
+            "component": "feedback_collector",
+            "repo": repo,
+            "since": since.isoformat(),
+            "author": author or "all"
+        }
+    )
 
     try:
         # Prepare data collection tasks
@@ -709,43 +775,10 @@ def _collect_detailed_feedback(
         )
 
         # Validate and extract collected data
-        commits_data = collected_data.get("commits")
-        pr_titles_data = collected_data.get("pr_titles")
-        review_comments_data = collected_data.get("review_comments")
-        issues_data = collected_data.get("issues")
-
-        # Log collection results
-        if commits_data is None:
-            logger.warning("Commit collection failed or returned None")
-            commits_data = []
-        elif not commits_data:
-            logger.info("No commits found for analysis")
-        else:
-            logger.info(f"Collected {len(commits_data)} commits for analysis")
-
-        if pr_titles_data is None:
-            logger.warning("PR titles collection failed or returned None")
-            pr_titles_data = []
-        elif not pr_titles_data:
-            logger.info("No PR titles found for analysis")
-        else:
-            logger.info(f"Collected {len(pr_titles_data)} PR titles for analysis")
-
-        if review_comments_data is None:
-            logger.warning("Review comments collection failed or returned None")
-            review_comments_data = []
-        elif not review_comments_data:
-            logger.info("No review comments found for analysis")
-        else:
-            logger.info(f"Collected {len(review_comments_data)} review comments for analysis")
-
-        if issues_data is None:
-            logger.warning("Issues collection failed or returned None")
-            issues_data = []
-        elif not issues_data:
-            logger.info("No issues found for analysis")
-        else:
-            logger.info(f"Collected {len(issues_data)} issues for analysis")
+        commits_data = _validate_collected_data(collected_data.get("commits"), "commits")
+        pr_titles_data = _validate_collected_data(collected_data.get("pr_titles"), "PR titles")
+        review_comments_data = _validate_collected_data(collected_data.get("review_comments"), "review comments")
+        issues_data = _validate_collected_data(collected_data.get("issues"), "issues")
 
         # Analyze using LLM
         llm_client = LLMClient(
@@ -786,14 +819,66 @@ def _collect_detailed_feedback(
             issue_analysis=issue_analysis,
         )
 
+        elapsed_time = time.time() - start_time
+        logger.info(
+            "Detailed feedback analysis completed successfully",
+            extra={
+                "component": "feedback_collector",
+                "repo": repo,
+                "duration_seconds": round(elapsed_time, 2),
+                "status": "success"
+            }
+        )
         console.print("[success]✓ Detailed feedback analysis complete", style="success")
         return detailed_feedback_snapshot
 
     except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as exc:
-        logger.warning(f"Detailed feedback analysis failed: {exc}", exc_info=True)
+        elapsed_time = time.time() - start_time
+        logger.warning(
+            "Detailed feedback analysis failed",
+            extra={
+                "component": "feedback_collector",
+                "repo": repo,
+                "duration_seconds": round(elapsed_time, 2),
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "status": "failed"
+            },
+            exc_info=True
+        )
         console.print(
             f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
         )
+
+        # Provide actionable guidance based on exception type
+        if isinstance(exc, requests.RequestException):
+            console.print(
+                "[cyan]💡 해결 방법: 네트워크 연결을 확인하거나 LLM endpoint 설정을 검토하세요.",
+                style="cyan"
+            )
+            console.print(
+                "[dim]  설정 확인: gfa config show",
+                style="dim"
+            )
+        elif isinstance(exc, json.JSONDecodeError):
+            console.print(
+                "[cyan]💡 해결 방법: LLM 응답 형식이 올바르지 않습니다. 모델 설정을 확인하세요.",
+                style="cyan"
+            )
+            console.print(
+                "[dim]  다른 모델을 시도하거나 config.llm.model을 확인하세요.",
+                style="dim"
+            )
+        elif isinstance(exc, (ValueError, KeyError)):
+            console.print(
+                "[cyan]💡 해결 방법: 수집된 데이터 형식에 문제가 있습니다.",
+                style="cyan"
+            )
+            console.print(
+                "[dim]  --debug 플래그로 상세 로그를 확인하거나 이슈를 제출해주세요.",
+                style="dim"
+            )
+
         console.print("[cyan]Continuing with standard analysis...", style="cyan")
         return None
     except KeyboardInterrupt:

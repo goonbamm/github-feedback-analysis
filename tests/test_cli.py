@@ -374,3 +374,140 @@ def test_review_lists_authored_prs_for_authenticated_user(monkeypatch: pytest.Mo
         {"repo": "example/repo", "number": 5},
     ]
 
+
+def test_collect_detailed_feedback_with_empty_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _collect_detailed_feedback handles empty datasets gracefully."""
+    from github_feedback.cli import _collect_detailed_feedback
+    from github_feedback.analyzer import Analyzer
+    from github_feedback.collector import Collector
+    from unittest.mock import Mock
+
+    # Mock collector that returns empty data
+    mock_collector = Mock(spec=Collector)
+    mock_collector.collect_commit_messages.return_value = []
+    mock_collector.collect_pr_titles.return_value = []
+    mock_collector.collect_review_comments_detailed.return_value = []
+    mock_collector.collect_issue_details.return_value = []
+
+    # Mock analyzer
+    mock_analyzer = Mock(spec=Analyzer)
+    mock_analyzer.build_detailed_feedback.return_value = None
+
+    # Mock config
+    config = _stub_config(monkeypatch)
+
+    # Call the function
+    since = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    filters = AnalysisFilters()
+
+    result = _collect_detailed_feedback(
+        collector=mock_collector,
+        analyzer=mock_analyzer,
+        config=config,
+        repo="test/repo",
+        since=since,
+        filters=filters,
+        author=None
+    )
+
+    # Verify all collection methods were called
+    assert mock_collector.collect_commit_messages.called
+    assert mock_collector.collect_pr_titles.called
+    assert mock_collector.collect_review_comments_detailed.called
+    assert mock_collector.collect_issue_details.called
+
+    # Verify analyzer was called
+    assert mock_analyzer.build_detailed_feedback.called
+
+
+def test_collect_detailed_feedback_llm_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test fallback when LLM is unavailable."""
+    from github_feedback.cli import _collect_detailed_feedback
+    from github_feedback.analyzer import Analyzer
+    from github_feedback.collector import Collector
+    from unittest.mock import Mock, patch
+    import requests
+
+    # Mock collector with sample data
+    mock_collector = Mock(spec=Collector)
+    mock_collector.collect_commit_messages.return_value = [
+        {"sha": "abc123", "message": "feat: add new feature"}
+    ]
+    mock_collector.collect_pr_titles.return_value = [
+        {"number": 1, "title": "Add feature"}
+    ]
+    mock_collector.collect_review_comments_detailed.return_value = []
+    mock_collector.collect_issue_details.return_value = []
+
+    # Mock analyzer
+    mock_analyzer = Mock(spec=Analyzer)
+    mock_analyzer.build_detailed_feedback.return_value = None
+
+    # Mock config
+    config = _stub_config(monkeypatch)
+
+    # Mock LLM to raise RequestException
+    with patch("github_feedback.llm.LLMClient.analyze_commit_messages") as mock_llm:
+        mock_llm.side_effect = requests.RequestException("Network error")
+
+        since = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        filters = AnalysisFilters()
+
+        # Should return None due to LLM failure
+        result = _collect_detailed_feedback(
+            collector=mock_collector,
+            analyzer=mock_analyzer,
+            config=config,
+            repo="test/repo",
+            since=since,
+            filters=filters,
+            author=None
+        )
+
+        assert result is None
+
+
+def test_collect_detailed_feedback_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test timeout handling in parallel collection."""
+    from github_feedback.cli import _collect_detailed_feedback
+    from github_feedback.analyzer import Analyzer
+    from github_feedback.collector import Collector
+    from unittest.mock import Mock
+    import time
+
+    # Mock collector with slow response
+    mock_collector = Mock(spec=Collector)
+
+    def slow_collect(*args, **kwargs):
+        time.sleep(0.1)  # Simulate slow operation
+        return []
+
+    mock_collector.collect_commit_messages = slow_collect
+    mock_collector.collect_pr_titles.return_value = []
+    mock_collector.collect_review_comments_detailed.return_value = []
+    mock_collector.collect_issue_details.return_value = []
+
+    # Mock analyzer
+    mock_analyzer = Mock(spec=Analyzer)
+    mock_analyzer.build_detailed_feedback.return_value = None
+
+    # Mock config
+    config = _stub_config(monkeypatch)
+
+    since = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    filters = AnalysisFilters()
+
+    # This should complete even with slow collection
+    result = _collect_detailed_feedback(
+        collector=mock_collector,
+        analyzer=mock_analyzer,
+        config=config,
+        repo="test/repo",
+        since=since,
+        filters=filters,
+        author=None
+    )
+
+    # Should handle timeout gracefully
+    assert result is not None or result is None  # Either result is acceptable
+

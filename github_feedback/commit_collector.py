@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -124,7 +125,7 @@ class CommitCollector(BaseCollector):
                             total += 1
                     # Merge cache
                     commit_file_cache.update(cache)
-                except Exception as exc:
+                except (requests.RequestException, ValueError, KeyError, json.JSONDecodeError) as exc:
                     logger.warning(f"Failed to count commits for branch {branch}: {exc}")
 
         return total

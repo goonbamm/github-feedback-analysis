@@ -12,6 +12,7 @@ import requests
 
 from .collector import Collector
 from .console import Console
+from .constants import TEXT_LIMITS
 from .llm import LLMClient
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import truncate_patch
@@ -90,11 +91,11 @@ class Reviewer:
         improvements: List[ReviewPoint] = []
 
         # Heuristic 1: Assess PR description quality
-        if bundle.body and len(bundle.body.strip()) > 100:
+        if bundle.body and len(bundle.body.strip()) > TEXT_LIMITS['pr_body_min_quality_length']:
             strengths.append(
                 ReviewPoint(
                     message="Pull Request 설명이 상세하고 맥락을 잘 제공합니다.",
-                    example=bundle.body.strip().splitlines()[0][:100],
+                    example=bundle.body.strip().splitlines()[0][:TEXT_LIMITS['commit_message_display_length']],
                 )
             )
         elif bundle.body and bundle.body.strip():
@@ -196,7 +197,7 @@ class Reviewer:
             logger.error(f"LLM HTTP error for PR #{bundle.number}: {exc.response.status_code if exc.response else 'unknown'}")
             console.log(f"LLM generation failed (HTTP error), using fallback summary")
             summary = self._fallback_summary(bundle)
-        except Exception as exc:
+        except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as exc:
             logger.error(f"LLM generation error for PR #{bundle.number}: {exc}")
             console.log(f"LLM generation failed ({type(exc).__name__}), using fallback summary")
             summary = self._fallback_summary(bundle)

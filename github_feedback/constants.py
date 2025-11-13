@@ -328,6 +328,14 @@ LLM_DEFAULTS = {
     'sample_size_issues': 15,
 }
 
+# Text processing limits
+TEXT_LIMITS = {
+    'commit_message_display_length': 100,  # Max length for displaying commit messages
+    'pr_body_min_quality_length': 100,  # Min length for considering PR body as detailed
+    'max_samples_mentioned_in_prompt': 20,  # Max samples mentioned in LLM prompts
+    'example_display_limit': 3,  # Number of good/poor examples to collect
+}
+
 # =============================================================================
 # Table Configuration
 # =============================================================================
