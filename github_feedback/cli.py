@@ -1186,14 +1186,63 @@ def feedback(
     console.print()
     console.print("[success]✓ Personal activity analysis complete![/]")
 
+    # Phase 6: PR Review Analysis
+    console.print()
+    console.rule("Phase 6: PR Review Analysis")
+    console.print("[accent]Analyzing all your PRs with AI-powered reviews...[/]")
+    feedback_report_path, pr_results = _run_feedback_analysis(
+        config=config,
+        repo_input=repo_input,
+        output_dir=output_dir_resolved,
+    )
+
+    if feedback_report_path:
+        console.print(f"[success]✓ PR review analysis complete[/]")
+        console.print(f"[success]Integrated PR review report:[/] [value]{feedback_report_path}[/]")
+    else:
+        console.print("[warning]⚠ PR review analysis skipped or failed[/]")
+
+    # Phase 7: Generate Integrated Full Report
+    console.print()
+    console.rule("Phase 7: Integrated Report Generation")
+
+    if feedback_report_path:
+        # Find the markdown report from artifacts
+        brief_report_path = None
+        for label, path in artifacts:
+            if "Markdown report" in label:
+                brief_report_path = path
+                break
+
+        if brief_report_path:
+            console.print("[accent]Creating integrated full report...[/]")
+            try:
+                integrated_report_path = _generate_integrated_full_report(
+                    output_dir=output_dir_resolved,
+                    repo_name=repo_input,
+                    brief_report_path=brief_report_path,
+                    feedback_report_path=feedback_report_path,
+                )
+                console.print(f"[success]✓ Integrated full report generated:[/] [value]{integrated_report_path}[/]")
+                artifacts.append(("Integrated Full Report", integrated_report_path))
+            except Exception as exc:
+                console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
+        else:
+            console.print("[warning]Brief report not found, skipping integrated report generation[/]")
+    else:
+        console.print("[warning]Feedback report not available, skipping integrated report generation[/]")
+
     # Final summary
     console.print()
     console.rule("Summary")
-    console.print(f"[success]✓ Analyzed personal activity for {author}[/]")
+    console.print(f"[success]✓ Complete analysis for {author}[/]")
+    console.print(f"[success]✓ Repository:[/] {repo_input}")
+    console.print(f"[success]✓ PRs reviewed:[/] {len(pr_results)}")
     console.print()
     console.print("[info]Next steps:[/]")
-    console.print("  • View the report: [accent]cat reports/report.md[/]")
+    console.print("  • View the full integrated report: [accent]cat reports/integrated_full_report.md[/]")
     console.print("  • View the HTML report: [accent]open reports/report.html[/]")
+    console.print("  • View individual PR reviews in: [accent]reports/[/]")
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
