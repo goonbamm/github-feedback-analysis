@@ -86,6 +86,11 @@ class Collector:
 
         # Phase 1: Parallel collection of independent data
         # (commits, PRs, and issues can be collected in parallel)
+        # Import timeout constant from constants module
+        from .constants import PARALLEL_CONFIG
+
+        collection_timeout = PARALLEL_CONFIG['collection_timeout']
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             console.log("Phase 1: Collecting commits, PRs, and issues in parallel")
 
@@ -99,10 +104,24 @@ class Collector:
                 self.issue_collector.count_issues, repo, since, filters, author
             )
 
-            # Wait for all to complete
-            commits = future_commits.result()
-            pull_requests, pr_metadata = future_prs.result()
-            issues = future_issues.result()
+            # Wait for all to complete with timeout
+            try:
+                commits = future_commits.result(timeout=collection_timeout)
+            except TimeoutError:
+                console.log(f"[warning]Commit collection timed out after {collection_timeout}s")
+                commits = 0
+
+            try:
+                pull_requests, pr_metadata = future_prs.result(timeout=collection_timeout)
+            except TimeoutError:
+                console.log(f"[warning]PR collection timed out after {collection_timeout}s")
+                pull_requests, pr_metadata = 0, []
+
+            try:
+                issues = future_issues.result(timeout=collection_timeout)
+            except TimeoutError:
+                console.log(f"[warning]Issue collection timed out after {collection_timeout}s")
+                issues = 0
 
         console.log(
             "Phase 1 complete",
@@ -123,8 +142,18 @@ class Collector:
                 self.review_collector.count_reviews, repo, pr_metadata, since, filters
             )
 
-            pull_request_examples = future_examples.result()
-            reviews = future_reviews.result()
+            # Wait for all to complete with timeout
+            try:
+                pull_request_examples = future_examples.result(timeout=collection_timeout)
+            except TimeoutError:
+                console.log(f"[warning]PR examples building timed out after {collection_timeout}s")
+                pull_request_examples = []
+
+            try:
+                reviews = future_reviews.result(timeout=collection_timeout)
+            except TimeoutError:
+                console.log(f"[warning]Review collection timed out after {collection_timeout}s")
+                reviews = 0
 
         console.log("Phase 2 complete", f"reviews={reviews}")
 

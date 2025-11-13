@@ -10,11 +10,13 @@ from typing import Any, Dict, Iterable, List
 
 import requests
 
+from .console import Console
 from .constants import LLM_DEFAULTS, THREAD_POOL_CONFIG
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
-from .utils import limit_items, truncate_patch
+from .utils import limit_items, safe_truncate_str, truncate_patch
 
 logger = logging.getLogger(__name__)
+console = Console()
 
 
 # Default values (used when config is not available)
@@ -364,7 +366,7 @@ class LLMClient:
         sample_commits = commits[:20]
 
         commit_list = "\n".join([
-            f"{i+1}. {commit['message'][:100]} (SHA: {commit['sha'][:7]})"
+            f"{i+1}. {safe_truncate_str(commit['message'], 100)} (SHA: {commit['sha'][:7]})"
             for i, commit in enumerate(sample_commits)
         ])
 
@@ -434,6 +436,10 @@ class LLMClient:
         except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
             # Fallback to simple heuristics on known errors
             logger.warning(f"LLM commit analysis failed: {exc}")
+            console.print(
+                "[warning]⚠ LLM commit analysis unavailable - using heuristic analysis[/]",
+                style="warning"
+            )
             return self._fallback_commit_analysis(sample_commits)
 
     def analyze_pr_titles(self, pr_titles: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -526,6 +532,10 @@ class LLMClient:
         except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
             # Fallback to simple heuristics on known errors
             logger.warning(f"LLM PR title analysis failed: {exc}")
+            console.print(
+                "[warning]⚠ LLM PR title analysis unavailable - using heuristic analysis[/]",
+                style="warning"
+            )
             return self._fallback_pr_title_analysis(sample_prs)
 
     def analyze_review_tone(
@@ -630,6 +640,10 @@ class LLMClient:
         except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
             # Fallback to simple heuristics on known errors
             logger.warning(f"LLM review tone analysis failed: {exc}")
+            console.print(
+                "[warning]⚠ LLM review tone analysis unavailable - using heuristic analysis[/]",
+                style="warning"
+            )
             return self._fallback_review_tone_analysis(sample_reviews)
 
     def analyze_issue_quality(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -735,6 +749,10 @@ class LLMClient:
         except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
             # Fallback to simple heuristics on known errors
             logger.warning(f"LLM issue analysis failed: {exc}")
+            console.print(
+                "[warning]⚠ LLM issue analysis unavailable - using heuristic analysis[/]",
+                style="warning"
+            )
             return self._fallback_issue_analysis(sample_issues)
 
     # Fallback analysis methods ----------------------------------------

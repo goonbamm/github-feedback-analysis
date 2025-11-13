@@ -78,7 +78,7 @@ class LearningInsight:
             "domain": self.domain,
             "technologies": self.technologies,
             "evidence_commits": self.evidence_commits,
-            "evidence_prs": evidence_prs,
+            "evidence_prs": self.evidence_prs,
             "growth_indicators": self.growth_indicators,
             "expertise_level": self.expertise_level,
         }

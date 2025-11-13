@@ -6,7 +6,32 @@ import re
 from typing import Iterable
 from urllib.parse import urlparse
 
-__all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months"]
+__all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months", "safe_truncate_str"]
+
+
+def safe_truncate_str(text: str, max_length: int) -> str:
+    """Safely truncate a string to max_length, avoiding splitting multi-byte characters.
+
+    Args:
+        text: The string to truncate
+        max_length: Maximum length in characters
+
+    Returns:
+        Truncated string that won't split multi-byte UTF-8 characters
+    """
+    if len(text) <= max_length:
+        return text
+
+    # Truncate and handle potential multi-byte character split
+    truncated = text[:max_length]
+    # Encode to UTF-8, then decode with error handling to remove broken characters
+    try:
+        # Try encoding and decoding to verify it's valid
+        truncated.encode('utf-8')
+        return truncated
+    except UnicodeEncodeError:
+        # If there's an issue, use encode/decode with ignore to be safe
+        return text.encode('utf-8')[:max_length].decode('utf-8', errors='ignore')
 
 
 def truncate_patch(patch: str, max_lines: int = 12) -> str:
@@ -119,12 +144,20 @@ def validate_repo_format(repo: str) -> None:
         repo: The repository string to validate.
 
     Raises:
-        ValueError: If the format is invalid.
+        ValueError: If the format is invalid or contains path traversal attempts.
     """
     if not repo or not repo.strip():
         raise ValueError("Repository cannot be empty")
 
     repo = repo.strip()
+
+    # Check for path traversal attempts
+    if ".." in repo:
+        raise ValueError("Repository name cannot contain '..' (path traversal attempt)")
+
+    # Check for absolute paths
+    if repo.startswith("/") or (len(repo) > 1 and repo[1] == ":"):  # Unix or Windows absolute path
+        raise ValueError("Repository name cannot be an absolute path")
 
     # Must be in owner/repo format
     if "/" not in repo:

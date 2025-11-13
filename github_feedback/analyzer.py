@@ -12,6 +12,7 @@ from .constants import (
     ACTIVITY_THRESHOLDS,
     COLLECTION_LIMITS,
     CONSISTENCY_THRESHOLDS,
+    DISPLAY_LIMITS,
     TREND_THRESHOLDS,
 )
 from .models import (
@@ -563,7 +564,7 @@ class Analyzer:
         sorted_languages = sorted(
             tech_stack_data.items(), key=lambda x: x[1], reverse=True
         )
-        top_languages = [lang for lang, _ in sorted_languages[:5]]
+        top_languages = [lang for lang, _ in sorted_languages[:DISPLAY_LIMITS['top_languages']]]
 
         # Calculate diversity score (Shannon entropy normalized)
         total_files = sum(tech_stack_data.values())
@@ -597,7 +598,7 @@ class Analyzer:
         sorted_reviewers = sorted(
             pr_reviewers.items(), key=lambda x: x[1], reverse=True
         )
-        top_reviewers = [reviewer for reviewer, _ in sorted_reviewers[:5]]
+        top_reviewers = [reviewer for reviewer, _ in sorted_reviewers[:DISPLAY_LIMITS['top_reviewers']]]
 
         return CollaborationNetwork(
             pr_reviewers=pr_reviewers,
@@ -798,8 +799,8 @@ class Analyzer:
             "오픈소스 기여나 기술 공유를 통해 개발 커뮤니티에 환원하기"
         )
 
-        # Limit to 5 goals
-        return goals[:5]
+        # Limit goals based on configured maximum
+        return goals[:DISPLAY_LIMITS['max_goals']]
 
     def _build_year_end_review(
         self,
