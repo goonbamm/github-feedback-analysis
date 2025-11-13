@@ -129,16 +129,13 @@ FEEDBACK_SECTIONS = {
 # =============================================================================
 
 DEFAULT_OUTPUT_DIR = 'reports'
-PROMPTS_SUBDIR = 'prompts'
 
-# Output file names
+# Output file names (only actively used files)
 OUTPUT_FILES = {
     'metrics': 'metrics.json',
     'report_md': 'report.md',
-    'commit_feedback': 'prompts/commit_feedback.txt',
-    'pr_feedback': 'prompts/pr_feedback.txt',
-    'review_feedback': 'prompts/review_feedback.txt',
-    'issue_feedback': 'prompts/issue_feedback.txt',
+    # Note: prompt files (commit_feedback, pr_feedback, etc.) are no longer generated
+    # Note: PROMPTS_SUBDIR removed as prompts folder is no longer created
 }
 
 # =============================================================================

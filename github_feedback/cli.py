@@ -952,19 +952,21 @@ def _generate_artifacts(
     output_dir: Path,
     metrics_payload: dict,
     save_intermediate_report: bool = True,
-) -> List[tuple[str, Path]]:
-    """Generate all report artifacts.
+) -> tuple[List[tuple[str, Path]], Optional[str]]:
+    """Generate all report artifacts and return brief report content in memory.
 
     Args:
         metrics: Metrics snapshot to generate reports from
         reporter: Reporter instance
         output_dir: Output directory for artifacts
         metrics_payload: Metrics data for serialization
-        save_intermediate_report: If True, saves intermediate report.md for internal use.
-                                  If False, skips intermediate report generation.
+        save_intermediate_report: If True, generates brief report content in memory for integration.
+                                  If False, skips brief report generation.
 
     Returns:
-        List of (label, path) tuples for generated artifacts
+        Tuple of (artifacts, brief_content):
+            - artifacts: List of (label, path) tuples for generated artifacts
+            - brief_content: Markdown content for brief report (None if not generated)
     """
     artifacts = []
 
@@ -972,23 +974,21 @@ def _generate_artifacts(
     metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
     artifacts.append(("Metrics snapshot", metrics_path))
 
-    # Generate markdown report (saved to _internal/ subdirectory for use in integrated report)
+    # Generate markdown report content in memory (no _internal folder needed)
+    brief_content = None
     if save_intermediate_report:
-        # Save to internal directory instead of main reports directory
-        internal_dir = output_dir / "_internal"
-        internal_reporter = Reporter(output_dir=internal_dir)
-        markdown_path = internal_reporter.generate_markdown(metrics)
-        artifacts.append(("Internal report (for reference)", markdown_path))
+        # Generate content in memory without creating files
+        brief_content = reporter.generate_markdown_content(metrics)
     else:
         markdown_path = reporter.generate_markdown(metrics)
         artifacts.append(("Markdown report", markdown_path))
 
-    # Generate prompt packets
-    prompt_artifacts = reporter.generate_prompt_packets(metrics)
-    for prompt_request, prompt_path in prompt_artifacts:
-        artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
+    # Skip prompt packet generation (prompts folder no longer needed)
+    # prompt_artifacts = reporter.generate_prompt_packets(metrics)
+    # for prompt_request, prompt_path in prompt_artifacts:
+    #     artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
 
-    return artifacts
+    return artifacts, brief_content
 
 
 def _check_repository_activity(
@@ -1182,7 +1182,7 @@ def _run_feedback_analysis(
 def _generate_integrated_full_report(
     output_dir: Path,
     repo_name: str,
-    brief_report_path: Path,
+    brief_content: str,
     feedback_report_path: Path,
 ) -> Path:
     """Generate an integrated report combining brief and feedback reports.
@@ -1190,20 +1190,12 @@ def _generate_integrated_full_report(
     Args:
         output_dir: Output directory for the integrated report
         repo_name: Repository name in owner/repo format
-        brief_report_path: Path to the brief report markdown file
+        brief_content: Brief report markdown content (from memory)
         feedback_report_path: Path to the feedback integrated report markdown file
 
     Returns:
         Path to the generated integrated report
     """
-    # Read brief report
-    try:
-        with open(brief_report_path, "r", encoding="utf-8") as f:
-            brief_content = f.read()
-    except FileNotFoundError:
-        console.print(f"[warning]Brief report not found at {brief_report_path}[/]")
-        brief_content = "_Brief report not available._"
-
     # Read feedback report
     try:
         with open(feedback_report_path, "r", encoding="utf-8") as f:
@@ -1393,8 +1385,8 @@ def feedback(
     console.print()
     console.rule("Phase 4: Report Generation")
     metrics_payload = _prepare_metrics_payload(metrics)
-    # Save intermediate report to _internal/ directory for use in integrated report
-    artifacts = _generate_artifacts(
+    # Generate artifacts and brief report content in memory (no _internal folder needed)
+    artifacts, brief_content = _generate_artifacts(
         metrics, reporter, output_dir_resolved, metrics_payload, save_intermediate_report=True
     )
 
@@ -1423,30 +1415,22 @@ def feedback(
     console.rule("Phase 7: Final Report Generation")
 
     integrated_report_path = None
-    if feedback_report_path:
-        # Find the internal markdown report from artifacts
-        brief_report_path = None
-        for label, path in artifacts:
-            if label and ("Internal report" in label or "Markdown report" in label):
-                brief_report_path = path
-                break
-
-        if brief_report_path:
-            console.print("[accent]Creating integrated full report...[/]")
-            try:
-                integrated_report_path = _generate_integrated_full_report(
-                    output_dir=output_dir_resolved,
-                    repo_name=repo_input,
-                    brief_report_path=brief_report_path,
-                    feedback_report_path=feedback_report_path,
-                )
-                console.print(f"[success]✓ Integrated full report generated[/]")
-            except Exception as exc:
-                console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
-        else:
-            console.print("[warning]Brief report not found, skipping integrated report generation[/]")
-    else:
+    if feedback_report_path and brief_content:
+        console.print("[accent]Creating integrated full report...[/]")
+        try:
+            integrated_report_path = _generate_integrated_full_report(
+                output_dir=output_dir_resolved,
+                repo_name=repo_input,
+                brief_content=brief_content,
+                feedback_report_path=feedback_report_path,
+            )
+            console.print(f"[success]✓ Integrated full report generated[/]")
+        except Exception as exc:
+            console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
+    elif not feedback_report_path:
         console.print("[warning]Feedback report not available, skipping integrated report generation[/]")
+    else:
+        console.print("[warning]Brief report content not available, skipping integrated report generation[/]")
 
     # Final summary
     console.print()
