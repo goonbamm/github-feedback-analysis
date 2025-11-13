@@ -17,6 +17,7 @@ try:  # pragma: no cover - optional rich dependency
     from rich.columns import Columns
     from rich.console import Group
     from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
     from rich.rule import Rule
     from rich.table import Table
     from rich.text import Text
@@ -25,6 +26,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     Columns = None
     Group = None
     Panel = None
+    Progress = None
     Rule = None
     Table = None
     Text = None
@@ -108,7 +110,7 @@ def _run_parallel_tasks(
     timeout: int,
     task_type: str = "collection",
 ) -> Dict[str, Any]:
-    """Run multiple tasks in parallel with consistent error handling.
+    """Run multiple tasks in parallel with progress indicator and consistent error handling.
 
     Args:
         tasks: Dict mapping task keys to (func, args, label) tuples
@@ -122,42 +124,95 @@ def _run_parallel_tasks(
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(func, *args): (key, label)
-            for key, (func, args, label) in tasks.items()
-        }
+    total = len(tasks)
 
-        completed = 0
-        total = len(futures)
-        for future in as_completed(futures, timeout=timeout):
-            key, label = futures[future]
-            try:
-                results[key] = future.result(timeout=timeout)
-                completed += 1
-                console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
-            except KeyboardInterrupt:
-                raise
-            except TimeoutError as e:
-                if task_type == "analysis":
-                    error = LLMTimeoutError(
-                        f"{label} timed out after {timeout}s",
-                        analysis_type=key
-                    )
-                else:
-                    error = CollectionTimeoutError(
-                        f"{label} timed out after {timeout}s",
-                        source=key
-                    )
-                console.print(f"[warning]✗ {error}", style="warning")
-                results[key] = None if task_type == "analysis" else []
-            except Exception as e:
-                if task_type == "analysis":
-                    error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
-                else:
-                    error = CollectionError(f"{label} failed: {e}", source=key)
-                console.print(f"[warning]✗ {error}", style="warning")
-                results[key] = None if task_type == "analysis" else []
+    # Use Rich Progress bar if available
+    if Progress is not None:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=console.rich_console if hasattr(console, 'rich_console') else None
+        ) as progress:
+            task_id = progress.add_task(
+                f"[cyan]{task_type.capitalize()}...",
+                total=total
+            )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(func, *args): (key, label)
+                    for key, (func, args, label) in tasks.items()
+                }
+
+                for future in as_completed(futures, timeout=timeout):
+                    key, label = futures[future]
+                    try:
+                        results[key] = future.result(timeout=timeout)
+                        progress.update(task_id, advance=1, description=f"[green]✓ {label}")
+                    except KeyboardInterrupt:
+                        raise
+                    except TimeoutError as e:
+                        if task_type == "analysis":
+                            error = LLMTimeoutError(
+                                f"{label} timed out after {timeout}s",
+                                analysis_type=key
+                            )
+                        else:
+                            error = CollectionTimeoutError(
+                                f"{label} timed out after {timeout}s",
+                                source=key
+                            )
+                        console.print(f"[warning]✗ {error}", style="warning")
+                        results[key] = None if task_type == "analysis" else []
+                        progress.update(task_id, advance=1, description=f"[yellow]⚠ {label}")
+                    except Exception as e:
+                        if task_type == "analysis":
+                            error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
+                        else:
+                            error = CollectionError(f"{label} failed: {e}", source=key)
+                        console.print(f"[warning]✗ {error}", style="warning")
+                        results[key] = None if task_type == "analysis" else []
+                        progress.update(task_id, advance=1, description=f"[red]✗ {label}")
+    else:
+        # Fallback to simple progress without Rich
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(func, *args): (key, label)
+                for key, (func, args, label) in tasks.items()
+            }
+
+            completed = 0
+            for future in as_completed(futures, timeout=timeout):
+                key, label = futures[future]
+                try:
+                    results[key] = future.result(timeout=timeout)
+                    completed += 1
+                    console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
+                except KeyboardInterrupt:
+                    raise
+                except TimeoutError as e:
+                    if task_type == "analysis":
+                        error = LLMTimeoutError(
+                            f"{label} timed out after {timeout}s",
+                            analysis_type=key
+                        )
+                    else:
+                        error = CollectionTimeoutError(
+                            f"{label} timed out after {timeout}s",
+                            source=key
+                        )
+                    console.print(f"[warning]✗ {error}", style="warning")
+                    results[key] = None if task_type == "analysis" else []
+                except Exception as e:
+                    if task_type == "analysis":
+                        error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
+                    else:
+                        error = CollectionError(f"{label} failed: {e}", source=key)
+                    console.print(f"[warning]✗ {error}", style="warning")
+                    results[key] = None if task_type == "analysis" else []
 
     return results
 
