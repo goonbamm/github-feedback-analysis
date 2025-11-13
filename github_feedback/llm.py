@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List
 
@@ -262,8 +263,24 @@ class LLMClient:
         messages: List[Dict[str, str]],
         *,
         temperature: float = 0.3,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
     ) -> str:
-        """Execute a generic chat completion request and return the content."""
+        """Execute a generic chat completion request with retry logic.
+
+        Args:
+            messages: Chat messages for the LLM
+            temperature: Sampling temperature
+            max_retries: Maximum number of retry attempts (default: 3)
+            retry_delay: Base delay between retries in seconds (default: 2.0)
+
+        Returns:
+            LLM response content
+
+        Raises:
+            ValueError: If response is invalid after all retries
+            requests.HTTPError: If HTTP error persists after all retries
+        """
 
         payload = {
             "model": self.model or "default-model",
@@ -271,28 +288,64 @@ class LLMClient:
             "temperature": temperature,
         }
 
-        response = requests.post(
-            self.endpoint,
-            json=payload,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
+        last_exception = None
 
-        try:
-            response_payload = response.json()
-        except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
-            raise ValueError("LLM response was not valid JSON") from exc
+        for attempt in range(max_retries + 1):
+            try:
+                response = requests.post(
+                    self.endpoint,
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
 
-        choices = response_payload.get("choices") or []
-        if not choices:
-            raise ValueError("LLM response did not contain choices")
+                try:
+                    response_payload = response.json()
+                except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
+                    raise ValueError("LLM response was not valid JSON") from exc
 
-        message = choices[0].get("message") or {}
-        content = str(message.get("content") or "").strip()
-        if not content:
-            raise ValueError("LLM response did not contain content")
+                choices = response_payload.get("choices") or []
+                if not choices:
+                    raise ValueError("LLM response did not contain choices")
 
-        return content
+                message = choices[0].get("message") or {}
+                content = str(message.get("content") or "").strip()
+                if not content:
+                    raise ValueError("LLM response did not contain content")
+
+                # Success! Log if this was a retry
+                if attempt > 0:
+                    logger.info(f"LLM request succeeded on attempt {attempt + 1}")
+
+                return content
+
+            except (requests.RequestException, ValueError) as exc:
+                last_exception = exc
+
+                # Don't retry on certain errors
+                if isinstance(exc, requests.HTTPError):
+                    status_code = exc.response.status_code
+                    # Don't retry on client errors (except rate limit and timeout)
+                    if 400 <= status_code < 500 and status_code not in [429, 408]:
+                        logger.error(f"LLM request failed with status {status_code}: {exc}")
+                        raise
+
+                # Log the error and retry if we have attempts left
+                if attempt < max_retries:
+                    # Exponential backoff: 2s, 4s, 8s
+                    delay = retry_delay * (2 ** attempt)
+                    logger.warning(
+                        f"LLM request failed (attempt {attempt + 1}/{max_retries + 1}): {exc}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(
+                        f"LLM request failed after {max_retries + 1} attempts: {exc}"
+                    )
+
+        # If we get here, all retries failed
+        raise last_exception  # type: ignore
 
     def analyze_commit_messages(
         self, commits: List[Dict[str, str]]

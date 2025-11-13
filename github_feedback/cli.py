@@ -1226,7 +1226,7 @@ def feedback(
         # Find the internal markdown report from artifacts
         brief_report_path = None
         for label, path in artifacts:
-            if "Internal report" in label or "Markdown report" in label:
+            if label and ("Internal report" in label or "Markdown report" in label):
                 brief_report_path = path
                 break
 

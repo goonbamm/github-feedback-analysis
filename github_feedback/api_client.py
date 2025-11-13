@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import requests
+import requests_cache
 
 from .config import Config
 from .constants import HTTP_STATUS, RETRY_CONFIG
@@ -28,17 +30,27 @@ class GitHubApiClient:
     - Error handling
     """
 
-    def __init__(self, config: Config, session: Optional[requests.Session] = None):
+    def __init__(
+        self,
+        config: Config,
+        session: Optional[requests.Session] = None,
+        enable_cache: bool = True,
+        cache_expire_after: int = 3600,
+    ):
         """Initialize GitHub API client.
 
         Args:
             config: Configuration object with PAT and API URL
             session: Optional requests session for connection pooling
+            enable_cache: Whether to enable request caching (default: True)
+            cache_expire_after: Cache expiration time in seconds (default: 3600)
 
         Raises:
             ConfigurationError: If PAT is not configured
         """
         self.config = config
+        self.enable_cache = enable_cache
+        self.cache_expire_after = cache_expire_after
         self.session = session
         self._headers: Dict[str, str] = {}
 
@@ -54,13 +66,34 @@ class GitHubApiClient:
         }
 
     def _get_session(self) -> requests.Session:
-        """Get or create requests session.
+        """Get or create requests session with optional caching.
 
         Returns:
-            Configured requests session
+            Configured requests session (cached or regular)
         """
         if self.session is None:
-            self.session = requests.Session()
+            if self.enable_cache:
+                # Create cache directory in user's home config
+                cache_dir = Path.home() / ".cache" / "github_feedback"
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_path = cache_dir / "api_cache"
+
+                # Create cached session
+                self.session = requests_cache.CachedSession(
+                    cache_name=str(cache_path),
+                    backend="sqlite",
+                    expire_after=self.cache_expire_after,
+                    allowable_codes=[200, 301, 302, 304],
+                    # Don't cache POST/PUT/DELETE/PATCH requests
+                    allowable_methods=["GET", "HEAD"],
+                )
+                logger.debug(
+                    f"Initialized cached session (expire_after={self.cache_expire_after}s)"
+                )
+            else:
+                self.session = requests.Session()
+                logger.debug("Initialized regular session (caching disabled)")
+
             self.session.headers.update(self._headers)
         return self.session
 

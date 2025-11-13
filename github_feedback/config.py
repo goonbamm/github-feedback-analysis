@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,10 @@ CONFIG_VERSION = "1.0.0"
 KEYRING_SERVICE = "github-feedback"
 KEYRING_USERNAME = "github-pat"
 
+# Lock for thread-safe keyring fallback setup
+_keyring_lock = threading.Lock()
+_keyring_fallback_attempted = False
+
 
 def _setup_keyring_fallback() -> bool:
     """Set up a fallback keyring backend if the default backend fails.
@@ -30,85 +35,102 @@ def _setup_keyring_fallback() -> bool:
     This is particularly useful on Linux systems where the D-Bus secrets service
     may not have a 'login' collection or may not be accessible.
 
+    Thread-safe: Uses a lock to prevent race conditions when multiple threads
+    try to set up the fallback keyring simultaneously.
+
     Returns:
         True if a working keyring backend was set up, False otherwise.
     """
     import sys
     import warnings
 
-    try:
-        # First try encrypted file backend if keyrings.alt is available
+    global _keyring_fallback_attempted
+
+    # Fast path: if we already tried, don't do it again
+    if _keyring_fallback_attempted:
+        return False
+
+    # Use lock to ensure only one thread sets up the fallback
+    with _keyring_lock:
+        # Double-check pattern: another thread might have set it up while we waited
+        if _keyring_fallback_attempted:
+            return False
+
+        _keyring_fallback_attempted = True
+
         try:
-            from keyrings.alt.file import EncryptedKeyring
-            keyring.set_keyring(EncryptedKeyring())
-            # Test the backend
+            # First try encrypted file backend if keyrings.alt is available
             try:
-                keyring.get_password(KEYRING_SERVICE, "test")
-                return True
-            except Exception:
-                # EncryptedKeyring is available but needs to be initialized
-                # This is fine, it will work when we try to set a password
-                return True
-        except ImportError:
-            # keyrings.alt is not available, try other backends
-            pass
-
-        # If keyrings.alt is not available, try other available backends
-        from keyring.backends import fail
-
-        # Get all available backends
-        available = keyring.backend.get_all_keyring()
-
-        # Filter out fail/null backends and sort by priority
-        viable = [
-            b for b in available
-            if not isinstance(b, fail.Keyring) and b.priority > 0
-        ]
-
-        if viable:
-            # Sort by priority (highest first) and use the best one
-            viable.sort(key=lambda x: x.priority, reverse=True)
-
-            # Try each backend until we find one that works
-            for backend in viable:
-                backend_name = backend.__class__.__name__
-                # Skip SecretService backend if we're trying fallbacks
-                # (it likely already failed)
-                if 'SecretService' in backend_name:
-                    continue
-
+                from keyrings.alt.file import EncryptedKeyring
+                keyring.set_keyring(EncryptedKeyring())
+                # Test the backend
                 try:
-                    # Test the backend
-                    keyring.set_keyring(backend)
                     keyring.get_password(KEYRING_SERVICE, "test")
-                    # If we get here, it works
                     return True
                 except Exception:
-                    continue
+                    # EncryptedKeyring is available but needs to be initialized
+                    # This is fine, it will work when we try to set a password
+                    return True
+            except ImportError:
+                # keyrings.alt is not available, try other backends
+                pass
 
-            # No working backend found
+            # If keyrings.alt is not available, try other available backends
+            from keyring.backends import fail
+
+            # Get all available backends
+            available = keyring.backend.get_all_keyring()
+
+            # Filter out fail/null backends and sort by priority
+            viable = [
+                b for b in available
+                if not isinstance(b, fail.Keyring) and b.priority > 0
+            ]
+
+            if viable:
+                # Sort by priority (highest first) and use the best one
+                viable.sort(key=lambda x: x.priority, reverse=True)
+
+                # Try each backend until we find one that works
+                for backend in viable:
+                    backend_name = backend.__class__.__name__
+                    # Skip SecretService backend if we're trying fallbacks
+                    # (it likely already failed)
+                    if 'SecretService' in backend_name:
+                        continue
+
+                    try:
+                        # Test the backend
+                        keyring.set_keyring(backend)
+                        keyring.get_password(KEYRING_SERVICE, "test")
+                        # If we get here, it works
+                        return True
+                    except Exception:
+                        continue
+
+                # No working backend found
+                warnings.warn(
+                    "System keyring is not accessible. "
+                    "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+                    UserWarning
+                )
+                return False
+            else:
+                warnings.warn(
+                    "No secure keyring backend available. "
+                    "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+                    UserWarning
+                )
+                return False
+
+        except Exception as e:
+            # If all else fails, warn the user
             warnings.warn(
-                "System keyring is not accessible. "
+                f"Failed to set up keyring fallback: {e}. "
                 "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
                 UserWarning
             )
             return False
-        else:
-            warnings.warn(
-                "No secure keyring backend available. "
-                "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
-                UserWarning
-            )
-            return False
-
-    except Exception as e:
-        # If all else fails, warn the user
-        warnings.warn(
-            f"Failed to set up keyring fallback: {e}. "
-            "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
-            UserWarning
-        )
-        return False
 
 
 class ServerConfig(BaseModel):

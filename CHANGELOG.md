@@ -1,0 +1,95 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- API request caching using requests-cache for improved performance
+- Retry logic with exponential backoff for LLM API calls
+- Comprehensive tests for retrospective analysis module
+- Additional tests for review reporter module
+- CONTRIBUTING.md with development guidelines
+- CHANGELOG.md to track project changes
+- Thread-safe keyring fallback initialization with locking mechanism
+
+### Fixed
+- Race condition in keyring access during concurrent initialization
+- Potential None reference error in artifact label checking (cli.py:1228)
+
+### Changed
+- LLM client now supports configurable retry attempts and delays
+- API client constructor now accepts cache configuration parameters
+
+## [0.1.0] - 2024-11-13
+
+### Added
+- Format feedback as tables for better readability
+- Integrated full report generation combining multiple report types
+- Retrospective analysis for year-end developer insights
+- Code review workflow automation
+- Interactive repository selection
+- Parallel task execution for data collection
+- LLM-powered feedback analysis
+- Support for GitHub Enterprise
+- Secure credential storage using system keyring
+- Comprehensive CLI with multiple commands:
+  - `gfa init` - Initialize configuration
+  - `gfa feedback` - Generate feedback reports
+  - `gfa config` - Manage configuration
+  - `gfa repos` - Repository management
+- Repository activity metrics collection:
+  - Commits analysis
+  - Pull requests tracking
+  - Code reviews monitoring
+  - Issues tracking
+- Detailed reporting features:
+  - Markdown reports
+  - JSON metrics export
+  - Interactive console output with Rich
+- Collaboration network analysis
+- Tech stack analysis
+- Award calculation system
+- Monthly trend analysis
+- Multi-language support (Korean/English)
+
+### Changed
+- Consolidated report files to show only final integrated report
+- Improved report formatting with better table layouts
+
+### Fixed
+- Cleanup unused files and improved prompts
+- Enhanced error handling throughout the application
+- Improved keyring fallback mechanism for Linux systems
+
+### Security
+- Implemented secure credential storage using keyring
+- Added PAT validation and authentication checks
+- Secure handling of GitHub API tokens
+
+## [0.0.1] - 2024-01-01
+
+### Added
+- Initial project structure
+- Basic GitHub API integration
+- Command-line interface foundation
+- Configuration management
+- Data collection utilities
+
+---
+
+## Legend
+
+- **Added**: New features
+- **Changed**: Changes in existing functionality
+- **Deprecated**: Soon-to-be removed features
+- **Removed**: Removed features
+- **Fixed**: Bug fixes
+- **Security**: Security improvements
+
+[Unreleased]: https://github.com/goonbamm/github-feedback-analysis/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/goonbamm/github-feedback-analysis/releases/tag/v0.1.0
+[0.0.1]: https://github.com/goonbamm/github-feedback-analysis/releases/tag/v0.0.1
