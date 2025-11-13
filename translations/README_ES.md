@@ -651,29 +651,82 @@ pytest tests/test_analyzer.py -v
 pytest --cov=github_feedback --cov-report=html
 ```
 
+### Dependencias Principales
+
+**Dependencias principales de ejecución:**
+- **typer >= 0.9** - Framework CLI
+- **rich >= 13.0** - UI de terminal, barras de progreso
+- **pydantic >= 2.5** - Validación y serialización de datos
+- **requests >= 2.31** - Cliente HTTP
+- **requests-cache >= 1.0** - Caché de respuestas basado en SQLite
+- **keyring >= 24.0** - Almacenamiento de credenciales del sistema
+- **keyrings.alt >= 5.0** - Llavero de archivo cifrado de respaldo
+- **tomli >= 2.0** - Análisis de archivos TOML (Python < 3.11)
+- **tomli-w >= 1.0** - Escritura de archivos TOML
+
+**Dependencias de desarrollo/prueba:**
+- **pytest >= 7.4** - Framework de pruebas
+
+**Requisitos del sistema:**
+- Python 3.11+ (se requieren async/type hints)
+- Llavero del sistema o sistema de archivos accesible
+- GitHub Personal Access Token (clásico o de grano fino)
+- Endpoint LLM compatible con formato de API OpenAI
+
 ### Estructura del Código
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  Punto de entrada CLI y comandos
-├── collector.py        # 📡 Recopilación de datos de API de GitHub
-├── analyzer.py         # 📊 Análisis y cálculo de métricas
-├── reporter.py         # 📄 Generación de informes (brief)
-├── reviewer.py         # 🎯 Lógica de revisión de PR
-├── review_reporter.py  # 📝 Informes de revisión integrados
-├── llm.py             # 🤖 Cliente de API LLM
-├── config.py          # ⚙️  Gestión de configuración
-├── models.py          # 📦 Modelos de datos
+├── cli.py              # 🖥️  Punto de entrada CLI y comandos (1,791 líneas)
+├── llm.py             # 🤖 Cliente de API LLM (1,409 líneas, con lógica de reintento)
+├── reporter.py         # 📄 Generación de informes (1,358 líneas, formato brief)
+├── retrospective.py    # 📅 Análisis retrospectivo de fin de año (1,021 líneas)
+├── analyzer.py         # 📊 Análisis y cálculo de métricas (959 líneas)
+├── review_reporter.py  # 📝 Informes de revisión integrados (749 líneas)
+├── config.py          # ⚙️  Gestión de configuración (529 líneas, integración de llavero)
+├── models.py          # 📦 Modelos de datos Pydantic (525 líneas)
+├── pr_collector.py     # 🔍 Recopilación de datos de PR (439 líneas)
+├── award_strategies.py # 🏆 Estrategias de cálculo de premios (419 líneas, 100+ premios)
+├── api_client.py      # 🌐 Cliente de API REST de GitHub (416 líneas)
+├── reviewer.py         # 🎯 Lógica de revisión de PR (416 líneas)
+├── collector.py        # 📡 Fachada de recopilación de datos (397 líneas)
+├── commit_collector.py # 📝 Recopilación de datos de commits (263 líneas)
+├── review_collector.py # 👀 Recopilación de datos de revisión (256 líneas)
+├── repository_manager.py # 📂 Gestión de repositorios (250 líneas)
+├── filters.py         # 🔍 Detección de idioma y filtrado (234 líneas)
+├── exceptions.py      # ⚠️  Jerarquía de excepciones (235 líneas, 24+ tipos de excepciones)
 └── utils.py           # 🔧 Funciones utilitarias
 ```
+
+### Arquitectura y Patrones de Diseño
+
+- **Patrón Fachada**: La clase `Collector` orquesta colectores especializados
+- **Patrón Estrategia**: Se usan 100+ estrategias en el cálculo de premios
+- **Patrón Repositorio**: `GitHubApiClient` abstrae el acceso a la API
+- **Patrón Constructor**: Construcción de informes y métricas
+- **Patrón Pool de Hilos**: Recopilación de datos en paralelo (mejora de velocidad 4x)
+
+### Optimizaciones de Rendimiento
+
+- **Caché de solicitudes**: Caché basado en SQLite (`~/.cache/github_feedback/api_cache.sqlite`)
+  - Caducidad predeterminada: 1 hora
+  - Solo almacena en caché solicitudes GET/HEAD
+  - Mejora de velocidad del 60-70% en ejecuciones repetidas
+- **Recopilación en paralelo**: Recopilación concurrente de datos usando ThreadPoolExecutor
+- **Lógica de reintento**: Retroceso exponencial para solicitudes LLM (máximo 3 intentos)
 
 </details>
 
 ## 🔒 Seguridad
 
 - **Almacenamiento de PAT**: Los tokens de GitHub se almacenan de forma segura en el llavero del sistema (no en archivos de texto plano)
+  - Soporte de llavero del sistema: gnome-keyring, macOS Keychain, Windows Credential Manager
+  - Respaldo de Linux: Llavero de archivo cifrado (`keyrings.alt`)
+  - Inicialización de llavero thread-safe (previene condiciones de carrera)
 - **Copia de seguridad de configuración**: Crea automáticamente copias de seguridad antes de sobrescribir la configuración
 - **Validación de entrada**: Valida todas las entradas del usuario (formato PAT, formato URL, formato de repositorio)
+- **Seguridad de caché**: El archivo de caché SQLite tiene permisos de lectura/escritura solo para el usuario
+- **Seguridad de API**: Autenticación con token Bearer, comunicación solo HTTPS
 
 ## 📄 Licencia
 

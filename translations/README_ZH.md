@@ -652,29 +652,82 @@ pytest tests/test_analyzer.py -v
 pytest --cov=github_feedback --cov-report=html
 ```
 
+### 主要依赖
+
+**核心运行时依赖：**
+- **typer >= 0.9** - CLI 框架
+- **rich >= 13.0** - 终端 UI、进度条
+- **pydantic >= 2.5** - 数据验证和序列化
+- **requests >= 2.31** - HTTP 客户端
+- **requests-cache >= 1.0** - 基于 SQLite 的响应缓存
+- **keyring >= 24.0** - 系统凭据存储
+- **keyrings.alt >= 5.0** - 备用加密文件密钥环
+- **tomli >= 2.0** - TOML 文件解析（Python < 3.11）
+- **tomli-w >= 1.0** - TOML 文件写入
+
+**开发/测试依赖：**
+- **pytest >= 7.4** - 测试框架
+
+**系统要求：**
+- Python 3.11+（需要 async/类型提示）
+- 系统密钥环或可访问的文件系统
+- GitHub Personal Access Token（经典或细粒度）
+- 与 OpenAI API 格式兼容的 LLM 端点
+
 ### 代码结构
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  CLI 入口点和命令
-├── collector.py        # 📡 GitHub API 数据收集
-├── analyzer.py         # 📊 指标分析和计算
-├── reporter.py         # 📄 报告生成（brief）
-├── reviewer.py         # 🎯 PR 审查逻辑
-├── review_reporter.py  # 📝 集成审查报告
-├── llm.py             # 🤖 LLM API 客户端
-├── config.py          # ⚙️  配置管理
-├── models.py          # 📦 数据模型
+├── cli.py              # 🖥️  CLI 入口点和命令（1,791行）
+├── llm.py             # 🤖 LLM API 客户端（1,409行，包含重试逻辑）
+├── reporter.py         # 📄 报告生成（1,358行，brief 格式）
+├── retrospective.py    # 📅 年终回顾分析（1,021行）
+├── analyzer.py         # 📊 指标分析和计算（959行）
+├── review_reporter.py  # 📝 集成审查报告（749行）
+├── config.py          # ⚙️  配置管理（529行，密钥环集成）
+├── models.py          # 📦 Pydantic 数据模型（525行）
+├── pr_collector.py     # 🔍 PR 数据收集（439行）
+├── award_strategies.py # 🏆 奖项计算策略（419行，100+ 奖项）
+├── api_client.py      # 🌐 GitHub REST API 客户端（416行）
+├── reviewer.py         # 🎯 PR 审查逻辑（416行）
+├── collector.py        # 📡 数据收集门面（397行）
+├── commit_collector.py # 📝 提交数据收集（263行）
+├── review_collector.py # 👀 审查数据收集（256行）
+├── repository_manager.py # 📂 仓库管理（250行）
+├── filters.py         # 🔍 语言检测和过滤（234行）
+├── exceptions.py      # ⚠️  异常层次结构（235行，24+ 异常类型）
 └── utils.py           # 🔧 实用函数
 ```
+
+### 架构和设计模式
+
+- **门面模式**：`Collector` 类编排专业收集器
+- **策略模式**：奖项计算中使用 100+ 策略
+- **仓库模式**：`GitHubApiClient` 抽象 API 访问
+- **构建器模式**：报告和指标构建
+- **线程池模式**：并行数据收集（4倍速度提升）
+
+### 性能优化
+
+- **请求缓存**：基于 SQLite 的缓存（`~/.cache/github_feedback/api_cache.sqlite`）
+  - 默认过期时间：1小时
+  - 仅缓存 GET/HEAD 请求
+  - 重复运行时速度提升 60-70%
+- **并行收集**：使用 ThreadPoolExecutor 并发数据收集
+- **重试逻辑**：LLM 请求采用指数退避（最多 3 次尝试）
 
 </details>
 
 ## 🔒 安全
 
 - **PAT 存储**：GitHub 令牌安全存储在系统密钥环中（不存储在明文文件中）
+  - 系统密钥环支持：gnome-keyring、macOS Keychain、Windows Credential Manager
+  - Linux 备用方案：加密文件密钥环（`keyrings.alt`）
+  - 线程安全密钥环初始化（防止竞态条件）
 - **配置备份**：覆盖配置前自动创建备份
 - **输入验证**：验证所有用户输入（PAT 格式、URL 格式、仓库格式）
+- **缓存安全**：SQLite 缓存文件具有仅用户读/写权限
+- **API 安全**：Bearer 令牌认证、仅 HTTPS 通信
 
 ## 📄 许可证
 

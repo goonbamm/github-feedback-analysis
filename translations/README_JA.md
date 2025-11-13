@@ -665,29 +665,82 @@ pytest tests/test_analyzer.py -v
 pytest --cov=github_feedback --cov-report=html
 ```
 
+### 主要な依存関係
+
+**コアランタイム依存関係：**
+- **typer >= 0.9** - CLIフレームワーク
+- **rich >= 13.0** - ターミナルUI、プログレスバー
+- **pydantic >= 2.5** - データ検証とシリアライゼーション
+- **requests >= 2.31** - HTTPクライアント
+- **requests-cache >= 1.0** - SQLiteベースのレスポンスキャッシュ
+- **keyring >= 24.0** - システム認証情報ストレージ
+- **keyrings.alt >= 5.0** - フォールバック暗号化ファイルキーリング
+- **tomli >= 2.0** - TOMLファイル解析（Python < 3.11）
+- **tomli-w >= 1.0** - TOMLファイル書き込み
+
+**開発/テスト依存関係：**
+- **pytest >= 7.4** - テストフレームワーク
+
+**システム要件：**
+- Python 3.11+（async/型ヒントが必要）
+- システムキーリングまたはアクセス可能なファイルシステム
+- GitHub Personal Access Token（クラシックまたはファイングレイン）
+- OpenAI API形式と互換性のあるLLMエンドポイント
+
 ### コード構造
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  CLIエントリーポイントとコマンド
-├── collector.py        # 📡 GitHub APIデータ収集
-├── analyzer.py         # 📊 メトリクス分析と計算
-├── reporter.py         # 📄 レポート生成（brief）
-├── reviewer.py         # 🎯 PRレビューロジック
-├── review_reporter.py  # 📝 統合レビューレポート
-├── llm.py             # 🤖 LLM APIクライアント
-├── config.py          # ⚙️  設定管理
-├── models.py          # 📦 データモデル
+├── cli.py              # 🖥️  CLIエントリーポイントとコマンド（1,791行）
+├── llm.py             # 🤖 LLM APIクライアント（1,409行、リトライロジック付き）
+├── reporter.py         # 📄 レポート生成（1,358行、brief形式）
+├── retrospective.py    # 📅 年末回顧分析（1,021行）
+├── analyzer.py         # 📊 メトリクス分析と計算（959行）
+├── review_reporter.py  # 📝 統合レビューレポート（749行）
+├── config.py          # ⚙️  設定管理（529行、キーリング統合）
+├── models.py          # 📦 Pydanticデータモデル（525行）
+├── pr_collector.py     # 🔍 PRデータ収集（439行）
+├── award_strategies.py # 🏆 アワード計算戦略（419行、100+アワード）
+├── api_client.py      # 🌐 GitHub REST APIクライアント（416行）
+├── reviewer.py         # 🎯 PRレビューロジック（416行）
+├── collector.py        # 📡 データ収集ファサード（397行）
+├── commit_collector.py # 📝 コミットデータ収集（263行）
+├── review_collector.py # 👀 レビューデータ収集（256行）
+├── repository_manager.py # 📂 リポジトリ管理（250行）
+├── filters.py         # 🔍 言語検出とフィルタリング（234行）
+├── exceptions.py      # ⚠️  例外階層構造（235行、24+例外タイプ）
 └── utils.py           # 🔧 ユーティリティ関数
 ```
+
+### アーキテクチャとデザインパターン
+
+- **ファサードパターン**：`Collector`クラスが専門的なコレクターを調整
+- **ストラテジーパターン**：アワード計算で100+戦略を使用
+- **リポジトリパターン**：`GitHubApiClient`がAPIアクセスを抽象化
+- **ビルダーパターン**：レポートとメトリクスの構築
+- **スレッドプールパターン**：並列データ収集（4倍の速度向上）
+
+### パフォーマンス最適化
+
+- **リクエストキャッシング**：SQLiteベースのキャッシュ（`~/.cache/github_feedback/api_cache.sqlite`）
+  - デフォルトの有効期限：1時間
+  - GET/HEADリクエストのみキャッシュ
+  - 繰り返し実行時に60-70%の速度向上
+- **並列収集**：ThreadPoolExecutorを使用した並行データ収集
+- **リトライロジック**：LLMリクエストに指数バックオフを適用（最大3回試行）
 
 </details>
 
 ## 🔒 セキュリティ
 
 - **PAT ストレージ**：GitHub トークンはシステムキーリングに安全に保存されます（プレーンテキストファイルには保存されません）
+  - システムキーリングサポート：gnome-keyring、macOS Keychain、Windows Credential Manager
+  - Linuxフォールバック：暗号化ファイルキーリング（`keyrings.alt`）
+  - スレッドセーフなキーリング初期化（競合状態を防止）
 - **設定バックアップ**：設定を上書きする前に自動的にバックアップを作成します
 - **入力検証**：すべてのユーザー入力を検証します（PAT 形式、URL 形式、リポジトリ形式）
+- **キャッシュセキュリティ**：SQLiteキャッシュファイルはユーザーのみの読み取り/書き込み権限
+- **APIセキュリティ**：Bearerトークン認証、HTTPS専用通信
 
 ## 📄 ライセンス
 

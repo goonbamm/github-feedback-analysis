@@ -244,18 +244,23 @@ After analysis completes, the following files are created in the `reports/` dire
 
 ```
 reports/
-├── metrics.json              # Raw analysis data (JSON)
-├── report.md                 # Analysis report (Markdown)
-├── report.html               # Analysis report (HTML, with charts)
-├── charts/                   # Visualization charts
-│   ├── quality.svg          # Quality metrics chart
-│   ├── activity.svg         # Activity metrics chart
-│   └── ...                  # Other domain-specific charts
-└── prompts/
-    ├── commit_feedback.txt   # Commit message feedback
-    ├── pr_feedback.txt       # PR title feedback
-    ├── review_feedback.txt   # Review tone feedback
-    └── issue_feedback.txt    # Issue quality feedback
+├── metrics.json                     # Raw analysis data (JSON)
+├── report.md                        # Analysis report (Markdown)
+├── integrated_full_report.md        # Integrated report (brief + PR reviews)
+├── prompts/                         # LLM prompt files
+│   ├── strengths_overview.txt
+│   ├── collaboration_improvements.txt
+│   ├── quality_balance.txt
+│   ├── growth_story.txt
+│   └── next_half_goals.txt
+└── reviews/                         # PR reviews (subdirectories)
+    └── {repo_name}/
+        ├── pr-{number}/
+        │   ├── artefacts.json       # Raw PR data
+        │   ├── review_summary.json  # Structured review
+        │   ├── review.md            # Markdown review
+        │   └── personal_development.json  # Personal growth analysis
+        └── integrated_report.md     # Integrated PR review report
 ```
 
 #### Analysis Content
@@ -471,19 +476,23 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 Personal activity analysis data (JSON)
-├── report.md                 # 📄 Markdown report
-├── report.html               # 🎨 HTML report (with visualization charts)
-├── charts/                   # 📊 Visualization charts (SVG)
-│   ├── quality.svg          # Quality metrics chart
-│   ├── activity.svg         # Activity metrics chart
-│   ├── engagement.svg       # Engagement chart
-│   └── ...                  # Other domain-specific charts
-└── prompts/
-    ├── commit_feedback.txt   # 💬 Commit message quality analysis
-    ├── pr_feedback.txt       # 🔀 PR title analysis
-    ├── review_feedback.txt   # 👀 Review tone analysis
-    └── issue_feedback.txt    # 🐛 Issue quality analysis
+├── metrics.json                     # 📈 Personal activity analysis data (JSON)
+├── report.md                        # 📄 Markdown report
+├── integrated_full_report.md        # 🎯 Integrated report (brief + PR reviews)
+├── prompts/                         # 💬 LLM prompt packets
+│   ├── strengths_overview.txt
+│   ├── collaboration_improvements.txt
+│   ├── quality_balance.txt
+│   ├── growth_story.txt
+│   └── next_half_goals.txt
+└── reviews/                         # 🔍 PR reviews (subdirectories)
+    └── {repo_name}/
+        ├── pr-{number}/
+        │   ├── artefacts.json       # Raw PR data
+        │   ├── review_summary.json  # Structured review
+        │   ├── review.md            # Markdown review
+        │   └── personal_development.json  # Personal growth analysis
+        └── integrated_report.md     # Integrated PR review report
 ```
 
 </details>
@@ -665,29 +674,82 @@ pytest tests/test_analyzer.py -v
 pytest --cov=github_feedback --cov-report=html
 ```
 
+### Key Dependencies
+
+**Core Runtime Dependencies:**
+- **typer >= 0.9** - CLI framework
+- **rich >= 13.0** - Terminal UI, progress bars
+- **pydantic >= 2.5** - Data validation and serialization
+- **requests >= 2.31** - HTTP client
+- **requests-cache >= 1.0** - SQLite-based response caching
+- **keyring >= 24.0** - System credential storage
+- **keyrings.alt >= 5.0** - Fallback encrypted file keyring
+- **tomli >= 2.0** - TOML file parsing (Python < 3.11)
+- **tomli-w >= 1.0** - TOML file writing
+
+**Development/Test Dependencies:**
+- **pytest >= 7.4** - Testing framework
+
+**System Requirements:**
+- Python 3.11+ (async/type hints required)
+- System keyring or accessible file system
+- GitHub Personal Access Token (classic or fine-grained)
+- LLM endpoint compatible with OpenAI API format
+
 ### Code Structure
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  CLI entry point and commands
-├── collector.py        # 📡 GitHub API data collection
-├── analyzer.py         # 📊 Metric analysis and calculation
-├── reporter.py         # 📄 Report generation (brief)
-├── reviewer.py         # 🎯 PR review logic
-├── review_reporter.py  # 📝 Integrated review reports
-├── llm.py             # 🤖 LLM API client
-├── config.py          # ⚙️  Configuration management
-├── models.py          # 📦 Data models
+├── cli.py              # 🖥️  CLI entry point and commands (1,791 lines)
+├── llm.py             # 🤖 LLM API client (1,409 lines, with retry logic)
+├── reporter.py         # 📄 Report generation (1,358 lines, brief format)
+├── retrospective.py    # 📅 Year-end retrospective analysis (1,021 lines)
+├── analyzer.py         # 📊 Metric analysis and calculation (959 lines)
+├── review_reporter.py  # 📝 Integrated review reports (749 lines)
+├── config.py          # ⚙️  Configuration management (529 lines, keyring integration)
+├── models.py          # 📦 Pydantic data models (525 lines)
+├── pr_collector.py     # 🔍 PR data collection (439 lines)
+├── award_strategies.py # 🏆 Award calculation strategies (419 lines, 100+ awards)
+├── api_client.py      # 🌐 GitHub REST API client (416 lines)
+├── reviewer.py         # 🎯 PR review logic (416 lines)
+├── collector.py        # 📡 Data collection facade (397 lines)
+├── commit_collector.py # 📝 Commit data collection (263 lines)
+├── review_collector.py # 👀 Review data collection (256 lines)
+├── repository_manager.py # 📂 Repository management (250 lines)
+├── filters.py         # 🔍 Language detection and filtering (234 lines)
+├── exceptions.py      # ⚠️  Exception hierarchy (235 lines, 24+ exception types)
 └── utils.py           # 🔧 Utility functions
 ```
+
+### Architecture and Design Patterns
+
+- **Facade Pattern**: `Collector` class orchestrates specialized collectors
+- **Strategy Pattern**: 100+ strategies used in award calculation
+- **Repository Pattern**: `GitHubApiClient` abstracts API access
+- **Builder Pattern**: Report and metric construction
+- **Thread Pool Pattern**: Parallel data collection (4x speed improvement)
+
+### Performance Optimizations
+
+- **Request Caching**: SQLite-based cache (`~/.cache/github_feedback/api_cache.sqlite`)
+  - Default expiration: 1 hour
+  - Caches GET/HEAD requests only
+  - 60-70% speed improvement on repeated runs
+- **Parallel Collection**: Concurrent data collection using ThreadPoolExecutor
+- **Retry Logic**: Exponential backoff for LLM requests (max 3 attempts)
 
 </details>
 
 ## 🔒 Security
 
 - **PAT Storage**: GitHub tokens are stored securely in the system keyring (not in plain text files)
+  - System keyring support: gnome-keyring, macOS Keychain, Windows Credential Manager
+  - Linux fallback: Encrypted file keyring (`keyrings.alt`)
+  - Thread-safe keyring initialization (prevents race conditions)
 - **Configuration Backup**: Automatically creates backups before overwriting configuration
 - **Input Validation**: Validates all user inputs (PAT format, URL format, repository format)
+- **Cache Security**: SQLite cache file has user-only read/write permissions
+- **API Security**: Bearer token authentication, HTTPS-only communication
 
 ## 📄 License
 
