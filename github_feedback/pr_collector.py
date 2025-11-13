@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
+
+import requests
 
 from .base_collector import BaseCollector
 from .constants import THREAD_POOL_CONFIG
@@ -127,7 +130,7 @@ class PullRequestCollector(BaseCollector):
             """Fetch PR data with error handling."""
             try:
                 return self.api_client.request_json(f"repos/{repo}/pulls/{pr_number}")
-            except Exception as exc:
+            except (requests.RequestException, ValueError, KeyError, json.JSONDecodeError) as exc:
                 logger.warning(f"Failed to fetch PR #{pr_number}: {exc}")
                 return None
 
