@@ -350,6 +350,43 @@ TABLE_CONFIG = {
 }
 
 # =============================================================================
+# Heuristic Analysis Thresholds
+# =============================================================================
+
+# Thresholds for heuristic-based fallback analysis
+HEURISTIC_THRESHOLDS = {
+    # PR size thresholds
+    'pr_very_large': 1000,  # Total lines changed (additions + deletions)
+    'pr_small': 100,  # Total lines changed
+
+    # PR body quality
+    'pr_body_min_quality_length': 100,  # Minimum length for detailed PR body
+
+    # Commit message quality
+    'commit_min_length': 10,
+    'commit_max_length': 72,
+    'commit_too_long': 100,
+    'commit_min_body_length': 20,
+
+    # PR title quality
+    'pr_title_min_length': 15,
+    'pr_title_max_length': 80,
+    'pr_title_min_words': 4,
+
+    # Issue quality
+    'issue_body_short': 100,
+    'issue_body_detailed': 200,
+    'issue_good_score': 4,
+
+    # Review quality
+    'review_good_score': 2,
+
+    # LLM settings
+    'llm_temperature': 0.3,
+    'llm_test_max_tokens': 10,
+}
+
+# =============================================================================
 # Prompt Templates
 # =============================================================================
 

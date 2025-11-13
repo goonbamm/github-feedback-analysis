@@ -6,13 +6,13 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 import requests
 
 from .collector import Collector
 from .console import Console
-from .constants import TEXT_LIMITS
+from .constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS
 from .llm import LLMClient
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import truncate_patch
@@ -31,7 +31,7 @@ class Reviewer:
     """Coordinate pull request data collection and LLM review generation."""
 
     collector: Collector
-    llm: LLMClient | None = None
+    llm: Optional[LLMClient] = None
     output_dir: Path = Path("reports/reviews")
 
     def _target_dir(self, repo: str, number: int) -> Path:
@@ -91,7 +91,8 @@ class Reviewer:
         improvements: List[ReviewPoint] = []
 
         # Heuristic 1: Assess PR description quality
-        if bundle.body and len(bundle.body.strip()) > TEXT_LIMITS['pr_body_min_quality_length']:
+        min_quality_len = HEURISTIC_THRESHOLDS['pr_body_min_quality_length']
+        if bundle.body and len(bundle.body.strip()) > min_quality_len:
             strengths.append(
                 ReviewPoint(
                     message="Pull Request 설명이 상세하고 맥락을 잘 제공합니다.",
@@ -131,15 +132,17 @@ class Reviewer:
             )
 
         # Heuristic 3: Assess PR size
+        pr_very_large = HEURISTIC_THRESHOLDS['pr_very_large']
+        pr_small = HEURISTIC_THRESHOLDS['pr_small']
         total_changes = bundle.additions + bundle.deletions
-        if total_changes > 1000:
+        if total_changes > pr_very_large:
             improvements.append(
                 ReviewPoint(
                     message=f"PR이 매우 큽니다 ({total_changes}줄 변경).",
                     example="리뷰를 쉽게 하기 위해 작은 PR로 나누는 것을 고려해보세요.",
                 )
             )
-        elif total_changes < 100:
+        elif total_changes < pr_small:
             strengths.append(
                 ReviewPoint(
                     message=f"적절한 크기의 PR입니다 ({total_changes}줄 변경).",
@@ -194,12 +197,35 @@ class Reviewer:
         try:
             summary = self.llm.generate_review(bundle)
         except requests.HTTPError as exc:  # pragma: no cover - network errors are hard to simulate
-            logger.error(f"LLM HTTP error for PR #{bundle.number}: {exc.response.status_code if exc.response else 'unknown'}")
-            console.log(f"LLM generation failed (HTTP error), using fallback summary")
+            status_code = exc.response.status_code if exc.response else 'unknown'
+            logger.error(f"LLM HTTP error for PR #{bundle.number}: {status_code}")
+
+            # Distinguish between retryable and permanent errors
+            if exc.response and exc.response.status_code in {400, 401, 403, 404, 422}:
+                console.log(f"[warning]LLM request failed (HTTP {status_code}): Client error, using fallback[/]")
+            else:
+                console.log(f"[warning]LLM request failed (HTTP {status_code}): Server error, using fallback[/]")
+
             summary = self._fallback_summary(bundle)
-        except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as exc:
-            logger.error(f"LLM generation error for PR #{bundle.number}: {exc}")
-            console.log(f"LLM generation failed ({type(exc).__name__}), using fallback summary")
+        except requests.ConnectionError as exc:
+            logger.error(f"LLM connection error for PR #{bundle.number}: {exc}")
+            console.log("[warning]Cannot connect to LLM server, using fallback summary[/]")
+            summary = self._fallback_summary(bundle)
+        except requests.Timeout as exc:
+            logger.error(f"LLM timeout for PR #{bundle.number}: {exc}")
+            console.log("[warning]LLM request timed out, using fallback summary[/]")
+            summary = self._fallback_summary(bundle)
+        except json.JSONDecodeError as exc:
+            logger.error(f"LLM JSON parsing error for PR #{bundle.number}: {exc}")
+            console.log("[warning]LLM returned invalid JSON, using fallback summary[/]")
+            summary = self._fallback_summary(bundle)
+        except ValueError as exc:
+            logger.error(f"LLM validation error for PR #{bundle.number}: {exc}")
+            console.log(f"[warning]LLM response validation failed: {exc}, using fallback[/]")
+            summary = self._fallback_summary(bundle)
+        except KeyError as exc:
+            logger.error(f"LLM response missing key for PR #{bundle.number}: {exc}")
+            console.log(f"[warning]LLM response incomplete (missing {exc}), using fallback[/]")
             summary = self._fallback_summary(bundle)
 
         if not summary.overview:
