@@ -76,11 +76,35 @@
    - パブリックリポジトリ：`public_repo`権限
 
 3. **初期設定時にEnterpriseホストを指定**
+
+   **対話モード（推奨）：**
+   ```bash
+   gfa init
+   ```
+   初期化時にEnterpriseホスト選択メニューが表示されます：
+   - デフォルトの github.com を選択
+   - サンプルEnterpriseホストリストから選択
+   - 保存されたカスタムホストから選択
+   - カスタムURLを直接入力（将来使用するために保存するかどうか確認されます）
+
+   **CLIオプションを使用：**
    ```bash
    gfa init --enterprise-host https://github.your-company.com
    ```
 
-4. **管理者に問い合わせ**
+4. **保存されたEnterpriseホストの管理**
+   ```bash
+   # 保存されたホストのリスト表示
+   gfa config hosts list
+
+   # 新しいホストを追加
+   gfa config hosts add https://github.your-company.com
+
+   # ホストを削除
+   gfa config hosts remove https://github.your-company.com
+   ```
+
+5. **管理者に問い合わせ**
    - 一部のEnterprise環境ではPAT生成が制限されている場合があります
    - 問題が発生した場合は、GitHub管理者にお問い合わせください
 
@@ -119,7 +143,9 @@ gfa init
 - GitHub Personal Access Token（システムキーリングに安全に保存されます）
 - LLMエンドポイント（例：`http://localhost:8000/v1/chat/completions`）
 - LLMモデル（例：`gpt-4`）
-- GitHub Enterpriseホスト（オプション、github.comを使用しない場合のみ）
+- GitHub Enterpriseホスト（オプション）
+  - 番号で選択するか、カスタムURLを直接入力
+  - 新しいホストは将来使用するために保存するか確認されます
 
 ### 2️⃣ リポジトリを分析
 

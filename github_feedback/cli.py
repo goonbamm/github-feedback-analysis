@@ -417,6 +417,103 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             return None
 
 
+def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tuple[str, bool]]:
+    """Interactive enterprise host selection with preset and custom options.
+
+    Args:
+        custom_hosts: List of user-configured custom enterprise hosts
+
+    Returns:
+        Tuple of (selected_host, should_save) or None if cancelled
+        - selected_host: The enterprise host URL (empty string for github.com)
+        - should_save: Whether to save this host to custom list
+    """
+    # Default example hosts
+    default_hosts = [
+        "github.com (Default)",
+        "github.company.com",
+        "github.enterprise.local",
+        "ghe.example.com",
+    ]
+
+    console.print("\n[accent]Select GitHub Enterprise Host:[/]")
+    console.print("[info]Choose from the list or enter a custom URL[/]\n")
+
+    # Display options
+    idx = 1
+
+    # Show default github.com option
+    console.print(f"  {idx}. [success]github.com[/] (Default)")
+    github_com_idx = idx
+    idx += 1
+
+    # Show example hosts
+    if len(default_hosts) > 1:
+        console.print("\n[dim]Example Enterprise Hosts:[/]")
+        for host in default_hosts[1:]:
+            console.print(f"  {idx}. {host}")
+            idx += 1
+
+    # Show custom hosts if any
+    if custom_hosts:
+        console.print("\n[dim]Your Saved Hosts:[/]")
+        custom_start_idx = idx
+        for host in custom_hosts:
+            console.print(f"  {idx}. [accent]{host}[/]")
+            idx += 1
+    else:
+        custom_start_idx = idx
+
+    console.print(f"\n[info]Or enter a custom host URL (e.g., https://github.example.com)[/]")
+
+    while True:
+        try:
+            selection = typer.prompt("\nEnter number or custom URL", default="1").strip()
+
+            # Check if it's a number selection
+            if selection.isdigit():
+                selection_num = int(selection)
+
+                # GitHub.com selection
+                if selection_num == github_com_idx:
+                    console.print("[success]Selected:[/] github.com (Default)")
+                    return ("", False)
+
+                # Example host selection
+                elif github_com_idx < selection_num < custom_start_idx:
+                    example_idx = selection_num - 2  # -2 because we skip "github.com (Default)" in list
+                    if 0 <= example_idx < len(default_hosts) - 1:
+                        selected = default_hosts[example_idx + 1]
+                        console.print(f"[info]Selected example:[/] {selected}")
+
+                        # Ask if user wants to save this
+                        save = typer.confirm("Save this host to your custom list?", default=True)
+                        return (selected, save)
+
+                # Custom host selection
+                elif custom_hosts and custom_start_idx <= selection_num < custom_start_idx + len(custom_hosts):
+                    custom_idx = selection_num - custom_start_idx
+                    selected = custom_hosts[custom_idx]
+                    console.print(f"[success]Selected:[/] {selected}")
+                    return (selected, False)  # Already saved
+
+                else:
+                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {idx - 1}")
+                    continue
+
+            # Custom URL input
+            else:
+                console.print(f"[info]Custom host:[/] {selection}")
+
+                # Ask if user wants to save this
+                save = typer.confirm("Save this host to your custom list for future use?", default=True)
+                return (selection, save)
+
+        except (typer.Abort, KeyboardInterrupt, EOFError):
+            console.print("\n[warning]Selection cancelled.[/]")
+            return None
+
+
 @app.command()
 def init(
     pat: Optional[str] = typer.Option(
@@ -485,11 +582,17 @@ def init(
                 console.print("[danger]Error:[/] --llm-model is required in non-interactive mode")
                 raise typer.Exit(code=1)
 
+        # Enterprise host selection with interactive menu
+        should_save_host = False
         if enterprise_host is None and is_interactive:
-            enterprise_host = typer.prompt(
-                "GitHub Enterprise host (leave empty for github.com)",
-                default="",
-            )
+            # Load config to get custom hosts
+            temp_config = Config.load()
+            result = _select_enterprise_host_interactive(temp_config.server.custom_enterprise_hosts)
+            if result is None:
+                # User cancelled
+                console.print("\n[warning]Configuration cancelled by user.[/]")
+                raise typer.Exit(code=0)
+            enterprise_host, should_save_host = result
     except (typer.Abort, KeyboardInterrupt, EOFError):
         console.print("\n[warning]Configuration cancelled by user.[/]")
         raise typer.Exit(code=0)
@@ -531,6 +634,11 @@ def init(
     config.llm.endpoint = llm_endpoint
     config.llm.model = llm_model
     config.defaults.months = months
+
+    # Save custom enterprise host if requested
+    if should_save_host and host_input and host_input not in config.server.custom_enterprise_hosts:
+        config.server.custom_enterprise_hosts.append(host_input)
+        console.print(f"[success]✓ Saved '{host_input}' to your custom host list[/]")
 
     # Test LLM connection if requested
     if test_connection:
@@ -1581,6 +1689,91 @@ def config_get(
         config = Config.load()
         value = config.get_value(key)
         console.print(f"{key} = {value}")
+    except ValueError as exc:
+        console.print(f"[danger]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+@config_app.command("hosts")
+def config_hosts(
+    action: str = typer.Argument(
+        ...,
+        help="Action to perform: list, add, or remove"
+    ),
+    host: Optional[str] = typer.Argument(
+        None,
+        help="Host URL (required for add/remove actions)"
+    ),
+) -> None:
+    """Manage custom enterprise hosts.
+
+    Examples:
+        gfa config hosts list
+        gfa config hosts add https://github.company.com
+        gfa config hosts remove https://github.company.com
+    """
+    try:
+        config = Config.load()
+
+        if action == "list":
+            if not config.server.custom_enterprise_hosts:
+                console.print("[info]No custom enterprise hosts saved.[/]")
+                console.print("[dim]Add hosts using:[/] gfa config hosts add <host-url>")
+            else:
+                console.print("[accent]Custom Enterprise Hosts:[/]\n")
+                for idx, saved_host in enumerate(config.server.custom_enterprise_hosts, 1):
+                    console.print(f"  {idx}. {saved_host}")
+
+        elif action == "add":
+            if not host:
+                console.print("[danger]Error:[/] Host URL is required for 'add' action")
+                console.print("[info]Usage:[/] gfa config hosts add <host-url>")
+                raise typer.Exit(code=1)
+
+            # Validate and normalize host
+            host = host.strip()
+            if not host.startswith(("http://", "https://")):
+                host = f"https://{host}"
+
+            try:
+                validate_url(host, "Enterprise host")
+            except ValueError as exc:
+                console.print(f"[danger]Validation error:[/] {exc}")
+                raise typer.Exit(code=1) from exc
+
+            host = host.rstrip("/")
+
+            if host in config.server.custom_enterprise_hosts:
+                console.print(f"[warning]Host '{host}' is already in your custom list[/]")
+            else:
+                config.server.custom_enterprise_hosts.append(host)
+                config.dump()
+                console.print(f"[success]✓ Added '{host}' to your custom host list[/]")
+
+        elif action == "remove":
+            if not host:
+                console.print("[danger]Error:[/] Host URL is required for 'remove' action")
+                console.print("[info]Usage:[/] gfa config hosts remove <host-url>")
+                raise typer.Exit(code=1)
+
+            # Normalize host for comparison
+            host = host.strip().rstrip("/")
+            if not host.startswith(("http://", "https://")):
+                host = f"https://{host}"
+
+            if host in config.server.custom_enterprise_hosts:
+                config.server.custom_enterprise_hosts.remove(host)
+                config.dump()
+                console.print(f"[success]✓ Removed '{host}' from your custom host list[/]")
+            else:
+                console.print(f"[warning]Host '{host}' not found in your custom list[/]")
+                console.print("[info]Use 'gfa config hosts list' to see saved hosts[/]")
+
+        else:
+            console.print(f"[danger]Error:[/] Unknown action '{action}'")
+            console.print("[info]Valid actions:[/] list, add, remove")
+            raise typer.Exit(code=1)
+
     except ValueError as exc:
         console.print(f"[danger]Error:[/] {exc}")
         raise typer.Exit(code=1) from exc

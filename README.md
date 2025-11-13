@@ -76,11 +76,35 @@
    - 공개 저장소: `public_repo` 권한
 
 3. **초기 설정 시 Enterprise 호스트 지정**
+
+   **인터랙티브 모드 (권장):**
+   ```bash
+   gfa init
+   ```
+   초기화 시 Enterprise 호스트 선택 메뉴가 표시됩니다:
+   - 기본 github.com 선택
+   - 예시 Enterprise 호스트 목록에서 선택
+   - 저장된 커스텀 호스트에서 선택
+   - 직접 URL 입력 (자동으로 저장 여부 확인)
+
+   **CLI 옵션 사용:**
    ```bash
    gfa init --enterprise-host https://github.your-company.com
    ```
 
-4. **관리자 문의**
+4. **저장된 Enterprise 호스트 관리**
+   ```bash
+   # 저장된 호스트 목록 보기
+   gfa config hosts list
+
+   # 새 호스트 추가
+   gfa config hosts add https://github.your-company.com
+
+   # 호스트 제거
+   gfa config hosts remove https://github.your-company.com
+   ```
+
+5. **관리자 문의**
    - 일부 Enterprise 환경에서는 PAT 생성이 제한될 수 있습니다
    - 문제 발생 시 GitHub 관리자에게 문의하세요
 
@@ -119,7 +143,9 @@ gfa init
 - GitHub Personal Access Token
 - LLM 엔드포인트 (예: `http://localhost:8000/v1/chat/completions`)
 - LLM 모델 (예: `gpt-4`)
-- GitHub Enterprise 호스트 (선택사항, github.com이 아닌 경우만)
+- GitHub Enterprise 호스트 (선택사항)
+  - 번호로 선택하거나 직접 URL 입력 가능
+  - 새로운 호스트를 입력하면 저장 여부를 물어봅니다
 
 ### 2️⃣ 개인 활동 분석
 

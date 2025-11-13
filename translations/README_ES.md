@@ -74,11 +74,35 @@ Si está usando GitHub Enterprise en su organización:
    - Repositorios públicos: permiso `public_repo`
 
 3. **Especificar Host Enterprise Durante la Configuración Inicial**
+
+   **Modo Interactivo (Recomendado):**
+   ```bash
+   gfa init
+   ```
+   Durante la inicialización, se mostrará un menú de selección de host Enterprise:
+   - Seleccionar github.com predeterminado
+   - Elegir de la lista de hosts Enterprise de ejemplo
+   - Seleccionar de sus hosts personalizados guardados
+   - Ingresar URL personalizada directamente (se preguntará si desea guardar para uso futuro)
+
+   **Usando Opción CLI:**
    ```bash
    gfa init --enterprise-host https://github.your-company.com
    ```
 
-4. **Contactar al Administrador**
+4. **Gestión de Hosts Enterprise Guardados**
+   ```bash
+   # Listar hosts guardados
+   gfa config hosts list
+
+   # Agregar nuevo host
+   gfa config hosts add https://github.your-company.com
+
+   # Eliminar host
+   gfa config hosts remove https://github.your-company.com
+   ```
+
+5. **Contactar al Administrador**
    - La generación de PAT puede estar restringida en algunos entornos Enterprise
    - Contacte a su administrador de GitHub si encuentra problemas
 
@@ -117,7 +141,9 @@ Cuando se le solicite, ingrese la siguiente información:
 - GitHub Personal Access Token (almacenado de forma segura en el llavero del sistema)
 - Endpoint LLM (ej: `http://localhost:8000/v1/chat/completions`)
 - Modelo LLM (ej: `gpt-4`)
-- Host de GitHub Enterprise (opcional, solo si no usa github.com)
+- Host de GitHub Enterprise (opcional)
+  - Seleccione por número o ingrese URL personalizada directamente
+  - Los nuevos hosts solicitarán guardar para uso futuro
 
 ### 2️⃣ Analizar Actividad Personal
 
