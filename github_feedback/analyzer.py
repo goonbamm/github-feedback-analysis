@@ -86,6 +86,49 @@ class ActivityMessageBuilder:
         return messages
 
 
+class InsightExtractor:
+    """Helper class for extracting insights from PR collections."""
+
+    @staticmethod
+    def filter_prs_by_keywords(prs: list, keywords: list[str]) -> list:
+        """Filter pull requests by keywords in their titles.
+
+        Args:
+            prs: List of pull requests to filter
+            keywords: List of keywords to search for in titles (case-insensitive)
+
+        Returns:
+            Filtered list of pull requests
+        """
+        return [pr for pr in prs if any(kw in pr.title.lower() for kw in keywords)]
+
+    @staticmethod
+    def extract_keyword_based_insight(
+        prs: list,
+        keywords: list[str],
+        threshold: int,
+        message_template: str
+    ) -> Optional[str]:
+        """Extract insight based on keyword filtering and threshold check.
+
+        Args:
+            prs: List of pull requests
+            keywords: Keywords to filter by
+            threshold: Minimum count for insight
+            message_template: Template for the insight message (with {count} placeholder)
+
+        Returns:
+            Formatted message if threshold exceeded, None otherwise
+        """
+        if not prs:
+            return None
+
+        filtered_prs = InsightExtractor.filter_prs_by_keywords(prs, keywords)
+        if len(filtered_prs) > threshold:
+            return message_template.format(count=len(filtered_prs))
+        return None
+
+
 class PeriodFormatter:
     """Format period labels based on month count."""
 
@@ -813,18 +856,6 @@ class Analyzer:
 
         return moments
 
-    def _filter_prs_by_keywords(self, prs: List[PullRequest], keywords: List[str]) -> List[PullRequest]:
-        """Filter pull requests by keywords in their titles.
-
-        Args:
-            prs: List of pull requests to filter
-            keywords: List of keywords to search for in titles (case-insensitive)
-
-        Returns:
-            Filtered list of pull requests
-        """
-        return [pr for pr in prs if any(kw in pr.title.lower() for kw in keywords)]
-
     def _extract_biggest_challenges(self, collection: CollectionResult) -> List[str]:
         """Extract biggest challenges from collection data."""
         challenges = []
@@ -848,12 +879,14 @@ class Analyzer:
 
         # Add PR-specific challenges
         if collection.pull_request_examples:
-            feature_keywords = ['feature', 'feat', '기능', 'add']
-            feature_prs = self._filter_prs_by_keywords(collection.pull_request_examples, feature_keywords)
-            if len(feature_prs) > ACTIVITY_THRESHOLDS['feature_pr_threshold']:
-                challenges.append(
-                    f"{len(feature_prs)}개의 새로운 기능을 개발하며 요구사항 분석과 설계 능력을 향상시켰습니다."
-                )
+            msg = InsightExtractor.extract_keyword_based_insight(
+                collection.pull_request_examples,
+                ['feature', 'feat', '기능', 'add'],
+                ACTIVITY_THRESHOLDS['feature_pr_threshold'],
+                "{count}개의 새로운 기능을 개발하며 요구사항 분석과 설계 능력을 향상시켰습니다."
+            )
+            if msg:
+                challenges.append(msg)
 
         if not challenges:
             challenges = [
@@ -921,15 +954,17 @@ class Analyzer:
             )
 
         if collection.pull_request_examples:
-            doc_keywords = ['doc', 'readme', '문서']
-            doc_prs = self._filter_prs_by_keywords(collection.pull_request_examples, doc_keywords)
+            doc_prs = InsightExtractor.filter_prs_by_keywords(
+                collection.pull_request_examples, ['doc', 'readme', '문서']
+            )
             if len(doc_prs) < ACTIVITY_THRESHOLDS['moderate_doc_prs']:
                 goals.append(
                     "문서화에 더 신경써서 프로젝트의 접근성과 유지보수성 향상하기"
                 )
 
-            test_keywords = ['test', '테스트']
-            test_prs = self._filter_prs_by_keywords(collection.pull_request_examples, test_keywords)
+            test_prs = InsightExtractor.filter_prs_by_keywords(
+                collection.pull_request_examples, ['test', '테스트']
+            )
             if len(test_prs) < ACTIVITY_THRESHOLDS['moderate_test_prs']:
                 goals.append(
                     "테스트 커버리지를 높여 코드의 안정성과 신뢰도 강화하기"
