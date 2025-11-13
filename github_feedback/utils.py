@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from typing import Iterable, Iterator, TypeVar
 from urllib.parse import urlparse
+
+T = TypeVar('T')
 
 __all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months", "safe_truncate_str"]
 
@@ -62,14 +64,20 @@ def truncate_patch(patch: str, max_lines: int = 12) -> str:
     return "\n".join(head)
 
 
-def limit_items(items: Iterable, max_items: int):
+def limit_items(items: Iterable[T], max_items: int) -> Iterator[T]:
     """Yield at most ``max_items`` items from ``items``.
 
     This helper keeps token usage predictable by constraining list expansion in
     prompts and summaries. Negative limits yield all items to avoid surprising
     behaviour during tests.
-    """
 
+    Args:
+        items: Iterable of items to limit
+        max_items: Maximum number of items to yield (negative means all)
+
+    Yields:
+        Items from the input iterable, up to max_items
+    """
     if max_items < 0:
         yield from items
         return

@@ -688,6 +688,39 @@ class Analyzer:
 
         return ReflectionPrompts(questions=questions)
 
+    def _calculate_pr_size(self, pr: PullRequest) -> int:
+        """Calculate the total size of a pull request (additions + deletions).
+
+        Args:
+            pr: Pull request to calculate size for
+
+        Returns:
+            Total number of lines changed
+        """
+        return pr.additions + pr.deletions
+
+    def _get_total_changes(self, prs: List[PullRequest]) -> int:
+        """Calculate total changes across all pull requests.
+
+        Args:
+            prs: List of pull requests
+
+        Returns:
+            Sum of all additions and deletions
+        """
+        return sum(self._calculate_pr_size(pr) for pr in prs)
+
+    def _find_largest_pr(self, prs: List[PullRequest]) -> PullRequest:
+        """Find the pull request with the most changes.
+
+        Args:
+            prs: List of pull requests
+
+        Returns:
+            Pull request with the largest number of changes
+        """
+        return max(prs, key=self._calculate_pr_size)
+
     def _extract_proudest_moments(self, collection: CollectionResult) -> List[str]:
         """Extract proudest moments from collection data."""
         moments = []
@@ -707,25 +740,37 @@ class Analyzer:
 
         # Add insights from PR examples
         if collection.pull_request_examples:
-            total_changes = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples)
+            total_changes = self._get_total_changes(collection.pull_request_examples)
             if total_changes > ACTIVITY_THRESHOLDS['very_large_pr']:
                 moments.append(
                     f"총 {total_changes:,}줄의 코드 변경으로 대규모 개선을 주도했습니다."
                 )
 
             # Find largest PR
-            largest_pr = max(collection.pull_request_examples,
-                           key=lambda pr: pr.additions + pr.deletions)
-            if (largest_pr.additions + largest_pr.deletions) > ACTIVITY_THRESHOLDS['large_pr']:
+            largest_pr = self._find_largest_pr(collection.pull_request_examples)
+            largest_pr_size = self._calculate_pr_size(largest_pr)
+            if largest_pr_size > ACTIVITY_THRESHOLDS['large_pr']:
                 moments.append(
                     f"가장 큰 PR(#{largest_pr.number}: {largest_pr.title})에서 "
-                    f"{largest_pr.additions + largest_pr.deletions:,}줄의 변경으로 도전적인 작업을 완수했습니다."
+                    f"{largest_pr_size:,}줄의 변경으로 도전적인 작업을 완수했습니다."
                 )
 
         if not moments:
             moments.append("꾸준한 활동으로 프로젝트 발전에 기여했습니다.")
 
         return moments
+
+    def _filter_prs_by_keywords(self, prs: List[PullRequest], keywords: List[str]) -> List[PullRequest]:
+        """Filter pull requests by keywords in their titles.
+
+        Args:
+            prs: List of pull requests to filter
+            keywords: List of keywords to search for in titles (case-insensitive)
+
+        Returns:
+            Filtered list of pull requests
+        """
+        return [pr for pr in prs if any(kw in pr.title.lower() for kw in keywords)]
 
     def _extract_biggest_challenges(self, collection: CollectionResult) -> List[str]:
         """Extract biggest challenges from collection data."""
@@ -750,8 +795,8 @@ class Analyzer:
 
         # Add PR-specific challenges
         if collection.pull_request_examples:
-            feature_prs = [pr for pr in collection.pull_request_examples
-                         if any(kw in pr.title.lower() for kw in ['feature', 'feat', '기능', 'add'])]
+            feature_keywords = ['feature', 'feat', '기능', 'add']
+            feature_prs = self._filter_prs_by_keywords(collection.pull_request_examples, feature_keywords)
             if len(feature_prs) > ACTIVITY_THRESHOLDS['feature_pr_threshold']:
                 challenges.append(
                     f"{len(feature_prs)}개의 새로운 기능을 개발하며 요구사항 분석과 설계 능력을 향상시켰습니다."
@@ -823,15 +868,15 @@ class Analyzer:
             )
 
         if collection.pull_request_examples:
-            doc_prs = [pr for pr in collection.pull_request_examples
-                      if any(kw in pr.title.lower() for kw in ['doc', 'readme', '문서'])]
+            doc_keywords = ['doc', 'readme', '문서']
+            doc_prs = self._filter_prs_by_keywords(collection.pull_request_examples, doc_keywords)
             if len(doc_prs) < ACTIVITY_THRESHOLDS['moderate_doc_prs']:
                 goals.append(
                     "문서화에 더 신경써서 프로젝트의 접근성과 유지보수성 향상하기"
                 )
 
-            test_prs = [pr for pr in collection.pull_request_examples
-                       if any(kw in pr.title.lower() for kw in ['test', '테스트'])]
+            test_keywords = ['test', '테스트']
+            test_prs = self._filter_prs_by_keywords(collection.pull_request_examples, test_keywords)
             if len(test_prs) < ACTIVITY_THRESHOLDS['moderate_test_prs']:
                 goals.append(
                     "테스트 커버리지를 높여 코드의 안정성과 신뢰도 강화하기"
