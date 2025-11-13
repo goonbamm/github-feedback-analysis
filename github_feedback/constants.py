@@ -338,6 +338,23 @@ AWARD_PR_THRESHOLDS = {
 # API and HTTP Configuration
 # =============================================================================
 
+# GitHub API pagination defaults
+API_PAGINATION = {
+    'default_per_page': 100,
+    'max_per_page': 100,
+    'min_per_page': 1,
+    'max_pages': 100,
+}
+
+# GitHub API request defaults
+API_DEFAULTS = {
+    'per_page': 100,
+    'state': 'all',
+    'sort': 'created',
+    'direction': 'desc',
+    'cache_expire_seconds': 3600,  # 1 hour
+}
+
 # Retry configuration
 RETRY_CONFIG = {
     'backoff_base': 2,  # Exponential backoff base (2^attempt)

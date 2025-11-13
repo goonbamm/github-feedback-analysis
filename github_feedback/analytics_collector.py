@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 
 import requests
 
+from .api_params import build_commits_params, build_list_params, build_pagination_params
 from .base_collector import BaseCollector
 from .console import Console
 from .constants import THREAD_POOL_CONFIG
@@ -51,12 +52,10 @@ class AnalyticsCollector(BaseCollector):
         include_branches: Sequence[Optional[str]] = [None]
 
         for branch in include_branches:
-            params: Dict[str, Any] = {
-                "since": since.isoformat(),
-                "per_page": 100,
-            }
-            if branch:
-                params["sha"] = branch
+            params = build_commits_params(
+                sha=branch,
+                since=since.isoformat(),
+            )
 
             try:
                 commits = self.api_client.request_all(f"repos/{repo}/commits", params)
@@ -81,12 +80,7 @@ class AnalyticsCollector(BaseCollector):
 
         # Collect PRs by month
         try:
-            params = {
-                "state": "all",
-                "sort": "created",
-                "direction": "desc",
-                "per_page": 100,
-            }
+            params = build_list_params()
             prs = self.api_client.request_all(f"repos/{repo}/pulls", params)
             for pr in prs:
                 created_at_raw = pr.get("created_at")
@@ -136,7 +130,7 @@ class AnalyticsCollector(BaseCollector):
 
             try:
                 files = self.api_client.request_all(
-                    f"repos/{repo}/pulls/{number}/files", {"per_page": 100}
+                    f"repos/{repo}/pulls/{number}/files", build_pagination_params()
                 )
 
                 for file_entry in files:
@@ -211,7 +205,7 @@ class AnalyticsCollector(BaseCollector):
 
             try:
                 reviews = self.api_client.request_all(
-                    f"repos/{repo}/pulls/{number}/reviews", {"per_page": 100}
+                    f"repos/{repo}/pulls/{number}/reviews", build_pagination_params()
                 )
 
                 for review in reviews:

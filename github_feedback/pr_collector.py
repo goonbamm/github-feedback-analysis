@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import requests
 
+from .api_params import build_list_params, build_pagination_params
 from .base_collector import BaseCollector
 from .constants import THREAD_POOL_CONFIG
 from .models import (
@@ -43,12 +44,7 @@ class PullRequestCollector(BaseCollector):
         if author:
             return self._list_pull_requests_by_author(repo, since, filters, author)
 
-        params: Dict[str, Any] = {
-            "state": "all",
-            "per_page": 100,
-            "sort": "created",
-            "direction": "desc",
-        }
+        params = build_list_params()
 
         pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
 
@@ -95,16 +91,10 @@ class PullRequestCollector(BaseCollector):
         from datetime import timezone
 
         # Use Issues API with creator filter
-        params: Dict[str, Any] = {
-            "creator": author,
-            "state": "all",
-            "per_page": 100,
-            "sort": "created",
-            "direction": "desc",
-        }
+        params = build_list_params(creator=author)
 
         all_issues = self.api_client.paginate(
-            f"repos/{repo}/issues", base_params=params, per_page=100
+            f"repos/{repo}/issues", base_params=params
         )
 
         # Filter issues for PRs and date range
@@ -297,15 +287,15 @@ class PullRequestCollector(BaseCollector):
         pr_payload = self.api_client.request_json(f"repos/{repo}/pulls/{number}")
         review_payload = self.api_client.request_all(
             f"repos/{repo}/pulls/{number}/reviews",
-            {"per_page": 100},
+            build_pagination_params(),
         )
         review_comment_payload = self.api_client.request_all(
             f"repos/{repo}/pulls/{number}/comments",
-            {"per_page": 100},
+            build_pagination_params(),
         )
         files_payload = self.api_client.request_all(
             f"repos/{repo}/pulls/{number}/files",
-            {"per_page": 100},
+            build_pagination_params(),
         )
 
         created_at_raw = pr_payload.get(
@@ -380,11 +370,7 @@ class PullRequestCollector(BaseCollector):
         if state_normalised not in {"open", "closed", "all"}:
             raise ValueError("state must be one of 'open', 'closed', or 'all'")
 
-        params = {
-            "creator": author,
-            "state": state_normalised,
-            "per_page": 100,
-        }
+        params = build_list_params(state=state_normalised, creator=author)
 
         issues = self.api_client.request_all(f"repos/{repo}/issues", params)
         numbers: List[int] = []
@@ -431,7 +417,7 @@ class PullRequestCollector(BaseCollector):
         files = cache.get(number)
         if files is None:
             files = self.api_client.request_all(
-                f"repos/{repo}/pulls/{number}/files", {"per_page": 100}
+                f"repos/{repo}/pulls/{number}/files", build_pagination_params()
             )
             cache[number] = files
 

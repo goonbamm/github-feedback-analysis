@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set
 
+from .api_params import build_commits_params, build_pagination_params
 from .base_collector import BaseCollector
 from .constants import THREAD_POOL_CONFIG
 from .models import AnalysisFilters
@@ -58,22 +59,17 @@ class CommitCollector(BaseCollector):
             path_filters = filters.include_paths or [None]
 
             for path_filter in path_filters:
-                base_params: Dict[str, Any] = {
-                    "since": since.isoformat(),
-                    "per_page": 100,
-                }
-                if branch:
-                    base_params["sha"] = branch
-                if path_filter:
-                    base_params["path"] = path_filter
-                if author:
-                    base_params["author"] = author
+                base_params = build_commits_params(
+                    sha=branch,
+                    path=path_filter,
+                    since=since.isoformat(),
+                    author=author,
+                )
 
                 # Use paginate helper for cleaner code
                 commits_data = self.api_client.paginate(
                     f"repos/{repo}/commits",
                     base_params=base_params,
-                    per_page=100,
                 )
 
                 for commit in commits_data:
@@ -222,7 +218,7 @@ class CommitCollector(BaseCollector):
         elif exclude_branches:
             branches = self.api_client.request_all(
                 f"repos/{repo}/branches",
-                {"per_page": 100},
+                build_pagination_params(),
             )
             include_branches = [
                 branch.get("name")
