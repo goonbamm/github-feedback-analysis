@@ -233,13 +233,16 @@ class Reporter:
 
         for domain, domain_stats in metrics.stats.items():
             lines.append(f"### {domain.title()}")
+            lines.append("")
+            lines.append("| 지표 | 값 |")
+            lines.append("|------|-----|")
             for stat_name, stat_value in domain_stats.items():
                 formatted_value = (
                     _format_metric_value(stat_value)
                     if isinstance(stat_value, (int, float))
                     else str(stat_value)
                 )
-                lines.append(f"- **{stat_name.replace('_', ' ').title()}**: {formatted_value}")
+                lines.append(f"| {stat_name.replace('_', ' ').title()} | {formatted_value} |")
             lines.append("")
         return lines
 
@@ -251,8 +254,10 @@ class Reporter:
         lines = ["## ✨ Growth Highlights", ""]
         lines.append("> 이번 기간 동안의 주요 성과와 성장 포인트")
         lines.append("")
+        lines.append("| # | 성과 |")
+        lines.append("|---|------|")
         for i, highlight in enumerate(metrics.highlights, 1):
-            lines.append(f"{i}. {highlight}")
+            lines.append(f"| {i} | {highlight} |")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -268,8 +273,11 @@ class Reporter:
         lines.append("")
         for category, entries in metrics.spotlight_examples.items():
             lines.append(f"### {category.replace('_', ' ').title()}")
+            lines.append("")
+            lines.append("| 사례 |")
+            lines.append("|------|")
             for entry in entries:
-                lines.append(f"- {entry}")
+                lines.append(f"| {entry} |")
             lines.append("")
         lines.append("---")
         lines.append("")
@@ -297,29 +305,37 @@ class Reporter:
             if metrics.year_end_review.proudest_moments:
                 lines.append("### 🏅 자랑스러운 순간들")
                 lines.append("")
+                lines.append("| 순간 |")
+                lines.append("|------|")
                 for moment in metrics.year_end_review.proudest_moments:
-                    lines.append(f"- {moment}")
+                    lines.append(f"| {moment} |")
                 lines.append("")
 
             if metrics.year_end_review.biggest_challenges:
                 lines.append("### 💪 극복한 도전들")
                 lines.append("")
+                lines.append("| 도전 |")
+                lines.append("|------|")
                 for challenge in metrics.year_end_review.biggest_challenges:
-                    lines.append(f"- {challenge}")
+                    lines.append(f"| {challenge} |")
                 lines.append("")
 
             if metrics.year_end_review.lessons_learned:
                 lines.append("### 📚 배운 교훈들")
                 lines.append("")
+                lines.append("| 교훈 |")
+                lines.append("|------|")
                 for lesson in metrics.year_end_review.lessons_learned:
-                    lines.append(f"- {lesson}")
+                    lines.append(f"| {lesson} |")
                 lines.append("")
 
             if metrics.year_end_review.next_year_goals:
                 lines.append("### 🎯 내년 목표")
                 lines.append("")
+                lines.append("| 목표 |")
+                lines.append("|------|")
                 for goal in metrics.year_end_review.next_year_goals:
-                    lines.append(f"- {goal}")
+                    lines.append(f"| {goal} |")
                 lines.append("")
 
         lines.append("---")
@@ -339,9 +355,14 @@ class Reporter:
         for category_name, category_awards in categories.items():
             if category_awards:
                 lines.append(f"### {category_name}")
-                for award in category_awards:
-                    lines.append(f"- {award}")
                 lines.append("")
+                lines.append("| 어워드 |")
+                lines.append("|--------|")
+                for award in category_awards:
+                    lines.append(f"| {award} |")
+                lines.append("")
+        lines.append("---")
+        lines.append("")
         return lines
 
 
@@ -401,7 +422,7 @@ class Reporter:
         """
         lines = [title, ""]
 
-        # Build summary statistics
+        # Build summary statistics as a table
         total_attr, total_label, unit = stats_config.get('total', (None, None, '개'))
         good_attr, good_label, _ = stats_config.get('good', (None, None, '개'))
         poor_attr, poor_label, _ = stats_config.get('poor', (None, None, '개'))
@@ -410,48 +431,55 @@ class Reporter:
         good_value = getattr(feedback_data, good_attr, 0) if good_attr else 0
         poor_value = getattr(feedback_data, poor_attr, 0) if poor_attr else 0
 
+        lines.append("| 지표 | 값 |")
+        lines.append("|------|-----|")
+
         if total_value > 0:
             good_pct = (good_value / total_value) * 100
-            lines.append(f"**{total_label}**: {total_value}{unit}")
-            lines.append(f"**{good_label}**: {good_value}{unit} ({good_pct:.1f}%)")
-            lines.append(f"**{poor_label}**: {poor_value}{unit}")
+            lines.append(f"| {total_label} | {total_value:,}{unit} |")
+            lines.append(f"| {good_label} | {good_value:,}{unit} ({good_pct:.1f}%) |")
+            lines.append(f"| {poor_label} | {poor_value:,}{unit} |")
 
             # Add additional stats if configured
             for key, (attr, label, stat_unit) in stats_config.items():
                 if key not in ('total', 'good', 'poor'):
                     value = getattr(feedback_data, attr, 0)
-                    lines.append(f"**{label}**: {value}{stat_unit}")
+                    lines.append(f"| {label} | {value:,}{stat_unit} |")
         else:
-            lines.append(f"- {total_label}: {total_value}")
-            lines.append(f"- {good_label}: {good_value}")
-            lines.append(f"- {poor_label}: {poor_value}")
+            lines.append(f"| {total_label} | {total_value} |")
+            lines.append(f"| {good_label} | {good_value} |")
+            lines.append(f"| {poor_label} | {poor_value} |")
 
             # Add additional stats if configured
             for key, (attr, label, stat_unit) in stats_config.items():
                 if key not in ('total', 'good', 'poor'):
                     value = getattr(feedback_data, attr, 0)
-                    lines.append(f"- {label}: {value}")
+                    lines.append(f"| {label} | {value} |")
         lines.append("")
 
         # Suggestions section
         if hasattr(feedback_data, 'suggestions') and feedback_data.suggestions:
             lines.append("#### 💡 개선 제안")
             lines.append("")
+            lines.append("| # | 제안 |")
+            lines.append("|---|------|")
             for i, suggestion in enumerate(feedback_data.suggestions, 1):
-                lines.append(f"{i}. {suggestion}")
+                lines.append(f"| {i} | {suggestion} |")
             lines.append("")
 
         # Good examples section
         if hasattr(feedback_data, 'examples_good') and feedback_data.examples_good:
             lines.append("#### ✅ 좋은 예시")
             lines.append("")
+            lines.append("| 예시 |")
+            lines.append("|------|")
             for example in feedback_data.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
                 if example_formatter:
-                    lines.append(f"- {example_formatter(example)}")
+                    lines.append(f"| {example_formatter(example)} |")
                 elif isinstance(example, dict):
-                    lines.append(f"- {example}")
+                    lines.append(f"| {example} |")
                 else:
-                    lines.append(f"- {example}")
+                    lines.append(f"| {example} |")
             lines.append("")
 
         # Poor/improve examples section
@@ -459,13 +487,15 @@ class Reporter:
         if poor_examples:
             lines.append("#### ⚠️ 개선이 필요한 예시")
             lines.append("")
+            lines.append("| 예시 |")
+            lines.append("|------|")
             for example in poor_examples[:DISPLAY_LIMITS['feedback_examples']]:
                 if example_formatter:
-                    lines.append(f"- {example_formatter(example)}")
+                    lines.append(f"| {example_formatter(example)} |")
                 elif isinstance(example, dict):
-                    lines.append(f"- {example}")
+                    lines.append(f"| {example} |")
                 else:
-                    lines.append(f"- {example}")
+                    lines.append(f"| {example} |")
             lines.append("")
 
         return lines
@@ -579,11 +609,11 @@ class Reporter:
         lines.append("")
         lines.append(f"**다양성 점수**: {metrics.tech_stack.diversity_score:.2f} (0-1 척도)")
         lines.append("")
-        lines.append("**주요 사용 언어:**")
-        lines.append("")
+        lines.append("| 순위 | 언어 | 파일 수 |")
+        lines.append("|------|------|---------|")
         for i, lang in enumerate(metrics.tech_stack.top_languages[:5], 1):
             count = metrics.tech_stack.languages.get(lang, 0)
-            lines.append(f"{i}. **{lang}** - {count}개 파일")
+            lines.append(f"| {i} | {lang} | {count:,} |")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -597,16 +627,21 @@ class Reporter:
         lines = ["## 🤝 Collaboration Network", ""]
         lines.append("> 함께 성장한 동료들과의 협업")
         lines.append("")
-        lines.append(f"- 받은 리뷰 수: **{metrics.collaboration.review_received_count}건**")
-        lines.append(f"- 협업한 사람 수: **{metrics.collaboration.unique_collaborators}명**")
+
+        lines.append("| 항목 | 값 |")
+        lines.append("|------|-----|")
+        lines.append(f"| 받은 리뷰 수 | {metrics.collaboration.review_received_count:,}건 |")
+        lines.append(f"| 협업한 사람 수 | {metrics.collaboration.unique_collaborators:,}명 |")
         lines.append("")
 
         if metrics.collaboration.top_reviewers:
             lines.append("### 🌟 주요 리뷰어")
             lines.append("")
+            lines.append("| 순위 | 리뷰어 | 리뷰 횟수 |")
+            lines.append("|------|--------|-----------|")
             for i, reviewer in enumerate(metrics.collaboration.top_reviewers, 1):
                 count = metrics.collaboration.pr_reviewers.get(reviewer, 0)
-                lines.append(f"{i}. **@{reviewer}** - {count}회 리뷰")
+                lines.append(f"| {i} | @{reviewer} | {count:,}회 |")
             lines.append("")
         lines.append("---")
         lines.append("")
@@ -620,8 +655,10 @@ class Reporter:
         lines = ["## 🤔 Reflection Prompts", ""]
         lines.append("> 스스로에게 물어보세요")
         lines.append("")
+        lines.append("| # | 질문 |")
+        lines.append("|---|------|")
         for i, question in enumerate(metrics.reflection_prompts.questions, 1):
-            lines.append(f"{i}. {question}")
+            lines.append(f"| {i} | {question} |")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -662,8 +699,10 @@ class Reporter:
             lines.append("")
             lines.append("> 이번 기간 동안 달성한 핵심 성과들입니다")
             lines.append("")
+            lines.append("| # | 성과 |")
+            lines.append("|---|------|")
             for i, win in enumerate(retro.key_wins, 1):
-                lines.append(f"{i}. **{win}**")
+                lines.append(f"| {i} | {win} |")
             lines.append("")
         return lines
 
@@ -702,21 +741,13 @@ class Reporter:
             lines.append("")
             lines.append("> 작업 패턴과 습관에서 발견된 인사이트")
             lines.append("")
+            lines.append("| 영향 | 패턴 | 제안 |")
+            lines.append("|------|------|------|")
 
             for pattern in retro.behavior_patterns:
                 impact_emoji = "✅" if pattern.impact == "positive" else "⚠️" if pattern.impact == "negative" else "ℹ️"
-                lines.append(f"#### {impact_emoji} {pattern.description}")
-                lines.append("")
-
-                if pattern.evidence:
-                    lines.append("**근거:**")
-                    for evidence in pattern.evidence:
-                        lines.append(f"- {evidence}")
-                    lines.append("")
-
-                if pattern.recommendation:
-                    lines.append(f"**제안:** {pattern.recommendation}")
-                    lines.append("")
+                recommendation = pattern.recommendation if pattern.recommendation else "-"
+                lines.append(f"| {impact_emoji} | {pattern.description} | {recommendation} |")
             lines.append("")
         return lines
 
@@ -728,22 +759,18 @@ class Reporter:
             lines.append("")
             lines.append("> 기술 역량과 학습 궤적을 분석합니다")
             lines.append("")
+            lines.append("| 분야 | 기술 | 전문성 | 성장 지표 |")
+            lines.append("|------|------|--------|-----------|")
 
             for learning in retro.learning_insights:
                 expertise_emoji = {"expert": "👑", "proficient": "⭐", "developing": "🌱", "exploring": "🔍"}.get(
                     learning.expertise_level, "📖"
                 )
-                lines.append(f"#### {expertise_emoji} {learning.domain}")
-                lines.append("")
-                lines.append(f"**기술:** {', '.join(learning.technologies)}")
-                lines.append(f"**전문성 수준:** {learning.expertise_level}")
-                lines.append("")
-
-                if learning.growth_indicators:
-                    lines.append("**성장 지표:**")
-                    for indicator in learning.growth_indicators:
-                        lines.append(f"- {indicator}")
-                    lines.append("")
+                technologies = ', '.join(learning.technologies)
+                growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:3]) if learning.growth_indicators else "-"
+                lines.append(
+                    f"| {expertise_emoji} {learning.domain} | {technologies} | {learning.expertise_level} | {growth_indicators} |"
+                )
             lines.append("")
         return lines
 
@@ -755,21 +782,15 @@ class Reporter:
             lines.append("")
             lines.append("> 기여의 비즈니스 및 팀 영향을 평가합니다")
             lines.append("")
+            lines.append("| 카테고리 | 기여 횟수 | 영향도 | 설명 |")
+            lines.append("|----------|-----------|--------|------|")
 
             for impact in retro.impact_assessments:
                 impact_emoji = {"high": "🔥", "medium": "✨", "low": "💡"}.get(impact.estimated_impact, "📊")
-                lines.append(f"#### {impact_emoji} {impact.category}")
-                lines.append("")
-                lines.append(f"**기여 횟수:** {impact.contribution_count:,}건")
-                lines.append(f"**영향도:** {impact.estimated_impact}")
-                lines.append(f"**설명:** {impact.impact_description}")
-                lines.append("")
-
-                if impact.key_achievements:
-                    lines.append("**핵심 성과:**")
-                    for achievement in impact.key_achievements:
-                        lines.append(f"- {achievement}")
-                    lines.append("")
+                lines.append(
+                    f"| {impact_emoji} {impact.category} | {impact.contribution_count:,}건 | "
+                    f"{impact.estimated_impact} | {impact.impact_description} |"
+                )
             lines.append("")
         return lines
 
@@ -816,29 +837,40 @@ class Reporter:
             lines.append("")
 
             risk_emoji = {"low": "✅", "moderate": "⚠️", "high": "🚨"}.get(balance.burnout_risk_level, "❓")
-            lines.append(f"**번아웃 위험도:** {risk_emoji} {balance.burnout_risk_level}")
-            lines.append(f"**지속가능성 점수:** {balance.sustainability_score:.0f}/100")
-            lines.append(f"**활동 변동성:** {balance.activity_variance:.2f}")
+
+            lines.append("| 지표 | 값 |")
+            lines.append("|------|-----|")
+            lines.append(f"| 번아웃 위험도 | {risk_emoji} {balance.burnout_risk_level} |")
+            lines.append(f"| 지속가능성 점수 | {balance.sustainability_score:.0f}/100 |")
+            lines.append(f"| 활동 변동성 | {balance.activity_variance:.2f} |")
             lines.append("")
 
             if balance.positive_patterns:
                 lines.append("**긍정적 패턴:**")
+                lines.append("")
+                lines.append("| 패턴 |")
+                lines.append("|------|")
                 for pattern in balance.positive_patterns:
-                    lines.append(f"- ✅ {pattern}")
+                    lines.append(f"| ✅ {pattern} |")
                 lines.append("")
 
             if balance.burnout_indicators:
                 lines.append("**주의 사항:**")
+                lines.append("")
+                lines.append("| 지표 |")
+                lines.append("|------|")
                 for indicator in balance.burnout_indicators:
-                    lines.append(f"- ⚠️ {indicator}")
+                    lines.append(f"| ⚠️ {indicator} |")
                 lines.append("")
 
             if balance.health_recommendations:
                 lines.append("**권장 사항:**")
-                for rec in balance.health_recommendations:
-                    lines.append(f"- 💡 {rec}")
                 lines.append("")
-            lines.append("")
+                lines.append("| 권장사항 |")
+                lines.append("|----------|")
+                for rec in balance.health_recommendations:
+                    lines.append(f"| 💡 {rec} |")
+                lines.append("")
         return lines
 
     def _build_code_health_subsection(self, retro) -> List[str]:
@@ -848,22 +880,30 @@ class Reporter:
             health = retro.code_health
             lines.append("### 🏥 코드 건강도 분석")
             lines.append("")
-            lines.append(f"**유지보수 부담:** {health.maintenance_burden}")
-            lines.append(f"**테스트 커버리지 추세:** {health.test_coverage_trend}")
+
+            lines.append("| 지표 | 값 |")
+            lines.append("|------|-----|")
+            lines.append(f"| 유지보수 부담 | {health.maintenance_burden} |")
+            lines.append(f"| 테스트 커버리지 추세 | {health.test_coverage_trend} |")
             lines.append("")
 
             if health.code_quality_trends:
                 lines.append("**품질 트렌드:**")
+                lines.append("")
+                lines.append("| 트렌드 |")
+                lines.append("|--------|")
                 for trend in health.code_quality_trends:
-                    lines.append(f"- {trend}")
+                    lines.append(f"| {trend} |")
                 lines.append("")
 
             if health.quality_improvement_suggestions:
                 lines.append("**개선 제안:**")
-                for suggestion in health.quality_improvement_suggestions:
-                    lines.append(f"- 💡 {suggestion}")
                 lines.append("")
-            lines.append("")
+                lines.append("| 제안 |")
+                lines.append("|------|")
+                for suggestion in health.quality_improvement_suggestions:
+                    lines.append(f"| 💡 {suggestion} |")
+                lines.append("")
         return lines
 
     def _build_actionable_insights_subsection(self, retro) -> List[str]:
@@ -922,8 +962,10 @@ class Reporter:
             lines.append("")
             lines.append("> 다음 단계로 나아가기 위한 영역")
             lines.append("")
+            lines.append("| # | 성장 기회 |")
+            lines.append("|---|-----------|")
             for i, area in enumerate(retro.areas_for_growth, 1):
-                lines.append(f"{i}. {area}")
+                lines.append(f"| {i} | {area} |")
             lines.append("")
         return lines
 
