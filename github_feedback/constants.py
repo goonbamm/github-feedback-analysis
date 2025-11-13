@@ -42,7 +42,7 @@ ANALYSIS_PHASES = {
     2: "Data collection (commits, PRs, reviews, issues)",
     3: "Metrics computation and trend analysis",
     4: "LLM-based feedback generation (commit messages, PR titles, review tone, issue quality)",
-    5: "Report generation (markdown, HTML, charts)",
+    5: "Report generation (markdown)",
 }
 
 # =============================================================================
@@ -117,29 +117,16 @@ FEEDBACK_SECTIONS = {
 # =============================================================================
 
 DEFAULT_OUTPUT_DIR = 'reports'
-CHARTS_SUBDIR = 'charts'
 PROMPTS_SUBDIR = 'prompts'
 
 # Output file names
 OUTPUT_FILES = {
     'metrics': 'metrics.json',
     'report_md': 'report.md',
-    'report_html': 'report.html',
     'commit_feedback': 'prompts/commit_feedback.txt',
     'pr_feedback': 'prompts/pr_feedback.txt',
     'review_feedback': 'prompts/review_feedback.txt',
     'issue_feedback': 'prompts/issue_feedback.txt',
-}
-
-# Chart file names
-CHART_FILES = {
-    'quality': 'charts/quality.svg',
-    'activity': 'charts/activity.svg',
-    'engagement': 'charts/engagement.svg',
-    'commits': 'charts/commits.svg',
-    'prs': 'charts/prs.svg',
-    'reviews': 'charts/reviews.svg',
-    'issues': 'charts/issues.svg',
 }
 
 # =============================================================================
