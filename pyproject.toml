@@ -17,6 +17,7 @@ dependencies = [
   "rich>=13.0",
   "pydantic>=2.5",
   "requests>=2.31",
+  "requests-cache>=1.0",
   "tomli>=2.0",
   "tomli-w>=1.0",
   "keyring>=24.0",
