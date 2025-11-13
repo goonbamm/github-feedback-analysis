@@ -611,7 +611,7 @@ class Reporter:
         lines.append("")
         lines.append("| 순위 | 언어 | 파일 수 |")
         lines.append("|------|------|---------|")
-        for i, lang in enumerate(metrics.tech_stack.top_languages[:5], 1):
+        for i, lang in enumerate(metrics.tech_stack.top_languages[:DISPLAY_LIMITS['top_languages']], 1):
             count = metrics.tech_stack.languages.get(lang, 0)
             lines.append(f"| {i} | {lang} | {count:,} |")
         lines.append("")
@@ -767,7 +767,7 @@ class Reporter:
                     learning.expertise_level, "📖"
                 )
                 technologies = ', '.join(learning.technologies)
-                growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:3]) if learning.growth_indicators else "-"
+                growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:DISPLAY_LIMITS['growth_indicators']]) if learning.growth_indicators else "-"
                 lines.append(
                     f"| {expertise_emoji} {learning.domain} | {technologies} | {learning.expertise_level} | {growth_indicators} |"
                 )

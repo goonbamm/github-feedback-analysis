@@ -946,19 +946,35 @@ def _run_feedback_analysis(
 
     pr_numbers = sorted(set(numbers))
     total_prs = len(pr_numbers)
-    results = []
 
-    # Generate PR reviews
-    for idx, pr_number in enumerate(pr_numbers, 1):
-        with console.status(
-            f"[accent]Analyzing PR #{pr_number} ({idx}/{total_prs})...", spinner="line"
-        ):
-            artefact_path, summary_path, markdown_path = reviewer.review_pull_request(
-                repo=repo_input,
-                number=pr_number,
-            )
-        results.append((pr_number, artefact_path, summary_path, markdown_path))
-        console.print(f"[success]✓ PR #{pr_number} reviewed ({idx}/{total_prs})", style="success")
+    # Generate PR reviews in parallel
+    console.print(f"[info]Analyzing {total_prs} PRs in parallel...[/]")
+
+    review_tasks = {
+        f"pr_{pr_number}": (
+            reviewer.review_pull_request,
+            (repo_input, pr_number),
+            f"PR #{pr_number}"
+        )
+        for pr_number in pr_numbers
+    }
+
+    review_results = _run_parallel_tasks(
+        review_tasks,
+        PARALLEL_CONFIG['max_workers_pr_review'],
+        PARALLEL_CONFIG['pr_review_timeout'],
+        task_type="analysis"
+    )
+
+    # Collect results
+    results = []
+    for pr_number in pr_numbers:
+        key = f"pr_{pr_number}"
+        if key in review_results and review_results[key] is not None:
+            artefact_path, summary_path, markdown_path = review_results[key]
+            results.append((pr_number, artefact_path, summary_path, markdown_path))
+        else:
+            console.print(f"[warning]⚠ PR #{pr_number} review failed or timed out[/]", style="warning")
 
     # Generate integrated report
     output_dir_resolved = _resolve_output_dir(output_dir)

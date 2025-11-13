@@ -11,10 +11,12 @@ import requests
 import requests_cache
 
 from .config import Config
+from .console import Console
 from .constants import HTTP_STATUS, RETRY_CONFIG
 from .exceptions import ApiError, AuthenticationError, ConfigurationError
 
 logger = logging.getLogger(__name__)
+console = Console()
 
 # Type variable for generic response types
 T = TypeVar('T', List[Dict[str, Any]], Dict[str, Any])
@@ -143,8 +145,37 @@ class GitHubApiClient:
             return True
         if isinstance(exc, requests.HTTPError):
             if exc.response is not None:
+                status_code = exc.response.status_code
+
+                # Display rate limit information
+                if status_code == 403 or status_code == 429:
+                    headers = exc.response.headers
+                    remaining = headers.get('X-RateLimit-Remaining', 'unknown')
+                    reset_time = headers.get('X-RateLimit-Reset', 'unknown')
+
+                    if reset_time != 'unknown':
+                        import datetime
+                        try:
+                            reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
+                            reset_str = reset_dt.strftime('%H:%M:%S')
+                            console.print(
+                                f"[warning]⚠ Rate limited. Resets at: {reset_str} "
+                                f"(Remaining: {remaining})[/]",
+                                style="warning"
+                            )
+                        except (ValueError, TypeError):
+                            console.print(
+                                f"[warning]⚠ Rate limited. Remaining: {remaining}[/]",
+                                style="warning"
+                            )
+                    else:
+                        console.print(
+                            f"[warning]⚠ Rate limited. Remaining: {remaining}[/]",
+                            style="warning"
+                        )
+
                 # Retry on rate limiting and server errors
-                return exc.response.status_code in HTTP_STATUS['retryable_errors']
+                return status_code in HTTP_STATUS['retryable_errors']
         return False
 
     def _execute_with_retry(
@@ -270,20 +301,21 @@ class GitHubApiClient:
         return result  # type: ignore[return-value]
 
     def request_all(
-        self, path: str, params: Optional[Dict[str, Any]] = None
+        self, path: str, params: Optional[Dict[str, Any]] = None, max_pages: int = 100
     ) -> List[Dict[str, Any]]:
         """Retrieve all pages for a list-based GitHub API endpoint.
 
         Args:
             path: API endpoint path
             params: Optional query parameters
+            max_pages: Maximum number of pages to fetch (default: 100, prevents infinite loops)
 
         Returns:
-            All items from all pages
+            All items from all pages (up to max_pages)
         """
         base_params: Dict[str, Any] = dict(params or {})
         per_page = int(base_params.get("per_page") or 100)
-        return self.paginate(path, base_params, per_page=per_page)
+        return self.paginate(path, base_params, per_page=per_page, max_pages=max_pages)
 
     def paginate(
         self,
@@ -291,6 +323,7 @@ class GitHubApiClient:
         base_params: Dict[str, Any],
         per_page: int = 100,
         early_stop: Optional[Callable[[Dict[str, Any]], bool]] = None,
+        max_pages: int = 100,
     ) -> List[Dict[str, Any]]:
         """Generic pagination helper with optional early stopping.
 
@@ -299,14 +332,15 @@ class GitHubApiClient:
             base_params: Base query parameters
             per_page: Items per page (default: 100)
             early_stop: Optional callback that receives each item and returns True to stop
+            max_pages: Maximum number of pages to fetch (default: 100, prevents infinite loops)
 
         Returns:
-            List of collected items
+            List of collected items (up to max_pages)
         """
         results: List[Dict[str, Any]] = []
         page = 1
 
-        while True:
+        while page <= max_pages:
             page_params = base_params | {"page": page, "per_page": per_page}
             data = self.request_list(path, page_params)
 

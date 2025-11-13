@@ -219,6 +219,10 @@ COLLECTION_LIMITS = {
 DISPLAY_LIMITS = {
     'feedback_examples': 3,  # Number of examples to show in feedback sections
     'medium_priority_insights': 3,  # Number of medium priority insights to show
+    'top_languages': 5,  # Number of top languages to display
+    'top_reviewers': 5,  # Number of top reviewers to display
+    'max_goals': 5,  # Maximum number of goals to return
+    'growth_indicators': 3,  # Number of growth indicators to show per learning insight
 }
 
 # Parallel processing configuration
@@ -226,9 +230,11 @@ PARALLEL_CONFIG = {
     'max_workers_data_collection': 4,  # Concurrent data collection tasks
     'max_workers_llm_analysis': 4,  # Concurrent LLM analysis tasks
     'max_workers_yearend': 3,  # Concurrent year-end data collection tasks
+    'max_workers_pr_review': 3,  # Concurrent PR review tasks
     'collection_timeout': 120,  # Timeout for data collection in seconds
     'analysis_timeout': 180,  # Timeout for LLM analysis in seconds
     'yearend_timeout': 180,  # Timeout for year-end data collection in seconds
+    'pr_review_timeout': 180,  # Timeout for PR review in seconds
 }
 
 # =============================================================================
