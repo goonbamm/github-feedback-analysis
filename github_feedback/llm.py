@@ -94,6 +94,47 @@ class HeuristicAnalyzer:
         import re
         return any(re.search(pattern, text, flags) for pattern in patterns)
 
+    @staticmethod
+    def analyze_with_scoring(
+        items: list[dict],
+        score_fn: Callable[[dict], tuple[int, Any]],
+        threshold: int,
+        good_example_fn: Callable[[dict, Any], dict],
+        poor_example_fn: Callable[[dict, Any], dict],
+        max_examples: int = 3
+    ) -> tuple[int, int, list[dict], list[dict]]:
+        """Generic analysis using a scoring function.
+
+        Args:
+            items: List of items to analyze
+            score_fn: Function that scores an item and returns (score, metadata)
+            threshold: Score threshold for good classification
+            good_example_fn: Function to format good examples
+            poor_example_fn: Function to format poor examples
+            max_examples: Maximum examples to collect
+
+        Returns:
+            tuple of (good_count, poor_count, examples_good, examples_poor)
+        """
+        good_count = 0
+        poor_count = 0
+        examples_good = []
+        examples_poor = []
+
+        for item in items:
+            score, metadata = score_fn(item)
+
+            if score >= threshold:
+                good_count += 1
+                if len(examples_good) < max_examples:
+                    examples_good.append(good_example_fn(item, metadata))
+            else:
+                poor_count += 1
+                if len(examples_poor) < max_examples:
+                    examples_poor.append(poor_example_fn(item, metadata))
+
+        return good_count, poor_count, examples_good, examples_poor
+
 # Cache settings
 DEFAULT_CACHE_EXPIRE_DAYS = 7
 LLM_CACHE_DIR = Path.home() / ".cache" / "github_feedback" / "llm_cache"
@@ -1026,11 +1067,6 @@ class LLMClient:
         """Enhanced heuristic-based commit message analysis using helper class."""
         import re
 
-        good_count = 0
-        poor_count = 0
-        examples_good = []
-        examples_poor = []
-
         # Patterns for classification
         good_patterns = [
             r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+',
@@ -1051,35 +1087,40 @@ class LLMClient:
         min_body_len = HEURISTIC_THRESHOLDS['commit_min_body_length']
         good_score_threshold = HEURISTIC_THRESHOLDS['review_good_score']
 
-        for commit in commits:
+        # Define scoring function
+        def score_fn(commit):
             message = commit["message"].strip()
             lines = message.split("\n")
             first_line = lines[0] if lines else ""
-
-            # Score and classify
             score, issues = self._score_commit_message(
                 first_line, lines, good_patterns, poor_patterns,
                 min_len, max_len, too_long, min_body_len
             )
+            return score, (first_line, issues)
 
-            # Use helper to classify
-            if score >= good_score_threshold:
-                good_count += 1
-                if len(examples_good) < TEXT_LIMITS['example_display_limit']:
-                    examples_good.append({
-                        "message": first_line,
-                        "sha": commit["sha"][:7],
-                        "reason": "적절한 길이와 형식을 갖추었습니다"
-                    })
-            else:
-                poor_count += 1
-                if len(examples_poor) < TEXT_LIMITS['example_display_limit']:
-                    examples_poor.append({
-                        "message": first_line,
-                        "sha": commit["sha"][:7],
-                        "reason": ", ".join(issues) if issues else "개선이 필요합니다",
-                        "suggestion": "Conventional Commits 형식을 사용해보세요 (예: feat: 새 기능 추가)"
-                    })
+        # Define example formatters
+        def good_example_fn(commit, metadata):
+            first_line, _ = metadata
+            return {
+                "message": first_line,
+                "sha": commit["sha"][:7],
+                "reason": "적절한 길이와 형식을 갖추었습니다"
+            }
+
+        def poor_example_fn(commit, metadata):
+            first_line, issues = metadata
+            return {
+                "message": first_line,
+                "sha": commit["sha"][:7],
+                "reason": ", ".join(issues) if issues else "개선이 필요합니다",
+                "suggestion": "Conventional Commits 형식을 사용해보세요 (예: feat: 새 기능 추가)"
+            }
+
+        # Use generic analyzer
+        good_count, poor_count, examples_good, examples_poor = HeuristicAnalyzer.analyze_with_scoring(
+            commits, score_fn, good_score_threshold, good_example_fn, poor_example_fn,
+            max_examples=TEXT_LIMITS['example_display_limit']
+        )
 
         return {
             "good_messages": good_count,
@@ -1132,11 +1173,6 @@ class LLMClient:
         """Enhanced heuristic-based PR title analysis using helper class."""
         import re
 
-        clear_count = 0
-        vague_count = 0
-        examples_good = []
-        examples_poor = []
-
         # Patterns and configuration
         clear_patterns = [
             r'^\[(feat|fix|docs|style|refactor|test|chore|perf|ci|build)\].+',
@@ -1150,33 +1186,40 @@ class LLMClient:
         min_words = HEURISTIC_THRESHOLDS['pr_title_min_words']
         good_score = HEURISTIC_THRESHOLDS['review_good_score']
 
-        for pr in prs:
+        # Define scoring function
+        def score_fn(pr):
             title = pr["title"].strip()
             score, reasons = self._score_pr_title(
                 title, clear_patterns, vague_keywords, min_len, max_len, min_words
             )
+            return score, (title, reasons)
 
-            # Classify and collect examples
-            if score >= good_score:
-                clear_count += 1
-                if len(examples_good) < 3:
-                    examples_good.append({
-                        "number": pr["number"],
-                        "title": title,
-                        "reason": "명확하고 설명적인 제목입니다",
-                        "score": min(10, score * 3)
-                    })
-            else:
-                vague_count += 1
-                if len(examples_poor) < 3:
-                    first_word = title.split()[0].lower() if title.split() else "feat"
-                    suggestion_type = first_word if first_word in {'feat', 'fix', 'docs'} else 'feat'
-                    examples_poor.append({
-                        "number": pr["number"],
-                        "title": title,
-                        "reason": ", ".join(reasons) if reasons else "제목이 모호합니다",
-                        "suggestion": f"[{suggestion_type}] {title if len(title) > 10 else title + ' - 구체적인 변경 내용 설명'}"
-                    })
+        # Define example formatters
+        def good_example_fn(pr, metadata):
+            title, _ = metadata
+            return {
+                "number": pr["number"],
+                "title": title,
+                "reason": "명확하고 설명적인 제목입니다",
+                "score": min(10, score_fn(pr)[0] * 3)
+            }
+
+        def poor_example_fn(pr, metadata):
+            title, reasons = metadata
+            first_word = title.split()[0].lower() if title.split() else "feat"
+            suggestion_type = first_word if first_word in {'feat', 'fix', 'docs'} else 'feat'
+            return {
+                "number": pr["number"],
+                "title": title,
+                "reason": ", ".join(reasons) if reasons else "제목이 모호합니다",
+                "suggestion": f"[{suggestion_type}] {title if len(title) > 10 else title + ' - 구체적인 변경 내용 설명'}"
+            }
+
+        # Use generic analyzer
+        clear_count, vague_count, examples_good, examples_poor = HeuristicAnalyzer.analyze_with_scoring(
+            prs, score_fn, good_score, good_example_fn, poor_example_fn,
+            max_examples=3
+        )
 
         return {
             "clear_titles": clear_count,
@@ -1251,43 +1294,44 @@ class LLMClient:
         """Enhanced heuristic-based issue quality analysis using helper class."""
         import re
 
-        well_described = 0
-        poorly_described = 0
-        examples_good = []
-        examples_poor = []
-
         body_short = HEURISTIC_THRESHOLDS['issue_body_short']
         body_detailed = HEURISTIC_THRESHOLDS['issue_body_detailed']
         good_score = HEURISTIC_THRESHOLDS['issue_good_score']
 
-        for issue in issues:
+        # Define scoring function
+        def score_fn(issue):
             body = issue.get("body", "").strip()
             title = issue.get("title", "").strip()
-
             score, strengths, missing = self._score_issue_quality(
                 body, body_short, body_detailed, good_score
             )
+            return score, (title, body, strengths, missing)
 
-            # Classify and collect examples
-            if score >= good_score:
-                well_described += 1
-                if len(examples_good) < 3:
-                    examples_good.append({
-                        "number": issue["number"],
-                        "title": title,
-                        "type": self._detect_issue_type(title, body),
-                        "strengths": strengths[:3],
-                        "completeness_score": min(10, score)
-                    })
-            else:
-                poorly_described += 1
-                if len(examples_poor) < 3:
-                    examples_poor.append({
-                        "number": issue["number"],
-                        "title": title,
-                        "missing_elements": missing,
-                        "suggestion": "이슈 템플릿을 사용하거나 재현 단계, 예상/실제 결과, 환경 정보를 추가하세요."
-                    })
+        # Define example formatters
+        def good_example_fn(issue, metadata):
+            title, body, strengths, _ = metadata
+            return {
+                "number": issue["number"],
+                "title": title,
+                "type": self._detect_issue_type(title, body),
+                "strengths": strengths[:3],
+                "completeness_score": min(10, score_fn(issue)[0])
+            }
+
+        def poor_example_fn(issue, metadata):
+            title, _, _, missing = metadata
+            return {
+                "number": issue["number"],
+                "title": title,
+                "missing_elements": missing,
+                "suggestion": "이슈 템플릿을 사용하거나 재현 단계, 예상/실제 결과, 환경 정보를 추가하세요."
+            }
+
+        # Use generic analyzer
+        well_described, poorly_described, examples_good, examples_poor = HeuristicAnalyzer.analyze_with_scoring(
+            issues, score_fn, good_score, good_example_fn, poor_example_fn,
+            max_examples=3
+        )
 
         return {
             "well_described": well_described,
