@@ -4,13 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tuple, Union
 
 from .console import Console
 from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS, COLLECTION_LIMITS, DISPLAY_LIMITS
-from .models import MetricSnapshot, PromptRequest
+from .models import (
+    CommitMessageFeedback,
+    IssueFeedback,
+    MetricSnapshot,
+    PRTitleFeedback,
+    PromptRequest,
+    ReviewToneFeedback,
+)
 
 console = Console()
+
+# Type alias for feedback data structures
+FeedbackData = Union[CommitMessageFeedback, PRTitleFeedback, ReviewToneFeedback, IssueFeedback]
 
 
 def _format_metric_value(value: object) -> str:
@@ -399,7 +409,7 @@ class Reporter:
     def _build_feedback_section(
         self,
         title: str,
-        feedback_data: Any,
+        feedback_data: FeedbackData,
         stats_config: Dict[str, str],
         example_formatter: Optional[Callable[[Any], str]] = None,
         examples_poor_attr: str = "examples_poor"
