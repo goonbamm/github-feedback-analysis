@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 try:
     import tomllib as tomli  # Python 3.11+
@@ -293,21 +293,28 @@ class Config:
         with path.open("wb") as handle:
             toml_dump(payload, handle)
 
-    def update_auth(self, pat: str) -> None:
-        """Update the stored PAT in system keyring.
+    @staticmethod
+    def _execute_with_keyring_fallback(
+        operation: Callable[[], Optional[str]],
+        operation_name: str
+    ) -> Optional[str]:
+        """Execute a keyring operation with fallback support.
 
         Args:
-            pat: GitHub Personal Access Token to store securely.
+            operation: The keyring operation to execute.
+            operation_name: Name of the operation for error messages ("store" or "retrieve").
+
+        Returns:
+            The result of the operation, or None for get operations.
 
         Raises:
-            RuntimeError: If unable to store credentials in any keyring backend.
+            RuntimeError: If unable to execute the operation in any keyring backend.
         """
         last_error = None
 
         # First attempt with default keyring
         try:
-            keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
-            return  # Success!
+            return operation()
         except Exception as e:
             last_error = e
             # Store the error but continue to try fallback
@@ -315,14 +322,13 @@ class Config:
         # Try to set up fallback and retry
         if _setup_keyring_fallback():
             try:
-                keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
-                return  # Success with fallback!
+                return operation()
             except Exception as fallback_error:
                 last_error = fallback_error
 
         # If all else fails, provide a helpful error message
         error_msg = (
-            f"Failed to store credentials securely. "
+            f"Failed to {operation_name} credentials. "
             f"Error: {last_error}. "
             f"\n\n"
             f"To fix this issue:\n"
@@ -334,6 +340,21 @@ class Config:
             f"   - See docs/KEYRING_TROUBLESHOOTING.md for details"
         )
         raise RuntimeError(error_msg) from last_error
+
+    def update_auth(self, pat: str) -> None:
+        """Update the stored PAT in system keyring.
+
+        Args:
+            pat: GitHub Personal Access Token to store securely.
+
+        Raises:
+            RuntimeError: If unable to store credentials in any keyring backend.
+        """
+        def _set_password() -> None:
+            keyring.set_password(KEYRING_SERVICE, KEYRING_USERNAME, pat)
+            return None
+
+        self._execute_with_keyring_fallback(_set_password, "store")
 
     def get_pat(self) -> Optional[str]:
         """Retrieve the stored PAT from system keyring.
@@ -344,36 +365,10 @@ class Config:
         Raises:
             RuntimeError: If unable to access the keyring backend.
         """
-        last_error = None
-
-        # First attempt with default keyring
-        try:
-            return keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
-        except Exception as e:
-            last_error = e
-            # Store the error but continue to try fallback
-
-        # Try to set up fallback and retry
-        if _setup_keyring_fallback():
-            try:
-                return keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
-            except Exception as fallback_error:
-                last_error = fallback_error
-
-        # If all else fails, provide a helpful error message
-        error_msg = (
-            f"Failed to retrieve credentials from keyring. "
-            f"Error: {last_error}. "
-            f"\n\n"
-            f"To fix this issue:\n"
-            f"1. Install keyrings.alt for file-based secure storage:\n"
-            f"   pip install keyrings.alt\n"
-            f"\n"
-            f"2. Or set up your system keyring:\n"
-            f"   - Linux: Install and configure gnome-keyring or kwallet\n"
-            f"   - See docs/KEYRING_TROUBLESHOOTING.md for details"
+        return self._execute_with_keyring_fallback(
+            lambda: keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME),
+            "retrieve"
         )
-        raise RuntimeError(error_msg) from last_error
 
     def has_pat(self) -> bool:
         """Check if a PAT is stored in the keyring.

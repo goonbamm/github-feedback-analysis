@@ -462,6 +462,35 @@ class LLMClient:
 
         return ReviewSummary(overview=overview, strengths=strengths, improvements=improvements)
 
+    @staticmethod
+    def _is_json_format_error(exc: requests.HTTPError) -> bool:
+        """Check if an HTTP error is related to JSON format issues that can be retried.
+
+        Args:
+            exc: The HTTP error exception to check.
+
+        Returns:
+            True if this is a retryable JSON format error, False otherwise.
+        """
+        if exc.response is None:
+            return False
+
+        status_code = exc.response.status_code
+
+        # Server errors (5xx) are always retryable
+        if status_code >= 500:
+            return True
+
+        # For client errors, check if they're related to JSON format
+        if status_code in {400, 404, 415, 422}:
+            try:
+                error_text_lower = exc.response.text.lower()
+                return "json_object" in error_text_lower or "response_format" in error_text_lower
+            except (AttributeError, UnicodeDecodeError, LookupError):  # pragma: no cover - defensive guard
+                return False
+
+        return False
+
     def generate_review(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
         """Invoke the configured LLM endpoint and parse the structured feedback."""
 
@@ -501,24 +530,12 @@ class LLMClient:
                         continue
                     raise
             except requests.HTTPError as exc:
-                error_text = ""
-                if exc.response is not None:
-                    try:
-                        error_text = exc.response.text
-                    except (AttributeError, UnicodeDecodeError, LookupError):  # pragma: no cover - defensive guard for rare encodings
-                        error_text = ""
-
                 last_error = exc
-                status_code = exc.response.status_code if exc.response is not None else None
-                error_text_lower = error_text.lower()
 
-                if "response_format" in request_payload:
-                    if status_code is not None and status_code >= 500:
-                        continue
-                    if status_code in {400, 404, 415, 422} and (
-                        "json_object" in error_text_lower or "response_format" in error_text_lower
-                    ):
-                        continue
+                # If using response_format and it's a retryable JSON format error, try again without it
+                if "response_format" in request_payload and self._is_json_format_error(exc):
+                    continue
+
                 raise
             except (OSError, ConnectionError, TimeoutError) as exc:  # pragma: no cover - network failures already handled elsewhere
                 last_error = exc
