@@ -766,17 +766,37 @@ def _generate_artifacts(
     reporter: Reporter,
     output_dir: Path,
     metrics_payload: dict,
+    save_intermediate_report: bool = True,
 ) -> List[tuple[str, Path]]:
-    """Generate all report artifacts."""
+    """Generate all report artifacts.
+
+    Args:
+        metrics: Metrics snapshot to generate reports from
+        reporter: Reporter instance
+        output_dir: Output directory for artifacts
+        metrics_payload: Metrics data for serialization
+        save_intermediate_report: If True, saves intermediate report.md for internal use.
+                                  If False, skips intermediate report generation.
+
+    Returns:
+        List of (label, path) tuples for generated artifacts
+    """
     artifacts = []
 
     # Save metrics
     metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
     artifacts.append(("Metrics snapshot", metrics_path))
 
-    # Generate markdown report
-    markdown_path = reporter.generate_markdown(metrics)
-    artifacts.append(("Markdown report", markdown_path))
+    # Generate markdown report (saved to _internal/ subdirectory for use in integrated report)
+    if save_intermediate_report:
+        # Save to internal directory instead of main reports directory
+        internal_dir = output_dir / "_internal"
+        internal_reporter = Reporter(output_dir=internal_dir)
+        markdown_path = internal_reporter.generate_markdown(metrics)
+        artifacts.append(("Internal report (for reference)", markdown_path))
+    else:
+        markdown_path = reporter.generate_markdown(metrics)
+        artifacts.append(("Markdown report", markdown_path))
 
     # Generate prompt packets
     prompt_artifacts = reporter.generate_prompt_packets(metrics)
@@ -1172,17 +1192,15 @@ def feedback(
     console.print()
     console.rule("Phase 4: Report Generation")
     metrics_payload = _prepare_metrics_payload(metrics)
-    artifacts = _generate_artifacts(metrics, reporter, output_dir, metrics_payload)
+    # Save intermediate report to _internal/ directory for use in integrated report
+    artifacts = _generate_artifacts(
+        metrics, reporter, output_dir_resolved, metrics_payload, save_intermediate_report=True
+    )
 
     # Phase 5: Display results
     console.print()
     console.rule("Analysis Summary")
     _render_metrics(metrics)
-    console.rule("Artifacts")
-    for label, path in artifacts:
-        console.print(f"[success]{label} generated:[/]", f"[value]{path}[/]")
-    console.print()
-    console.print("[success]✓ Personal activity analysis complete![/]")
 
     # Phase 6: PR Review Analysis
     console.print()
@@ -1196,19 +1214,19 @@ def feedback(
 
     if feedback_report_path:
         console.print(f"[success]✓ PR review analysis complete[/]")
-        console.print(f"[success]Integrated PR review report:[/] [value]{feedback_report_path}[/]")
     else:
         console.print("[warning]⚠ PR review analysis skipped or failed[/]")
 
     # Phase 7: Generate Integrated Full Report
     console.print()
-    console.rule("Phase 7: Integrated Report Generation")
+    console.rule("Phase 7: Final Report Generation")
 
+    integrated_report_path = None
     if feedback_report_path:
-        # Find the markdown report from artifacts
+        # Find the internal markdown report from artifacts
         brief_report_path = None
         for label, path in artifacts:
-            if "Markdown report" in label:
+            if "Internal report" in label or "Markdown report" in label:
                 brief_report_path = path
                 break
 
@@ -1221,8 +1239,7 @@ def feedback(
                     brief_report_path=brief_report_path,
                     feedback_report_path=feedback_report_path,
                 )
-                console.print(f"[success]✓ Integrated full report generated:[/] [value]{integrated_report_path}[/]")
-                artifacts.append(("Integrated Full Report", integrated_report_path))
+                console.print(f"[success]✓ Integrated full report generated[/]")
             except Exception as exc:
                 console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
         else:
@@ -1237,9 +1254,20 @@ def feedback(
     console.print(f"[success]✓ Repository:[/] {repo_input}")
     console.print(f"[success]✓ PRs reviewed:[/] {len(pr_results)}")
     console.print()
-    console.print("[info]Next steps:[/]")
-    console.print("  • View the full integrated report: [accent]cat reports/integrated_full_report.md[/]")
-    console.print("  • View individual PR reviews in: [accent]reports/reviews/[/]")
+
+    if integrated_report_path:
+        console.print("[info]📊 Final Report:[/]")
+        console.print(f"  • [accent]{integrated_report_path}[/]")
+        console.print()
+        console.print("[info]💡 Next steps:[/]")
+        console.print(f"  • View the full report: [accent]cat {integrated_report_path}[/]")
+        console.print("  • View individual PR reviews in: [accent]reports/reviews/[/]")
+    else:
+        console.print("[warning]No integrated report was generated.[/]")
+        console.print("[info]Individual artifacts:[/]")
+        for label, path in artifacts:
+            if "Internal report" not in label:  # Don't show internal reports
+                console.print(f"  • {label}: [accent]{path}[/]")
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
