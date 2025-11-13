@@ -12,6 +12,7 @@ import requests
 
 from .base_collector import BaseCollector
 from .console import Console
+from .constants import THREAD_POOL_CONFIG
 from .filters import FilterHelper
 from .models import AnalysisFilters
 
@@ -154,7 +155,8 @@ class AnalyticsCollector(BaseCollector):
         completed_count = 0
         total_prs = len(prs_to_process)
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        max_workers = THREAD_POOL_CONFIG['max_workers_pr_fetch']
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(fetch_pr_files, pr): pr for pr in prs_to_process
             }
@@ -236,7 +238,8 @@ class AnalyticsCollector(BaseCollector):
         completed_count = 0
         total_prs = len(prs_to_process)
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        max_workers = THREAD_POOL_CONFIG['max_workers_pr_fetch']
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(fetch_pr_reviews, pr): pr for pr in prs_to_process
             }

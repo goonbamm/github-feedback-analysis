@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List
 
 import requests
 
+from .constants import LLM_DEFAULTS, THREAD_POOL_CONFIG
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .utils import limit_items, truncate_patch
 
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 # Default values (used when config is not available)
-MAX_PATCH_LINES_PER_FILE = 20
-MAX_FILES_WITH_PATCH_SNIPPETS = 5  # Default value, matches LLMClient default
+MAX_PATCH_LINES_PER_FILE = LLM_DEFAULTS['max_patch_lines_per_file']
+MAX_FILES_WITH_PATCH_SNIPPETS = LLM_DEFAULTS['max_files_with_patch_snippets']
 
 
 @dataclass(slots=True)
@@ -238,10 +239,12 @@ class LLMClient:
             "max_tokens": 10,
         }
 
+        # Use shorter timeout for test connection
+        test_timeout = THREAD_POOL_CONFIG['test_connection_timeout']
         response = requests.post(
             self.endpoint,
             json=payload,
-            timeout=min(self.timeout, 10),  # Use shorter timeout for test
+            timeout=min(self.timeout, test_timeout),
         )
         response.raise_for_status()
 

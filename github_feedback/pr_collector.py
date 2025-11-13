@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from .base_collector import BaseCollector
+from .constants import THREAD_POOL_CONFIG
 from .models import (
     AnalysisFilters,
     PullRequestFile,
@@ -132,7 +133,8 @@ class PullRequestCollector(BaseCollector):
 
         # Parallel fetch of PR details
         prs_raw: List[Dict[str, Any]] = []
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        max_workers = THREAD_POOL_CONFIG['max_workers_pr_fetch']
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_pr = {
                 executor.submit(fetch_pr_data, pr_num): pr_num
                 for pr_num in pr_numbers_to_fetch

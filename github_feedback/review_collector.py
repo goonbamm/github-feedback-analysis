@@ -11,6 +11,7 @@ import requests
 
 from .base_collector import BaseCollector
 from .console import Console
+from .constants import THREAD_POOL_CONFIG
 from .models import AnalysisFilters
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,8 @@ class ReviewCollector(BaseCollector):
         completed_count = 0
         total_prs = len(valid_prs)
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        max_workers = THREAD_POOL_CONFIG['max_workers_pr_fetch']
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(fetch_pr_reviews, pr): pr for pr in valid_prs}
             for future in as_completed(futures):
                 completed_count += 1

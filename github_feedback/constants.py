@@ -297,6 +297,29 @@ TREND_THRESHOLDS = {
 }
 
 # =============================================================================
+# API and HTTP Configuration
+# =============================================================================
+
+# Retry configuration
+RETRY_CONFIG = {
+    'backoff_base': 2,  # Exponential backoff base (2^attempt)
+    'max_retries': 3,
+}
+
+# HTTP status codes
+HTTP_STATUS = {
+    'unauthorized': 401,
+    'retryable_errors': (403, 429, 500, 502, 503, 504),
+}
+
+# Thread pool configuration
+THREAD_POOL_CONFIG = {
+    'max_workers_pr_fetch': 5,
+    'max_workers_commit_branches': 3,
+    'test_connection_timeout': 10,
+}
+
+# =============================================================================
 # LLM Configuration
 # =============================================================================
 
@@ -304,6 +327,12 @@ LLM_DEFAULTS = {
     'timeout': 60,
     'max_retries': 3,
     'max_files_in_prompt': 10,
+    'max_patch_lines_per_file': 20,
+    'max_files_with_patch_snippets': 5,
+    'sample_size_commits': 20,
+    'sample_size_prs': 20,
+    'sample_size_reviews': 15,
+    'sample_size_issues': 15,
 }
 
 # =============================================================================
