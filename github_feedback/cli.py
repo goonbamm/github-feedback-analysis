@@ -40,6 +40,8 @@ from .config import Config
 from .console import Console
 from .constants import (
     COLLECTION_LIMITS,
+    DAYS_PER_MONTH_APPROX,
+    DAYS_PER_YEAR,
     ERROR_MESSAGES,
     INFO_MESSAGES,
     PARALLEL_CONFIG,
@@ -98,12 +100,12 @@ def _format_relative_date(date_str: str) -> str:
             return "today"
         elif days_ago == 1:
             return "yesterday"
-        elif days_ago < 30:
+        elif days_ago < DAYS_PER_MONTH_APPROX:
             return f"{days_ago}d ago"
-        elif days_ago < 365:
-            return f"{days_ago // 30}mo ago"
+        elif days_ago < DAYS_PER_YEAR:
+            return f"{days_ago // DAYS_PER_MONTH_APPROX}mo ago"
         else:
-            return f"{days_ago // 365}y ago"
+            return f"{days_ago // DAYS_PER_YEAR}y ago"
     except (ValueError, AttributeError):
         return "unknown"
 
@@ -1112,8 +1114,7 @@ def _check_repository_activity(
     Raises:
         typer.Exit: If no activity is found
     """
-    if (collection.commits == 0 and collection.pull_requests == 0 and
-        collection.reviews == 0 and collection.issues == 0):
+    if not collection.has_activity():
         console.print("[warning]No activity found in the repository for the specified period.[/]")
         console.print(f"[info]Repository:[/] {repo_input}")
         console.print(f"[info]Period:[/] Last {months} months")
@@ -1362,8 +1363,13 @@ def _generate_integrated_full_report(
     output_dir.mkdir(parents=True, exist_ok=True)
     integrated_report_path = output_dir / "integrated_full_report.md"
 
-    with open(integrated_report_path, "w", encoding="utf-8") as f:
-        f.write(integrated_content)
+    try:
+        with open(integrated_report_path, "w", encoding="utf-8") as f:
+            f.write(integrated_content)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Failed to write integrated report to {integrated_report_path}: {exc}"
+        ) from exc
 
     return integrated_report_path
 

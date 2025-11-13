@@ -204,6 +204,7 @@ URL_PATTERN = r'^https?://'
 
 SECONDS_PER_DAY = 24 * 3600
 DAYS_PER_MONTH_APPROX = 30  # Approximate days per month for calculations
+DAYS_PER_YEAR = 365  # Days per year for calculations
 MONTHS_PER_YEAR = 12
 MONTHS_FOR_YEAR_DISPLAY = 24  # Display in years if >= 24 months
 
