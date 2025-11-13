@@ -10,7 +10,13 @@ from typing import Iterable, List
 
 from .console import Console
 from .llm import LLMClient
-from .models import ReviewPoint
+from .models import (
+    GrowthIndicator,
+    ImprovementArea,
+    PersonalDevelopmentAnalysis,
+    ReviewPoint,
+    StrengthPoint,
+)
 
 console = Console()
 
@@ -142,9 +148,324 @@ class ReviewReporter:
 
         return "\n".join(lines).strip()
 
+    def _analyze_personal_development(
+        self, repo: str, reviews: List[StoredReview]
+    ) -> PersonalDevelopmentAnalysis:
+        """Analyze personal development based on PR reviews using LLM."""
+        if not self.llm or not reviews:
+            return self._fallback_personal_development(reviews)
+
+        context = self._build_prompt_context(repo, reviews)
+
+        # Split reviews into early and recent for growth analysis
+        midpoint = len(reviews) // 2
+        early_reviews = reviews[:midpoint] if midpoint > 0 else []
+        recent_reviews = reviews[midpoint:] if midpoint > 0 else reviews
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 개발자의 성장을 분석하는 전문가입니다.\n\n"
+                    "제공된 PR 리뷰 데이터를 바탕으로 개인의 장점, 보완점, 성장한 점을 구체적인 근거와 함께 분석하세요.\n\n"
+                    "**분석 원칙:**\n"
+                    "1. 모든 주장은 구체적인 PR 예시로 뒷받침\n"
+                    "2. 장점은 카테고리별로 분류 (코드 품질, 문제 해결, 협업, 기술 역량 등)\n"
+                    "3. 보완점은 우선순위와 함께 실행 가능한 제안 제공\n"
+                    "4. 성장 분석은 초기 PR과 최근 PR을 비교하여 변화 추적\n"
+                    "5. 긍정적이고 건설적인 톤 유지\n\n"
+                    "**응답 형식 (JSON):**\n"
+                    "{\n"
+                    '  "strengths": [\n'
+                    "    {\n"
+                    '      "category": "카테고리명",\n'
+                    '      "description": "장점 설명",\n'
+                    '      "evidence": ["PR #번호: 구체적 예시", ...],\n'
+                    '      "impact": "high|medium|low"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "improvement_areas": [\n'
+                    "    {\n"
+                    '      "category": "카테고리명",\n'
+                    '      "description": "개선이 필요한 부분",\n'
+                    '      "evidence": ["PR #번호: 구체적 예시", ...],\n'
+                    '      "suggestions": ["실행 가능한 제안1", "실행 가능한 제안2"],\n'
+                    '      "priority": "critical|important|nice-to-have"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "growth_indicators": [\n'
+                    "    {\n"
+                    '      "aspect": "성장 영역",\n'
+                    '      "description": "어떻게 성장했는지",\n'
+                    '      "before_examples": ["초기 PR 예시"],\n'
+                    '      "after_examples": ["최근 PR 예시"],\n'
+                    '      "progress_summary": "성장 요약"\n'
+                    "    }\n"
+                    "  ],\n"
+                    '  "overall_assessment": "전반적인 평가 (2-3문장)",\n'
+                    '  "key_achievements": ["주요 성과1", "주요 성과2"],\n'
+                    '  "next_focus_areas": ["다음 집중 영역1", "다음 집중 영역2"]\n'
+                    "}\n\n"
+                    "각 배열은 최소 1개, 최대 5개 항목을 포함하세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"다음 PR 리뷰 데이터를 분석하여 개인의 장점, 보완점, 성장한 점을 구체적으로 분석해주세요:\n\n"
+                    f"{context}\n\n"
+                    f"초기 PR 수: {len(early_reviews)}개\n"
+                    f"최근 PR 수: {len(recent_reviews)}개\n\n"
+                    "특히 다음 관점에서 분석해주세요:\n"
+                    "1. 시간에 따른 코드 품질 변화\n"
+                    "2. 문제 해결 능력의 발전\n"
+                    "3. 협업 및 커뮤니케이션 스킬\n"
+                    "4. 기술 스택 및 도메인 지식 확장"
+                ),
+            },
+        ]
+
+        try:
+            import json as json_module
+
+            content = self.llm.complete(messages, temperature=0.4)
+            data = json_module.loads(content)
+
+            # Parse strengths
+            strengths = []
+            for item in data.get("strengths", []):
+                strengths.append(
+                    StrengthPoint(
+                        category=item.get("category", "기타"),
+                        description=item.get("description", ""),
+                        evidence=item.get("evidence", []),
+                        impact=item.get("impact", "medium"),
+                    )
+                )
+
+            # Parse improvement areas
+            improvement_areas = []
+            for item in data.get("improvement_areas", []):
+                improvement_areas.append(
+                    ImprovementArea(
+                        category=item.get("category", "기타"),
+                        description=item.get("description", ""),
+                        evidence=item.get("evidence", []),
+                        suggestions=item.get("suggestions", []),
+                        priority=item.get("priority", "medium"),
+                    )
+                )
+
+            # Parse growth indicators
+            growth_indicators = []
+            for item in data.get("growth_indicators", []):
+                growth_indicators.append(
+                    GrowthIndicator(
+                        aspect=item.get("aspect", ""),
+                        description=item.get("description", ""),
+                        before_examples=item.get("before_examples", []),
+                        after_examples=item.get("after_examples", []),
+                        progress_summary=item.get("progress_summary", ""),
+                    )
+                )
+
+            return PersonalDevelopmentAnalysis(
+                strengths=strengths,
+                improvement_areas=improvement_areas,
+                growth_indicators=growth_indicators,
+                overall_assessment=data.get("overall_assessment", ""),
+                key_achievements=data.get("key_achievements", []),
+                next_focus_areas=data.get("next_focus_areas", []),
+            )
+        except Exception as exc:  # pragma: no cover
+            console.log("LLM 개인 발전 분석 실패", str(exc))
+            return self._fallback_personal_development(reviews)
+
+    def _fallback_personal_development(
+        self, reviews: List[StoredReview]
+    ) -> PersonalDevelopmentAnalysis:
+        """Provide basic personal development analysis without LLM."""
+        # Collect all strengths and improvements from reviews
+        all_strengths: List[tuple[StoredReview, ReviewPoint]] = []
+        all_improvements: List[tuple[StoredReview, ReviewPoint]] = []
+
+        for review in reviews:
+            all_strengths.extend((review, point) for point in review.strengths)
+            all_improvements.extend((review, point) for point in review.improvements)
+
+        # Create basic strength points
+        strengths = []
+        for review, point in all_strengths[:5]:
+            strengths.append(
+                StrengthPoint(
+                    category="코드 품질",
+                    description=point.message,
+                    evidence=[f"PR #{review.number}: {point.example or review.title}"],
+                    impact="medium",
+                )
+            )
+
+        # Create basic improvement areas
+        improvement_areas = []
+        for review, point in all_improvements[:5]:
+            improvement_areas.append(
+                ImprovementArea(
+                    category="개선 영역",
+                    description=point.message,
+                    evidence=[f"PR #{review.number}: {point.example or review.title}"],
+                    suggestions=["코드 리뷰 피드백을 참고하여 개선"],
+                    priority="medium",
+                )
+            )
+
+        # Basic growth analysis
+        growth_indicators = []
+        if len(reviews) >= 2:
+            growth_indicators.append(
+                GrowthIndicator(
+                    aspect="지속적인 기여",
+                    description=f"총 {len(reviews)}개의 PR을 통해 꾸준히 기여하고 있습니다.",
+                    before_examples=[f"PR #{reviews[0].number}: {reviews[0].title}"],
+                    after_examples=[f"PR #{reviews[-1].number}: {reviews[-1].title}"],
+                    progress_summary="지속적으로 PR을 작성하며 프로젝트에 기여하고 있습니다.",
+                )
+            )
+
+        return PersonalDevelopmentAnalysis(
+            strengths=strengths,
+            improvement_areas=improvement_areas,
+            growth_indicators=growth_indicators,
+            overall_assessment=f"총 {len(reviews)}개의 PR을 통해 프로젝트에 기여하고 있습니다.",
+            key_achievements=[f"{len(reviews)}개의 PR 작성 및 리뷰 완료"],
+            next_focus_areas=["코드 품질 향상", "테스트 커버리지 개선"],
+        )
+
     # ------------------------------------------------------------------
     # Reporting
     # ------------------------------------------------------------------
+
+    def _render_personal_development(
+        self, analysis: PersonalDevelopmentAnalysis
+    ) -> List[str]:
+        """Render personal development analysis section."""
+        lines: List[str] = []
+        lines.append("## 👤 개인 성장 분석")
+        lines.append("")
+
+        if analysis.overall_assessment:
+            lines.append("### 전반적 평가")
+            lines.append("")
+            lines.append(analysis.overall_assessment)
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # Strengths section
+        lines.append("### ✨ 장점 (구체적 근거)")
+        lines.append("")
+        if analysis.strengths:
+            for i, strength in enumerate(analysis.strengths, 1):
+                impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(
+                    strength.impact, "⭐"
+                )
+                lines.append(
+                    f"{i}. **{strength.category}** {impact_emoji} (영향도: {strength.impact})"
+                )
+                lines.append(f"   - {strength.description}")
+                if strength.evidence:
+                    lines.append("   - **구체적 근거:**")
+                    for evidence in strength.evidence:
+                        lines.append(f"     - {evidence}")
+                lines.append("")
+        else:
+            lines.append("- 분석된 장점이 없습니다.")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+        # Improvement areas section
+        lines.append("### 💡 보완점 (실행 가능한 제안)")
+        lines.append("")
+        if analysis.improvement_areas:
+            # Sort by priority
+            priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
+            sorted_improvements = sorted(
+                analysis.improvement_areas,
+                key=lambda x: priority_order.get(x.priority, 1),
+            )
+            for i, area in enumerate(sorted_improvements, 1):
+                priority_emoji = {
+                    "critical": "🚨",
+                    "important": "⚠️",
+                    "nice-to-have": "💭",
+                }.get(area.priority, "⚠️")
+                lines.append(
+                    f"{i}. **{area.category}** {priority_emoji} (우선순위: {area.priority})"
+                )
+                lines.append(f"   - {area.description}")
+                if area.evidence:
+                    lines.append("   - **구체적 예시:**")
+                    for evidence in area.evidence:
+                        lines.append(f"     - {evidence}")
+                if area.suggestions:
+                    lines.append("   - **개선 제안:**")
+                    for suggestion in area.suggestions:
+                        lines.append(f"     - {suggestion}")
+                lines.append("")
+        else:
+            lines.append("- 분석된 보완점이 없습니다.")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+        # Growth indicators section
+        lines.append("### 🌱 성장한 점 (시간에 따른 변화)")
+        lines.append("")
+        if analysis.growth_indicators:
+            for i, growth in enumerate(analysis.growth_indicators, 1):
+                lines.append(f"{i}. **{growth.aspect}**")
+                lines.append(f"   - {growth.description}")
+                if growth.before_examples:
+                    lines.append("   - **초기 단계:**")
+                    for example in growth.before_examples:
+                        lines.append(f"     - {example}")
+                if growth.after_examples:
+                    lines.append("   - **현재 단계:**")
+                    for example in growth.after_examples:
+                        lines.append(f"     - {example}")
+                if growth.progress_summary:
+                    lines.append(f"   - **성장 요약:** {growth.progress_summary}")
+                lines.append("")
+        else:
+            lines.append("- 분석된 성장 지표가 없습니다.")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+        # Key achievements
+        if analysis.key_achievements:
+            lines.append("### 🏆 주요 성과")
+            lines.append("")
+            for achievement in analysis.key_achievements:
+                lines.append(f"- {achievement}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # Next focus areas
+        if analysis.next_focus_areas:
+            lines.append("### 🎯 다음 집중 영역")
+            lines.append("")
+            for area in analysis.next_focus_areas:
+                lines.append(f"- {area}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        return lines
 
     def _fallback_report(self, repo: str, reviews: List[StoredReview]) -> str:
         lines: List[str] = []
@@ -159,14 +480,19 @@ class ReviewReporter:
         # Table of contents
         lines.append("## 📑 목차")
         lines.append("")
-        lines.append("1. **✨ 장점** - 뛰어났던 점들")
-        lines.append("2. **💡 보완점** - 개선할 수 있는 부분")
-        lines.append("3. **🌱 올해 성장한 점** - 성장 여정")
-        lines.append("4. **🎊 전체 총평** - 종합 평가")
-        lines.append("5. **📝 개별 PR 하이라이트** - 주요 PR 목록")
+        lines.append("1. **👤 개인 성장 분석** - 장점, 보완점, 성장한 점")
+        lines.append("2. **✨ 장점** - 뛰어났던 점들")
+        lines.append("3. **💡 보완점** - 개선할 수 있는 부분")
+        lines.append("4. **🌱 올해 성장한 점** - 성장 여정")
+        lines.append("5. **🎊 전체 총평** - 종합 평가")
+        lines.append("6. **📝 개별 PR 하이라이트** - 주요 PR 목록")
         lines.append("")
         lines.append("---")
         lines.append("")
+
+        # Add personal development analysis
+        personal_dev = self._fallback_personal_development(reviews)
+        lines.extend(self._render_personal_development(personal_dev))
 
         def _render_points(title: str, emoji: str, entries: List[tuple[StoredReview, ReviewPoint]]) -> None:
             lines.append(f"## {emoji} {title}")
@@ -325,12 +651,43 @@ class ReviewReporter:
         if not reviews:
             raise ValueError("No review summaries found for the given repository")
 
+        # Generate personal development analysis
+        console.log("개인 성장 분석 생성 중...")
+        personal_dev = self._analyze_personal_development(repo_input, reviews)
+
+        # Generate main report
+        console.log("통합 보고서 생성 중...")
         report_text = self._generate_report_text(repo_input, reviews)
 
+        # If LLM report doesn't include personal development section, add it at the beginning
+        if "## 👤 개인 성장 분석" not in report_text and "개인 성장 분석" not in report_text:
+            lines = report_text.split("\n")
+            # Find where to insert (after the header and initial metadata)
+            insert_idx = 0
+            for i, line in enumerate(lines):
+                if line.startswith("---") or line.startswith("##"):
+                    insert_idx = i
+                    break
+
+            # Insert personal development section
+            personal_dev_lines = self._render_personal_development(personal_dev)
+            lines = lines[:insert_idx] + personal_dev_lines + lines[insert_idx:]
+            report_text = "\n".join(lines)
+
+        # Save report
         repo_dir = self._repo_dir(repo_input)
         repo_dir.mkdir(parents=True, exist_ok=True)
         report_path = repo_dir / "integrated_report.md"
         report_path.write_text(report_text, encoding="utf-8")
+
+        # Also save personal development analysis as JSON for programmatic access
+        personal_dev_path = repo_dir / "personal_development.json"
+        personal_dev_path.write_text(
+            json.dumps(personal_dev.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        console.log(f"개인 성장 분석 저장: {personal_dev_path}")
         return report_path
 
 
