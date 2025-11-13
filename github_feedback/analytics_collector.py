@@ -144,8 +144,10 @@ class AnalyticsCollector(BaseCollector):
 
             return local_counts
 
-        # Parallelize file fetching for recent 50 PRs
-        prs_to_process = pr_metadata[:50]
+        # Parallelize file fetching for recent PRs
+        from .constants import COLLECTION_LIMITS
+        max_prs = COLLECTION_LIMITS['max_prs_to_process']
+        prs_to_process = pr_metadata[:max_prs]
         completed_count = 0
         total_prs = len(prs_to_process)
 

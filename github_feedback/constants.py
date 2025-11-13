@@ -232,6 +232,7 @@ COLLECTION_LIMITS = {
     'review_comments': 100,
     'issues': 100,
     'pr_examples': 3,  # Number of PR examples to show in spotlight
+    'max_prs_to_process': 50,  # Maximum PRs to process for file analysis
 }
 
 # Display limits for reporting
@@ -246,7 +247,8 @@ DISPLAY_LIMITS = {
 
 # Parallel processing configuration
 PARALLEL_CONFIG = {
-    'max_workers_data_collection': 4,  # Concurrent data collection tasks
+    'max_workers_data_collection': 3,  # Concurrent data collection tasks (Phase 1)
+    'max_workers_pr_data': 2,  # Concurrent PR data processing tasks (Phase 2)
     'max_workers_llm_analysis': 4,  # Concurrent LLM analysis tasks
     'max_workers_yearend': 3,  # Concurrent year-end data collection tasks
     'max_workers_pr_review': 3,  # Concurrent PR review tasks
@@ -333,6 +335,35 @@ AWARD_BALANCED_THRESHOLDS = {
 AWARD_PR_THRESHOLDS = {
     'micro_pr_size': 50,  # Maximum lines changed for micro PR
     'micro_pr_count': 10,  # Minimum count of small PRs for micro-commit artist award
+}
+
+# =============================================================================
+# Retrospective Analysis Thresholds
+# =============================================================================
+
+# Change significance thresholds for time comparisons
+RETROSPECTIVE_CHANGE_THRESHOLDS = {
+    'major_change_pct': 50,  # > 50% change is major
+    'moderate_change_pct': 20,  # > 20% change is moderate
+    # <= 20% change is minor
+}
+
+# Impact assessment thresholds for different contribution types
+IMPACT_ASSESSMENT_THRESHOLDS = {
+    # Commit impact levels
+    'commits_high_impact': 200,  # > 200 commits is high impact
+    'commits_medium_impact': 50,  # > 50 commits is medium impact
+    # <= 50 commits is low impact
+
+    # PR impact levels
+    'prs_high_impact': 50,  # > 50 PRs is high impact
+    'prs_medium_impact': 20,  # > 20 PRs is medium impact
+    # <= 20 PRs is low impact
+
+    # Review impact levels
+    'reviews_high_impact': 100,  # > 100 reviews is high impact
+    'reviews_medium_impact': 30,  # > 30 reviews is medium impact
+    # <= 30 reviews is low impact
 }
 
 # =============================================================================

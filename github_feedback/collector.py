@@ -120,8 +120,9 @@ class Collector:
         from .constants import PARALLEL_CONFIG
 
         collection_timeout = PARALLEL_CONFIG['collection_timeout']
+        max_workers_phase1 = PARALLEL_CONFIG['max_workers_data_collection']
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers_phase1) as executor:
             console.log("Phase 1: Collecting commits, PRs, and issues in parallel")
 
             future_commits = executor.submit(
@@ -154,7 +155,8 @@ class Collector:
 
         # Phase 2: Process dependent data in parallel
         # (PR examples and reviews depend on pr_metadata)
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        max_workers_phase2 = PARALLEL_CONFIG['max_workers_pr_data']
+        with ThreadPoolExecutor(max_workers=max_workers_phase2) as executor:
             console.log("Phase 2: Building PR examples and counting reviews in parallel")
 
             future_examples = executor.submit(

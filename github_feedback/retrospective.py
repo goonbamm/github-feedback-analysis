@@ -392,10 +392,11 @@ class RetrospectiveAnalyzer:
             direction = "stable"
 
         # Determine significance
+        from .constants import RETROSPECTIVE_CHANGE_THRESHOLDS
         abs_change_pct = abs(change_pct)
-        if abs_change_pct > 50:
+        if abs_change_pct > RETROSPECTIVE_CHANGE_THRESHOLDS['major_change_pct']:
             significance = "major"
-        elif abs_change_pct > 20:
+        elif abs_change_pct > RETROSPECTIVE_CHANGE_THRESHOLDS['moderate_change_pct']:
             significance = "moderate"
         else:
             significance = "minor"
@@ -539,9 +540,15 @@ class RetrospectiveAnalyzer:
         assessments = []
 
         # Assess commit impact
+        from .constants import IMPACT_ASSESSMENT_THRESHOLDS
         total_commits = metrics.stats.get("commits", {}).get("total", 0)
         if total_commits > 0:
-            impact_level = "high" if total_commits > 200 else "medium" if total_commits > 50 else "low"
+            if total_commits > IMPACT_ASSESSMENT_THRESHOLDS['commits_high_impact']:
+                impact_level = "high"
+            elif total_commits > IMPACT_ASSESSMENT_THRESHOLDS['commits_medium_impact']:
+                impact_level = "medium"
+            else:
+                impact_level = "low"
             assessments.append(
                 ImpactAssessment(
                     category="코드 기여",
@@ -558,7 +565,12 @@ class RetrospectiveAnalyzer:
         # Assess PR impact
         total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
         if total_prs > 0:
-            impact_level = "high" if total_prs > 50 else "medium" if total_prs > 20 else "low"
+            if total_prs > IMPACT_ASSESSMENT_THRESHOLDS['prs_high_impact']:
+                impact_level = "high"
+            elif total_prs > IMPACT_ASSESSMENT_THRESHOLDS['prs_medium_impact']:
+                impact_level = "medium"
+            else:
+                impact_level = "low"
             assessments.append(
                 ImpactAssessment(
                     category="기능 개발",
@@ -575,7 +587,12 @@ class RetrospectiveAnalyzer:
         # Assess review impact
         total_reviews = metrics.stats.get("reviews", {}).get("total", 0)
         if total_reviews > 0:
-            impact_level = "high" if total_reviews > 100 else "medium" if total_reviews > 30 else "low"
+            if total_reviews > IMPACT_ASSESSMENT_THRESHOLDS['reviews_high_impact']:
+                impact_level = "high"
+            elif total_reviews > IMPACT_ASSESSMENT_THRESHOLDS['reviews_medium_impact']:
+                impact_level = "medium"
+            else:
+                impact_level = "low"
             assessments.append(
                 ImpactAssessment(
                     category="코드 리뷰",

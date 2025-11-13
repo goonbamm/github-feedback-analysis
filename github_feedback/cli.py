@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -74,6 +75,26 @@ app.add_typer(config_app, name="config")
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def handle_user_interruption(message: str = "Operation cancelled by user."):
+    """Context manager to handle user interruptions consistently.
+
+    Args:
+        message: Custom message to display when operation is cancelled
+
+    Yields:
+        None
+
+    Raises:
+        typer.Exit: Always exits with code 0 when interrupted
+    """
+    try:
+        yield
+    except (typer.Abort, KeyboardInterrupt, EOFError):
+        console.print(f"\n[warning]{message}[/]")
+        raise typer.Exit(code=0)
 
 
 def _format_relative_date(date_str: str) -> str:
@@ -442,29 +463,29 @@ def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tup
     console.print("[info]Choose from the list or enter a custom URL[/]\n")
 
     # Display options
-    idx = 1
+    menu_option = 1
 
     # Show default github.com option
-    console.print(f"  {idx}. [success]github.com[/] (Default)")
-    github_com_idx = idx
-    idx += 1
+    console.print(f"  {menu_option}. [success]github.com[/] (Default)")
+    github_com_idx = menu_option
+    menu_option += 1
 
     # Show example hosts
     if len(default_hosts) > 1:
         console.print("\n[dim]Example Enterprise Hosts:[/]")
         for host in default_hosts[1:]:
-            console.print(f"  {idx}. {host}")
-            idx += 1
+            console.print(f"  {menu_option}. {host}")
+            menu_option += 1
 
     # Show custom hosts if any
     if custom_hosts:
         console.print("\n[dim]Your Saved Hosts:[/]")
-        custom_start_idx = idx
+        custom_start_idx = menu_option
         for host in custom_hosts:
-            console.print(f"  {idx}. [accent]{host}[/]")
-            idx += 1
+            console.print(f"  {menu_option}. [accent]{host}[/]")
+            menu_option += 1
     else:
-        custom_start_idx = idx
+        custom_start_idx = menu_option
 
     console.print(f"\n[info]Or enter a custom host URL (e.g., https://github.example.com)[/]")
 
@@ -500,7 +521,7 @@ def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tup
                     return (selected, False)  # Already saved
 
                 else:
-                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {idx - 1}")
+                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {menu_option - 1}")
                     continue
 
             # Custom URL input
@@ -562,7 +583,7 @@ def init(
     is_interactive = sys.stdin.isatty()
 
     # Prompt for missing required values only in interactive mode
-    try:
+    with handle_user_interruption("Configuration cancelled by user."):
         if pat is None:
             if is_interactive:
                 pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
@@ -595,9 +616,6 @@ def init(
                 console.print("\n[warning]Configuration cancelled by user.[/]")
                 raise typer.Exit(code=0)
             enterprise_host, should_save_host = result
-    except (typer.Abort, KeyboardInterrupt, EOFError):
-        console.print("\n[warning]Configuration cancelled by user.[/]")
-        raise typer.Exit(code=0)
 
     # Validate inputs
     try:
@@ -660,13 +678,10 @@ def init(
                 raise typer.Exit(code=0)
             except (requests.RequestException, ValueError, ConnectionError) as exc:
                 console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
-                try:
+                with handle_user_interruption("Configuration cancelled by user."):
                     if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
                         console.print("[info]Configuration not saved[/]")
                         raise typer.Exit(code=1)
-                except (typer.Abort, KeyboardInterrupt, EOFError):
-                    console.print("\n[warning]Configuration cancelled by user.[/]")
-                    raise typer.Exit(code=0)
 
     config.dump()
     console.print("[success]✓ Configuration saved successfully[/]")
