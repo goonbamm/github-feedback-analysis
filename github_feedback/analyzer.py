@@ -37,6 +37,55 @@ from .retrospective import RetrospectiveAnalyzer
 console = Console()
 
 
+# ============================================================================
+# Helper Classes for Analysis
+# ============================================================================
+
+class ActivityMessageBuilder:
+    """Helper class for building activity-based messages with threshold checks."""
+
+    @staticmethod
+    def build_if_exceeds(
+        value: int | float,
+        threshold: int | float,
+        message_template: str,
+        *format_args
+    ) -> Optional[str]:
+        """Build a message if value exceeds threshold.
+
+        Args:
+            value: The value to check
+            threshold: The threshold to compare against
+            message_template: Template string with placeholders
+            *format_args: Arguments to format the template
+
+        Returns:
+            Formatted message if value > threshold, None otherwise
+        """
+        if value > threshold:
+            return message_template.format(*format_args)
+        return None
+
+    @staticmethod
+    def build_messages_from_checks(
+        checks: List[tuple[int | float, int | float, str, tuple]]
+    ) -> List[str]:
+        """Build messages from a list of threshold checks.
+
+        Args:
+            checks: List of (value, threshold, template, args) tuples
+
+        Returns:
+            List of messages where threshold was exceeded
+        """
+        messages = []
+        for value, threshold, template, args in checks:
+            msg = ActivityMessageBuilder.build_if_exceeds(value, threshold, template, *args)
+            if msg:
+                messages.append(msg)
+        return messages
+
+
 class PeriodFormatter:
     """Format period labels based on month count."""
 
@@ -722,38 +771,42 @@ class Analyzer:
         return max(prs, key=self._calculate_pr_size)
 
     def _extract_proudest_moments(self, collection: CollectionResult) -> List[str]:
-        """Extract proudest moments from collection data."""
-        moments = []
+        """Extract proudest moments from collection data using helper."""
+        # Define threshold checks for basic metrics
+        basic_checks = [
+            (collection.commits, ACTIVITY_THRESHOLDS['very_high_commits'],
+             "총 {}회의 커밋으로 꾸준히 코드베이스를 개선했습니다.", (collection.commits,)),
+            (collection.pull_requests, ACTIVITY_THRESHOLDS['very_high_prs'],
+             "{}개의 Pull Request를 성공적으로 머지했습니다.", (collection.pull_requests,)),
+            (collection.reviews, ACTIVITY_THRESHOLDS['very_high_reviews'],
+             "{}회의 코드 리뷰로 팀의 코드 품질 향상에 기여했습니다.", (collection.reviews,)),
+        ]
 
-        if collection.commits > ACTIVITY_THRESHOLDS['very_high_commits']:
-            moments.append(
-                f"총 {collection.commits}회의 커밋으로 꾸준히 코드베이스를 개선했습니다."
-            )
-        if collection.pull_requests > ACTIVITY_THRESHOLDS['very_high_prs']:
-            moments.append(
-                f"{collection.pull_requests}개의 Pull Request를 성공적으로 머지했습니다."
-            )
-        if collection.reviews > ACTIVITY_THRESHOLDS['very_high_reviews']:
-            moments.append(
-                f"{collection.reviews}회의 코드 리뷰로 팀의 코드 품질 향상에 기여했습니다."
-            )
+        moments = ActivityMessageBuilder.build_messages_from_checks(basic_checks)
 
         # Add insights from PR examples
         if collection.pull_request_examples:
             total_changes = self._get_total_changes(collection.pull_request_examples)
-            if total_changes > ACTIVITY_THRESHOLDS['very_large_pr']:
-                moments.append(
-                    f"총 {total_changes:,}줄의 코드 변경으로 대규모 개선을 주도했습니다."
-                )
+            msg = ActivityMessageBuilder.build_if_exceeds(
+                total_changes,
+                ACTIVITY_THRESHOLDS['very_large_pr'],
+                "총 {:,}줄의 코드 변경으로 대규모 개선을 주도했습니다.",
+                total_changes
+            )
+            if msg:
+                moments.append(msg)
 
             # Find largest PR
             largest_pr = self._find_largest_pr(collection.pull_request_examples)
             largest_pr_size = self._calculate_pr_size(largest_pr)
-            if largest_pr_size > ACTIVITY_THRESHOLDS['large_pr']:
-                moments.append(
-                    f"가장 큰 PR(#{largest_pr.number}: {largest_pr.title})에서 "
-                    f"{largest_pr_size:,}줄의 변경으로 도전적인 작업을 완수했습니다."
-                )
+            msg = ActivityMessageBuilder.build_if_exceeds(
+                largest_pr_size,
+                ACTIVITY_THRESHOLDS['large_pr'],
+                "가장 큰 PR(#{}: {})에서 {:,}줄의 변경으로 도전적인 작업을 완수했습니다.",
+                largest_pr.number, largest_pr.title, largest_pr_size
+            )
+            if msg:
+                moments.append(msg)
 
         if not moments:
             moments.append("꾸준한 활동으로 프로젝트 발전에 기여했습니다.")
