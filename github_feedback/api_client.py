@@ -129,6 +129,53 @@ class GitHubApiClient:
         api_config = getattr(self.config, "api", None)
         return api_config.max_retries if api_config else 3
 
+    def _display_rate_limit_info(self, response: requests.Response) -> None:
+        """Display rate limit information from response headers.
+
+        Args:
+            response: HTTP response with rate limit headers
+        """
+        headers = response.headers
+        remaining = headers.get('X-RateLimit-Remaining', 'unknown')
+        reset_time = headers.get('X-RateLimit-Reset', 'unknown')
+
+        if reset_time != 'unknown':
+            import datetime
+            try:
+                reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
+                reset_str = reset_dt.strftime('%H:%M:%S')
+                console.print(
+                    f"[warning]⚠ Rate limited. Resets at: {reset_str} "
+                    f"(Remaining: {remaining})[/]",
+                    style="warning"
+                )
+                return
+            except (ValueError, TypeError):
+                pass
+
+        console.print(
+            f"[warning]⚠ Rate limited. Remaining: {remaining}[/]",
+            style="warning"
+        )
+
+    def _is_rate_limited(self, exc: requests.HTTPError) -> bool:
+        """Check if exception is due to rate limiting.
+
+        Args:
+            exc: HTTP error exception
+
+        Returns:
+            True if rate limited
+        """
+        if exc.response is None:
+            return False
+
+        status_code = exc.response.status_code
+        if status_code in (403, 429):
+            self._display_rate_limit_info(exc.response)
+            return True
+        return False
+
     def _should_retry(self, exc: Exception) -> bool:
         """Determine if request should be retried based on exception.
 
@@ -138,44 +185,21 @@ class GitHubApiClient:
         Returns:
             True if request should be retried
         """
-        # Retry on network errors and rate limiting
-        if isinstance(exc, requests.ConnectionError):
+        # Retry on network errors
+        if isinstance(exc, (requests.ConnectionError, requests.Timeout)):
             return True
-        if isinstance(exc, requests.Timeout):
-            return True
+
+        # Retry on HTTP errors with retryable status codes
         if isinstance(exc, requests.HTTPError):
             if exc.response is not None:
                 status_code = exc.response.status_code
 
-                # Display rate limit information
-                if status_code == 403 or status_code == 429:
-                    headers = exc.response.headers
-                    remaining = headers.get('X-RateLimit-Remaining', 'unknown')
-                    reset_time = headers.get('X-RateLimit-Reset', 'unknown')
+                # Display rate limit info for rate limit errors
+                if status_code in (403, 429):
+                    self._display_rate_limit_info(exc.response)
 
-                    if reset_time != 'unknown':
-                        import datetime
-                        try:
-                            reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
-                            reset_str = reset_dt.strftime('%H:%M:%S')
-                            console.print(
-                                f"[warning]⚠ Rate limited. Resets at: {reset_str} "
-                                f"(Remaining: {remaining})[/]",
-                                style="warning"
-                            )
-                        except (ValueError, TypeError):
-                            console.print(
-                                f"[warning]⚠ Rate limited. Remaining: {remaining}[/]",
-                                style="warning"
-                            )
-                    else:
-                        console.print(
-                            f"[warning]⚠ Rate limited. Remaining: {remaining}[/]",
-                            style="warning"
-                        )
-
-                # Retry on rate limiting and server errors
                 return status_code in HTTP_STATUS['retryable_errors']
+
         return False
 
     def _execute_with_retry(

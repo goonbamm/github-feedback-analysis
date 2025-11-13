@@ -1076,7 +1076,11 @@ class Reporter:
         for section in sections:
             all_lines.extend(section)
 
-        report_path.write_text("\n".join(all_lines), encoding="utf-8")
+        try:
+            report_path.write_text("\n".join(all_lines), encoding="utf-8")
+        except (IOError, OSError) as e:
+            raise IOError(f"Failed to write report to {report_path}: {e}") from e
+
         return report_path
 
     # ------------------------------------------------------------------
