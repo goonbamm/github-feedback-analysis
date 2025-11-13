@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 from .base_collector import BaseCollector
+from .constants import THREAD_POOL_CONFIG
 from .models import AnalysisFilters
 
 logger = logging.getLogger(__name__)
@@ -102,7 +103,11 @@ class CommitCollector(BaseCollector):
 
         # Parallel processing for multiple branches
         total = 0
-        with ThreadPoolExecutor(max_workers=min(3, len(include_branches))) as executor:
+        max_workers = min(
+            THREAD_POOL_CONFIG['max_workers_commit_branches'],
+            len(include_branches)
+        )
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(count_commits_for_branch, branch): branch
                 for branch in include_branches

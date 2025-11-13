@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import requests
 
 from .config import Config
+from .constants import HTTP_STATUS, RETRY_CONFIG
 from .exceptions import ApiError, AuthenticationError, ConfigurationError
 
 logger = logging.getLogger(__name__)
+
+# Type variable for generic response types
+T = TypeVar('T', List[Dict[str, Any]], Dict[str, Any])
 
 
 class GitHubApiClient:
@@ -106,9 +110,83 @@ class GitHubApiClient:
             return True
         if isinstance(exc, requests.HTTPError):
             if exc.response is not None:
-                # Retry on rate limiting (403) and server errors (5xx)
-                return exc.response.status_code in (403, 429, 500, 502, 503, 504)
+                # Retry on rate limiting and server errors
+                return exc.response.status_code in HTTP_STATUS['retryable_errors']
         return False
+
+    def _execute_with_retry(
+        self,
+        path: str,
+        params: Optional[Dict[str, Any]],
+        validator: Callable[[Any], bool],
+        expected_type_name: str,
+    ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
+        """Execute API request with retry logic and response validation.
+
+        Args:
+            path: API endpoint path
+            params: Optional query parameters
+            validator: Function to validate response type
+            expected_type_name: Name of expected type for error messages
+
+        Returns:
+            Validated JSON response
+
+        Raises:
+            AuthenticationError: If authentication fails
+            ApiError: If request fails after retries or validation fails
+        """
+        logger.debug(f"Requesting from {path}")
+        max_retries = self._get_max_retries()
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                response = self._get_session().get(
+                    self._build_api_url(path),
+                    params=params,
+                    timeout=self._get_timeout(),
+                )
+
+                if response.status_code == HTTP_STATUS['unauthorized']:
+                    raise AuthenticationError("GitHub API rejected the provided PAT")
+
+                response.raise_for_status()
+                payload = response.json()
+
+                if not validator(payload):
+                    raise ApiError(
+                        f"Expected {expected_type_name} response from {path}, "
+                        f"got {type(payload).__name__}"
+                    )
+
+                return payload
+
+            except requests.HTTPError as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    status_code = exc.response.status_code if exc.response else None
+                    raise ApiError(f"API request failed: {path}", status_code) from exc
+
+            except requests.RequestException as exc:
+                last_exception = exc
+                if not self._should_retry(exc):
+                    raise ApiError(f"Network error for {path}: {exc}") from exc
+
+            # Exponential backoff before retry
+            if attempt < max_retries:
+                backoff_base = RETRY_CONFIG['backoff_base']
+                sleep_time = backoff_base ** attempt  # 1s, 2s, 4s
+                logger.debug(
+                    f"Retrying {path} after {sleep_time}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(sleep_time)
+
+        # All retries exhausted
+        raise ApiError(
+            f"Request failed after {max_retries} retries: {path}"
+        ) from last_exception
 
     def request_list(
         self, path: str, params: Optional[Dict[str, Any]] = None
@@ -126,50 +204,13 @@ class GitHubApiClient:
             AuthenticationError: If authentication fails
             ApiError: If request fails after retries
         """
-        logger.debug(f"Requesting list from {path}")
-        max_retries = self._get_max_retries()
-        last_exception = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                response = self._get_session().get(
-                    self._build_api_url(path),
-                    params=params,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 401:
-                    raise AuthenticationError("GitHub API rejected the provided PAT")
-
-                response.raise_for_status()
-                payload = response.json()
-
-                if not isinstance(payload, list):
-                    raise ApiError(
-                        f"Expected list response from {path}, got {type(payload).__name__}"
-                    )
-
-                return payload
-
-            except requests.HTTPError as exc:
-                last_exception = exc
-                if not self._should_retry(exc):
-                    status_code = exc.response.status_code if exc.response else None
-                    raise ApiError(f"API request failed: {path}", status_code) from exc
-
-            except requests.RequestException as exc:
-                last_exception = exc
-                if not self._should_retry(exc):
-                    raise ApiError(f"Network error for {path}: {exc}") from exc
-
-            # Exponential backoff before retry
-            if attempt < max_retries:
-                sleep_time = 2 ** attempt  # 1s, 2s, 4s
-                logger.debug(f"Retrying {path} after {sleep_time}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(sleep_time)
-
-        # All retries exhausted
-        raise ApiError(f"Request failed after {max_retries} retries: {path}") from last_exception
+        result = self._execute_with_retry(
+            path=path,
+            params=params,
+            validator=lambda p: isinstance(p, list),
+            expected_type_name="list",
+        )
+        return result  # type: ignore[return-value]
 
     def request_json(
         self, path: str, params: Optional[Dict[str, Any]] = None
@@ -187,50 +228,13 @@ class GitHubApiClient:
             AuthenticationError: If authentication fails
             ApiError: If request fails after retries
         """
-        logger.debug(f"Requesting JSON from {path}")
-        max_retries = self._get_max_retries()
-        last_exception = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                response = self._get_session().get(
-                    self._build_api_url(path),
-                    params=params,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 401:
-                    raise AuthenticationError("GitHub API rejected the provided PAT")
-
-                response.raise_for_status()
-                payload = response.json()
-
-                if not isinstance(payload, dict):
-                    raise ApiError(
-                        f"Expected dict response from {path}, got {type(payload).__name__}"
-                    )
-
-                return payload
-
-            except requests.HTTPError as exc:
-                last_exception = exc
-                if not self._should_retry(exc):
-                    status_code = exc.response.status_code if exc.response else None
-                    raise ApiError(f"API request failed: {path}", status_code) from exc
-
-            except requests.RequestException as exc:
-                last_exception = exc
-                if not self._should_retry(exc):
-                    raise ApiError(f"Network error for {path}: {exc}") from exc
-
-            # Exponential backoff before retry
-            if attempt < max_retries:
-                sleep_time = 2 ** attempt  # 1s, 2s, 4s
-                logger.debug(f"Retrying {path} after {sleep_time}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(sleep_time)
-
-        # All retries exhausted
-        raise ApiError(f"Request failed after {max_retries} retries: {path}") from last_exception
+        result = self._execute_with_retry(
+            path=path,
+            params=params,
+            validator=lambda p: isinstance(p, dict),
+            expected_type_name="dict",
+        )
+        return result  # type: ignore[return-value]
 
     def request_all(
         self, path: str, params: Optional[Dict[str, Any]] = None
