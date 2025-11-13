@@ -167,7 +167,8 @@ def _load_from_cache(cache_key: str, max_age_days: int = DEFAULT_CACHE_EXPIRE_DA
 
     # Check cache age
     age_seconds = time.time() - cache_path.stat().st_mtime
-    age_days = age_seconds / (24 * 3600)
+    from github_feedback.constants import SECONDS_PER_DAY
+    age_days = age_seconds / SECONDS_PER_DAY
 
     if age_days > max_age_days:
         logger.debug(f"Cache expired (age: {age_days:.1f} days)")

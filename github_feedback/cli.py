@@ -1464,7 +1464,8 @@ def feedback(
     # Phase 2: Collect detailed feedback
     console.print()
     console.rule("Phase 2: Detailed Feedback Analysis")
-    since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+    from github_feedback.constants import DAYS_PER_MONTH_APPROX
+    since = datetime.now(timezone.utc) - timedelta(days=DAYS_PER_MONTH_APPROX * max(months, 1))
     detailed_feedback_snapshot = _collect_detailed_feedback(
         collector, analyzer, config, repo_input, since, filters, author
     )
