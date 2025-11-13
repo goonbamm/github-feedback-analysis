@@ -181,6 +181,20 @@ class AnalysisFilters:
     include_languages: List[str] = field(default_factory=list)
     exclude_bots: bool = True
 
+    def is_empty(self) -> bool:
+        """Check if all filter lists are empty.
+
+        Returns:
+            True if no filters are applied (all lists are empty), False otherwise.
+        """
+        return (
+            not self.include_branches and
+            not self.exclude_branches and
+            not self.include_paths and
+            not self.exclude_paths and
+            not self.include_languages
+        )
+
 
 @dataclass(slots=True)
 class CollectionResult:
@@ -197,6 +211,19 @@ class CollectionResult:
     pull_request_examples: List[PullRequestSummary] = field(default_factory=list)
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date
+
+    def has_activity(self) -> bool:
+        """Check if the collection has any significant activity.
+
+        Returns:
+            True if there are any commits, pull requests, reviews, or issues, False otherwise.
+        """
+        return (
+            self.commits > 0 or
+            self.pull_requests > 0 or
+            self.reviews > 0 or
+            self.issues > 0
+        )
 
 
 @dataclass(slots=True)

@@ -110,7 +110,8 @@ class Collector:
             f"author={author or 'all'}",
         )
 
-        since = datetime.now(timezone.utc) - timedelta(days=30 * max(months, 1))
+        from github_feedback.constants import DAYS_PER_MONTH_APPROX
+        since = datetime.now(timezone.utc) - timedelta(days=DAYS_PER_MONTH_APPROX * max(months, 1))
         until = datetime.now(timezone.utc)
 
         # Phase 1: Parallel collection of independent data

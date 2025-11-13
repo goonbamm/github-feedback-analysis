@@ -199,6 +199,15 @@ REPO_FORMAT_PATTERN = r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$'
 URL_PATTERN = r'^https?://'
 
 # =============================================================================
+# Time Conversion Constants
+# =============================================================================
+
+SECONDS_PER_DAY = 24 * 3600
+DAYS_PER_MONTH_APPROX = 30  # Approximate days per month for calculations
+MONTHS_PER_YEAR = 12
+MONTHS_FOR_YEAR_DISPLAY = 24  # Display in years if >= 24 months
+
+# =============================================================================
 # Defaults
 # =============================================================================
 
@@ -296,6 +305,33 @@ TREND_THRESHOLDS = {
     'increasing_multiplier': 1.2,  # 20% increase
     'decreasing_multiplier': 0.8,  # 20% decrease
     'minimum_months_for_trend': 3,  # Need at least 3 months for trend analysis
+}
+
+# Award calculation thresholds - Consistency awards
+AWARD_CONSISTENCY_THRESHOLDS = {
+    'consistent_months': 6,  # Minimum months for consistency award
+    'consistent_activity_per_month': 20,  # Minimum activity per month
+    'sprint_months': 3,  # Minimum months for sprint award
+    'sprint_velocity': 30,  # Minimum velocity for sprint award
+}
+
+# Award calculation thresholds - Balanced contributor awards
+AWARD_BALANCED_THRESHOLDS = {
+    'allrounder_commits': 50,  # Minimum commits for all-rounder award
+    'allrounder_prs': 15,  # Minimum PRs for all-rounder award
+    'allrounder_reviews': 15,  # Minimum reviews for all-rounder award
+    'balanced_min_ratio': 0.2,  # Minimum ratio for balanced contribution (20%)
+    'balanced_max_ratio': 0.5,  # Maximum ratio for balanced contribution (50%)
+    'renaissance_commits': 100,  # Minimum commits for renaissance developer
+    'renaissance_prs': 30,  # Minimum PRs for renaissance developer
+    'renaissance_reviews': 50,  # Minimum reviews for renaissance developer
+    'renaissance_issues': 10,  # Minimum issues for renaissance developer
+}
+
+# Award calculation thresholds - PR characteristics
+AWARD_PR_THRESHOLDS = {
+    'micro_pr_size': 50,  # Maximum lines changed for micro PR
+    'micro_pr_count': 10,  # Minimum count of small PRs for micro-commit artist award
 }
 
 # =============================================================================

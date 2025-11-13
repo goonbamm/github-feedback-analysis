@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from typing import List, Optional, Dict, Tuple, Any
 
 from .models import CollectionResult
+from .constants import (
+    AWARD_CONSISTENCY_THRESHOLDS,
+    AWARD_BALANCED_THRESHOLDS,
+    AWARD_PR_THRESHOLDS,
+)
 
 
 # Award tier configurations
@@ -149,15 +154,16 @@ class ActivityConsistencyAwardStrategy(AwardStrategy):
                 break
 
         # Consistency king (매우 꾸준한 활동)
-        if collection.months >= 6 and activity_per_month >= 20:
+        if (collection.months >= AWARD_CONSISTENCY_THRESHOLDS['consistent_months'] and
+            activity_per_month >= AWARD_CONSISTENCY_THRESHOLDS['consistent_activity_per_month']):
             awards.append(
                 "👑 일관성의 왕 상 — 6개월 이상 월 20회 이상의 꾸준한 활동을 유지했습니다."
             )
 
         # Sprint finisher (최근 활동이 많은 경우)
-        if collection.months >= 3:
+        if collection.months >= AWARD_CONSISTENCY_THRESHOLDS['sprint_months']:
             velocity_score = collection.commits / month_span
-            if velocity_score >= 30:
+            if velocity_score >= AWARD_CONSISTENCY_THRESHOLDS['sprint_velocity']:
                 awards.append(
                     "🏁 스프린트 피니셔 상 — 높은 월평균 속도로 프로젝트를 빠르게 전진시켰습니다."
                 )
@@ -174,9 +180,9 @@ class BalancedContributorAwardStrategy(AwardStrategy):
         total_activity = collection.commits + collection.pull_requests + collection.reviews
 
         # All-rounder award
-        if (collection.commits >= 50 and
-            collection.pull_requests >= 15 and
-            collection.reviews >= 15):
+        if (collection.commits >= AWARD_BALANCED_THRESHOLDS['allrounder_commits'] and
+            collection.pull_requests >= AWARD_BALANCED_THRESHOLDS['allrounder_prs'] and
+            collection.reviews >= AWARD_BALANCED_THRESHOLDS['allrounder_reviews']):
             awards.append(
                 "🌟 다재다능 상 — 커밋, PR, 리뷰 전 영역에서 균형잡힌 기여를 보여줬습니다."
             )
@@ -189,16 +195,18 @@ class BalancedContributorAwardStrategy(AwardStrategy):
             review_ratio = collection.reviews / total_activity
 
             # Check if all three are balanced (each between 20% and 50%)
-            if all(0.2 <= ratio <= 0.5 for ratio in [commit_ratio, pr_ratio, review_ratio]):
+            min_ratio = AWARD_BALANCED_THRESHOLDS['balanced_min_ratio']
+            max_ratio = AWARD_BALANCED_THRESHOLDS['balanced_max_ratio']
+            if all(min_ratio <= ratio <= max_ratio for ratio in [commit_ratio, pr_ratio, review_ratio]):
                 awards.append(
                     "⚖️ 균형잡힌 기여자 상 — 커밋, PR, 리뷰를 완벽하게 균형있게 수행했습니다."
                 )
 
         # Renaissance developer (모든 지표가 높음)
-        if (collection.commits >= 100 and
-            collection.pull_requests >= 30 and
-            collection.reviews >= 50 and
-            collection.issues >= 10):
+        if (collection.commits >= AWARD_BALANCED_THRESHOLDS['renaissance_commits'] and
+            collection.pull_requests >= AWARD_BALANCED_THRESHOLDS['renaissance_prs'] and
+            collection.reviews >= AWARD_BALANCED_THRESHOLDS['renaissance_reviews'] and
+            collection.issues >= AWARD_BALANCED_THRESHOLDS['renaissance_issues']):
             awards.append(
                 "🎭 르네상스 개발자 상 — 모든 영역에서 뛰어난 활약을 펼친 완벽한 올라운더입니다."
             )
@@ -218,8 +226,8 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
 
         # Micro-commit artist award (많은 작은 PR)
         small_prs = sum(1 for pr in collection.pull_request_examples
-                      if (pr.additions + pr.deletions) < 50)
-        if small_prs >= 10:
+                      if (pr.additions + pr.deletions) < AWARD_PR_THRESHOLDS['micro_pr_size'])
+        if small_prs >= AWARD_PR_THRESHOLDS['micro_pr_count']:
             awards.append(
                 "🎨 미세 조율 장인 상 — 10개 이상의 작은 PR로 점진적 개선의 미학을 보여줬습니다."
             )
