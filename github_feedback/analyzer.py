@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, NamedTuple, Optional
@@ -430,7 +431,22 @@ class Analyzer:
         return trends
 
     def _calculate_trend_direction(self, monthly_activities: List[tuple]) -> str:
-        """Calculate trend direction from monthly activities."""
+        """Calculate trend direction from monthly activities.
+
+        Algorithm:
+        1. Requires minimum number of months (from TREND_THRESHOLDS)
+        2. Splits activity data into two halves (early vs recent)
+        3. Compares average activity between halves
+        4. Returns 'increasing' if recent > early * multiplier
+        5. Returns 'decreasing' if recent < early * multiplier
+        6. Returns 'stable' otherwise
+
+        Args:
+            monthly_activities: List of (month, activity_count) tuples
+
+        Returns:
+            One of: "increasing", "decreasing", or "stable"
+        """
         if len(monthly_activities) < TREND_THRESHOLDS['minimum_months_for_trend']:
             return "stable"
 
@@ -448,12 +464,17 @@ class Analyzer:
             return "stable"
 
     def _calculate_consistency_score(self, monthly_activities: List[tuple]) -> float:
-        """Calculate consistency score from monthly activities."""
+        """Calculate consistency score from monthly activities.
+
+        Uses coefficient of variation (CV) to measure consistency:
+        - CV = standard_deviation / mean
+        - Lower CV indicates more consistent activity
+        - Returns score from 0 (highly variable) to 1 (perfectly consistent)
+        """
         activities = [act for _, act in monthly_activities if act > 0]
         if not activities or len(activities) < 2:
             return 0.0
 
-        import math
         mean_activity = sum(activities) / len(activities)
         variance = sum((act - mean_activity) ** 2 for act in activities) / len(activities)
         std_dev = math.sqrt(variance)

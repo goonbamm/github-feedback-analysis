@@ -534,6 +534,6 @@ class MetricSnapshot:
     collaboration: Optional[CollaborationNetwork] = None
     reflection_prompts: Optional[ReflectionPrompts] = None
     year_end_review: Optional[YearEndReview] = None
-    retrospective: Optional[Any] = None  # RetrospectiveSnapshot for deep analysis
+    retrospective: Optional[RetrospectiveSnapshot] = None  # For deep analysis
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date
