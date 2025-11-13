@@ -1205,6 +1205,56 @@ class Reporter:
 
         return report_path
 
+    def generate_markdown_content(self, metrics: MetricSnapshot) -> str:
+        """Generate markdown report content without writing to file.
+
+        This is useful for in-memory report generation without creating files.
+
+        Args:
+            metrics: Metrics snapshot to generate report from
+
+        Returns:
+            Markdown report content as a string
+        """
+        # Build all sections in improved order (same as generate_markdown)
+        sections = [
+            # 1. Header with basic info
+            self._build_header_and_summary(metrics),
+            # 2. Table of Contents
+            self._build_table_of_contents(metrics),
+            # 3. Executive Summary - Quick overview
+            self._build_executive_summary(metrics),
+            # 4. Awards Cabinet - Celebrate achievements first!
+            self._build_awards_section(metrics),
+            # 5. Growth Highlights - Show the story
+            self._build_highlights_section(metrics),
+            # 6. Monthly Trends - Show patterns
+            self._build_monthly_trends_section(metrics),
+            # 7. Detailed Feedback - Actionable insights
+            self._build_detailed_feedback_section(metrics),
+            # 8. Deep Retrospective - Comprehensive analysis NEW!
+            self._build_retrospective_section(metrics),
+            # 9. Spotlight Examples - Concrete evidence
+            self._build_spotlight_section(metrics),
+            # 10. Tech Stack - Technical breadth
+            self._build_tech_stack_section(metrics),
+            # 11. Collaboration - Teamwork
+            self._build_collaboration_section(metrics),
+            # 12. Year in Review - Complete story (merged with year-end review)
+            self._build_year_in_review_section(metrics),
+            # 13. Detailed Metrics - For those who want numbers
+            self._build_metrics_section(metrics),
+            # 15. Evidence Links - Verification
+            self._build_evidence_section_improved(metrics),
+        ]
+
+        # Combine all sections
+        all_lines = []
+        for section in sections:
+            all_lines.extend(section)
+
+        return "\n".join(all_lines)
+
     # ------------------------------------------------------------------
     # Rich visual reporting
     # ------------------------------------------------------------------

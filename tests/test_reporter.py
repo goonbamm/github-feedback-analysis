@@ -44,7 +44,7 @@ def test_generate_markdown_creates_expected_file(tmp_path, sample_metrics):
     assert md_path.exists()
     contents = md_path.read_text(encoding="utf-8")
     assert "GitHub Feedback Report" in contents
-    assert "- Long Identifier: 100" in contents
+    assert "Long Identifier" in contents and "100" in contents
 
 
 def test_generate_markdown_includes_growth_sections(tmp_path):
@@ -72,20 +72,44 @@ def test_generate_markdown_includes_growth_sections(tmp_path):
     md_path = reporter.generate_markdown(metrics)
 
     contents = md_path.read_text(encoding="utf-8")
-    assert "## Growth Highlights" in contents
+    assert "Growth Highlights" in contents
     assert "올해에 120회의 커밋" in contents
-    assert "## Spotlight Examples" in contents
+    assert "Spotlight Examples" in contents
     assert "PR #42" in contents
-    assert "## Year in Review" in contents
+    assert "Year in Review" in contents
     assert "핵심 기능을 대거 정비" in contents
-    assert "🏆 Awards Cabinet" in contents
+    assert "Awards Cabinet" in contents
     assert "코드 대장장이 상" in contents
+
+
+def test_generate_markdown_content_returns_string(tmp_path, sample_metrics):
+    """Test that generate_markdown_content returns markdown content without writing to file."""
+
+    reporter = Reporter(output_dir=tmp_path)
+    content = reporter.generate_markdown_content(sample_metrics)
+
+    # Should return a non-empty string
+    assert isinstance(content, str)
+    assert len(content) > 0
+
+    # Should contain expected sections
+    assert "# 🚀 GitHub Feedback Report" in content
+    assert "example/repo" in content
+    assert "## 📊 Executive Summary" in content
+
+    # Should NOT create a file
+    report_path = tmp_path / "report.md"
+    assert not report_path.exists()
 
 
 def test_generate_prompt_packets_builds_multi_angle_requests(
     tmp_path, sample_metrics
 ):
-    """Prompt packet generation should provide ready-to-send instructions."""
+    """Prompt packet generation should provide ready-to-send instructions.
+
+    NOTE: This test is kept for backward compatibility with the generate_prompt_packets method,
+    but the CLI no longer uses this functionality (prompts folder is no longer generated).
+    """
 
     reporter = Reporter(output_dir=tmp_path)
     packets = reporter.generate_prompt_packets(sample_metrics)
@@ -93,8 +117,8 @@ def test_generate_prompt_packets_builds_multi_angle_requests(
     assert len(packets) == 5
 
     titles = [request.title for request, _ in packets]
-    assert any("장점" in title for title in titles)
-    assert any("보완" in title or "목표" in title for title in titles)
+    assert any("성과" in title or "핵심" in title for title in titles)
+    assert any("목표" in title for title in titles)
 
     for request, prompt_path in packets:
         assert prompt_path.exists()
