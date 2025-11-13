@@ -107,7 +107,13 @@ class GitHubApiClient:
 
         Returns:
             Full API URL
+
+        Raises:
+            ValueError: If path is empty or invalid
         """
+        if not path or not path.strip():
+            raise ValueError("API path cannot be empty")
+
         base = self.config.server.api_url.rstrip("/")
         return f"{base}/{path.lstrip('/')}"
 
@@ -360,7 +366,15 @@ class GitHubApiClient:
 
         Returns:
             List of collected items (up to max_pages)
+
+        Raises:
+            ValueError: If per_page or max_pages is not positive
         """
+        if per_page <= 0:
+            raise ValueError(f"per_page must be positive, got {per_page}")
+        if max_pages <= 0:
+            raise ValueError(f"max_pages must be positive, got {max_pages}")
+
         results: List[Dict[str, Any]] = []
         page = 1
 

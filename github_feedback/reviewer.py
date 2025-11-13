@@ -187,6 +187,23 @@ class Reviewer:
 
         return ReviewSummary(overview=overview, strengths=strengths, improvements=improvements)
 
+    def _handle_llm_error(
+        self, bundle: PullRequestReviewBundle, exc: Exception, message: str
+    ) -> ReviewSummary:
+        """Handle LLM errors with logging and fallback.
+
+        Args:
+            bundle: Pull request data bundle
+            exc: Exception that occurred
+            message: User-friendly error message
+
+        Returns:
+            Fallback summary
+        """
+        logger.error(f"LLM error for PR #{bundle.number}: {exc}")
+        console.log(f"[warning]{message}[/]")
+        return self._fallback_summary(bundle)
+
     def generate_summary(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
         """Request LLM feedback while falling back gracefully when required."""
 
@@ -198,35 +215,20 @@ class Reviewer:
             summary = self.llm.generate_review(bundle)
         except requests.HTTPError as exc:  # pragma: no cover - network errors are hard to simulate
             status_code = exc.response.status_code if exc.response else 'unknown'
-            logger.error(f"LLM HTTP error for PR #{bundle.number}: {status_code}")
-
             # Distinguish between retryable and permanent errors
-            if exc.response and exc.response.status_code in {400, 401, 403, 404, 422}:
-                console.log(f"[warning]LLM request failed (HTTP {status_code}): Client error, using fallback[/]")
-            else:
-                console.log(f"[warning]LLM request failed (HTTP {status_code}): Server error, using fallback[/]")
-
-            summary = self._fallback_summary(bundle)
+            error_type = "Client error" if exc.response and exc.response.status_code in {400, 401, 403, 404, 422} else "Server error"
+            message = f"LLM request failed (HTTP {status_code}): {error_type}, using fallback"
+            summary = self._handle_llm_error(bundle, exc, message)
         except requests.ConnectionError as exc:
-            logger.error(f"LLM connection error for PR #{bundle.number}: {exc}")
-            console.log("[warning]Cannot connect to LLM server, using fallback summary[/]")
-            summary = self._fallback_summary(bundle)
+            summary = self._handle_llm_error(bundle, exc, "Cannot connect to LLM server, using fallback summary")
         except requests.Timeout as exc:
-            logger.error(f"LLM timeout for PR #{bundle.number}: {exc}")
-            console.log("[warning]LLM request timed out, using fallback summary[/]")
-            summary = self._fallback_summary(bundle)
+            summary = self._handle_llm_error(bundle, exc, "LLM request timed out, using fallback summary")
         except json.JSONDecodeError as exc:
-            logger.error(f"LLM JSON parsing error for PR #{bundle.number}: {exc}")
-            console.log("[warning]LLM returned invalid JSON, using fallback summary[/]")
-            summary = self._fallback_summary(bundle)
+            summary = self._handle_llm_error(bundle, exc, "LLM returned invalid JSON, using fallback summary")
         except ValueError as exc:
-            logger.error(f"LLM validation error for PR #{bundle.number}: {exc}")
-            console.log(f"[warning]LLM response validation failed: {exc}, using fallback[/]")
-            summary = self._fallback_summary(bundle)
+            summary = self._handle_llm_error(bundle, exc, f"LLM response validation failed: {exc}, using fallback")
         except KeyError as exc:
-            logger.error(f"LLM response missing key for PR #{bundle.number}: {exc}")
-            console.log(f"[warning]LLM response incomplete (missing {exc}), using fallback[/]")
-            summary = self._fallback_summary(bundle)
+            summary = self._handle_llm_error(bundle, exc, f"LLM response incomplete (missing {exc}), using fallback")
 
         if not summary.overview:
             summary.overview = (
@@ -318,6 +320,27 @@ class Reviewer:
         lines.append("")
         return lines
 
+    def _build_markdown_content(
+        self, bundle: PullRequestReviewBundle, summary: ReviewSummary
+    ) -> List[str]:
+        """Build complete markdown content for review.
+
+        Args:
+            bundle: Pull request data bundle
+            summary: Review summary with strengths and improvements
+
+        Returns:
+            List of markdown lines
+        """
+        lines: List[str] = []
+        lines.extend(self._render_markdown_header(bundle))
+        lines.extend(self._render_markdown_overview(summary))
+        lines.extend(self._render_markdown_points("장점", summary.strengths))
+        lines.extend(self._render_markdown_points("개선할 부분", summary.improvements))
+        lines.extend(self._render_markdown_code_highlights(bundle))
+        lines.extend(self._render_markdown_footer())
+        return lines
+
     def create_markdown(
         self, bundle: PullRequestReviewBundle, summary: ReviewSummary
     ) -> Path:
@@ -326,13 +349,7 @@ class Reviewer:
         target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
         markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
 
-        lines: List[str] = []
-        lines.extend(self._render_markdown_header(bundle))
-        lines.extend(self._render_markdown_overview(summary))
-        lines.extend(self._render_markdown_points("장점", summary.strengths))
-        lines.extend(self._render_markdown_points("개선할 부분", summary.improvements))
-        lines.extend(self._render_markdown_code_highlights(bundle))
-        lines.extend(self._render_markdown_footer())
+        lines = self._build_markdown_content(bundle, summary)
 
         try:
             markdown_path.write_text("\n".join(lines), encoding="utf-8")
@@ -385,13 +402,7 @@ class Reviewer:
         self._write_json(summary_path, summary.to_dict())
 
         markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
-        lines: List[str] = []
-        lines.extend(self._render_markdown_header(bundle))
-        lines.extend(self._render_markdown_overview(summary))
-        lines.extend(self._render_markdown_points("장점", summary.strengths))
-        lines.extend(self._render_markdown_points("개선할 부분", summary.improvements))
-        lines.extend(self._render_markdown_code_highlights(bundle))
-        lines.extend(self._render_markdown_footer())
+        lines = self._build_markdown_content(bundle, summary)
 
         try:
             markdown_path.write_text("\n".join(lines), encoding="utf-8")

@@ -36,6 +36,50 @@ from .retrospective import RetrospectiveAnalyzer
 console = Console()
 
 
+class PeriodFormatter:
+    """Format period labels based on month count."""
+
+    # Mapping of common month counts to Korean labels
+    LABEL_MAP = {
+        3: "최근 3개월",
+        6: "최근 6개월",
+        12: "최근 1년",
+    }
+
+    @staticmethod
+    def format_period(months: int) -> str:
+        """Format period label based on month count.
+
+        Args:
+            months: Number of months in the period
+
+        Returns:
+            Formatted period label in Korean
+
+        Examples:
+            >>> PeriodFormatter.format_period(3)
+            '최근 3개월'
+            >>> PeriodFormatter.format_period(12)
+            '최근 1년'
+            >>> PeriodFormatter.format_period(25)
+            '최근 2년 1개월'
+        """
+        # Check for exact matches first
+        if months in PeriodFormatter.LABEL_MAP:
+            return PeriodFormatter.LABEL_MAP[months]
+
+        # Handle years and remaining months
+        if months >= 24:
+            years = months // 12
+            remaining_months = months % 12
+            if remaining_months == 0:
+                return f"최근 {years}년"
+            return f"최근 {years}년 {remaining_months}개월"
+
+        # Default to months
+        return f"최근 {months}개월"
+
+
 class CollectionStats(NamedTuple):
     """Statistics computed from collection data."""
     month_span: int
@@ -134,23 +178,7 @@ class Analyzer:
         collaboration_score = (collection.pull_requests + collection.reviews) / month_span
         stability_score = max(collection.commits - collection.issues, 0)
         total_activity = collection.commits + collection.pull_requests + collection.reviews
-
-        # More accurate period label
-        if collection.months == 12:
-            period_label = "최근 1년"
-        elif collection.months == 6:
-            period_label = "최근 6개월"
-        elif collection.months == 3:
-            period_label = "최근 3개월"
-        elif collection.months >= 24:
-            years = collection.months // 12
-            remaining_months = collection.months % 12
-            if remaining_months == 0:
-                period_label = f"최근 {years}년"
-            else:
-                period_label = f"최근 {years}년 {remaining_months}개월"
-        else:
-            period_label = f"최근 {collection.months}개월"
+        period_label = PeriodFormatter.format_period(collection.months)
 
         return CollectionStats(
             month_span=month_span,
@@ -318,6 +346,53 @@ class Analyzer:
             ],
         }
 
+    def _build_commit_feedback(self, analysis: Dict) -> CommitMessageFeedback:
+        """Build commit message feedback from analysis."""
+        return CommitMessageFeedback(
+            total_commits=analysis.get("good_messages", 0) + analysis.get("poor_messages", 0),
+            good_messages=analysis.get("good_messages", 0),
+            poor_messages=analysis.get("poor_messages", 0),
+            suggestions=analysis.get("suggestions", []),
+            examples_good=analysis.get("examples_good", []),
+            examples_poor=analysis.get("examples_poor", []),
+        )
+
+    def _build_pr_title_feedback(self, analysis: Dict) -> PRTitleFeedback:
+        """Build PR title feedback from analysis."""
+        return PRTitleFeedback(
+            total_prs=analysis.get("clear_titles", 0) + analysis.get("vague_titles", 0),
+            clear_titles=analysis.get("clear_titles", 0),
+            vague_titles=analysis.get("vague_titles", 0),
+            suggestions=analysis.get("suggestions", []),
+            examples_good=analysis.get("examples_good", []),
+            examples_poor=analysis.get("examples_poor", []),
+        )
+
+    def _build_review_tone_feedback(self, analysis: Dict) -> ReviewToneFeedback:
+        """Build review tone feedback from analysis."""
+        return ReviewToneFeedback(
+            total_reviews=analysis.get("constructive_reviews", 0)
+            + analysis.get("harsh_reviews", 0)
+            + analysis.get("neutral_reviews", 0),
+            constructive_reviews=analysis.get("constructive_reviews", 0),
+            harsh_reviews=analysis.get("harsh_reviews", 0),
+            neutral_reviews=analysis.get("neutral_reviews", 0),
+            suggestions=analysis.get("suggestions", []),
+            examples_good=analysis.get("examples_good", []),
+            examples_improve=analysis.get("examples_improve", []),
+        )
+
+    def _build_issue_feedback(self, analysis: Dict) -> IssueFeedback:
+        """Build issue feedback from analysis."""
+        return IssueFeedback(
+            total_issues=analysis.get("well_described", 0) + analysis.get("poorly_described", 0),
+            well_described=analysis.get("well_described", 0),
+            poorly_described=analysis.get("poorly_described", 0),
+            suggestions=analysis.get("suggestions", []),
+            examples_good=analysis.get("examples_good", []),
+            examples_poor=analysis.get("examples_poor", []),
+        )
+
     def build_detailed_feedback(
         self,
         commit_analysis: Optional[Dict] = None,
@@ -327,61 +402,11 @@ class Analyzer:
     ) -> DetailedFeedbackSnapshot:
         """Build detailed feedback snapshot from LLM analysis results."""
 
-        commit_feedback = None
-        if commit_analysis:
-            commit_feedback = CommitMessageFeedback(
-                total_commits=commit_analysis.get("good_messages", 0)
-                + commit_analysis.get("poor_messages", 0),
-                good_messages=commit_analysis.get("good_messages", 0),
-                poor_messages=commit_analysis.get("poor_messages", 0),
-                suggestions=commit_analysis.get("suggestions", []),
-                examples_good=commit_analysis.get("examples_good", []),
-                examples_poor=commit_analysis.get("examples_poor", []),
-            )
-
-        pr_title_feedback = None
-        if pr_title_analysis:
-            pr_title_feedback = PRTitleFeedback(
-                total_prs=pr_title_analysis.get("clear_titles", 0)
-                + pr_title_analysis.get("vague_titles", 0),
-                clear_titles=pr_title_analysis.get("clear_titles", 0),
-                vague_titles=pr_title_analysis.get("vague_titles", 0),
-                suggestions=pr_title_analysis.get("suggestions", []),
-                examples_good=pr_title_analysis.get("examples_good", []),
-                examples_poor=pr_title_analysis.get("examples_poor", []),
-            )
-
-        review_tone_feedback = None
-        if review_tone_analysis:
-            review_tone_feedback = ReviewToneFeedback(
-                total_reviews=review_tone_analysis.get("constructive_reviews", 0)
-                + review_tone_analysis.get("harsh_reviews", 0)
-                + review_tone_analysis.get("neutral_reviews", 0),
-                constructive_reviews=review_tone_analysis.get("constructive_reviews", 0),
-                harsh_reviews=review_tone_analysis.get("harsh_reviews", 0),
-                neutral_reviews=review_tone_analysis.get("neutral_reviews", 0),
-                suggestions=review_tone_analysis.get("suggestions", []),
-                examples_good=review_tone_analysis.get("examples_good", []),
-                examples_improve=review_tone_analysis.get("examples_improve", []),
-            )
-
-        issue_feedback = None
-        if issue_analysis:
-            issue_feedback = IssueFeedback(
-                total_issues=issue_analysis.get("well_described", 0)
-                + issue_analysis.get("poorly_described", 0),
-                well_described=issue_analysis.get("well_described", 0),
-                poorly_described=issue_analysis.get("poorly_described", 0),
-                suggestions=issue_analysis.get("suggestions", []),
-                examples_good=issue_analysis.get("examples_good", []),
-                examples_poor=issue_analysis.get("examples_poor", []),
-            )
-
         return DetailedFeedbackSnapshot(
-            commit_feedback=commit_feedback,
-            pr_title_feedback=pr_title_feedback,
-            review_tone_feedback=review_tone_feedback,
-            issue_feedback=issue_feedback,
+            commit_feedback=self._build_commit_feedback(commit_analysis) if commit_analysis else None,
+            pr_title_feedback=self._build_pr_title_feedback(pr_title_analysis) if pr_title_analysis else None,
+            review_tone_feedback=self._build_review_tone_feedback(review_tone_analysis) if review_tone_analysis else None,
+            issue_feedback=self._build_issue_feedback(issue_analysis) if issue_analysis else None,
         )
 
     def _build_monthly_trends(
