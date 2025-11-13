@@ -429,6 +429,90 @@ class YearEndReview:
 
 
 @dataclass(slots=True)
+class StrengthPoint:
+    """Individual strength with concrete evidence."""
+
+    category: str  # e.g., "코드 품질", "문제 해결", "협업", "기술 역량"
+    description: str
+    evidence: List[str] = field(default_factory=list)  # Concrete examples from PRs
+    impact: str = "medium"  # "high", "medium", "low"
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise strength point."""
+        return {
+            "category": self.category,
+            "description": self.description,
+            "evidence": self.evidence,
+            "impact": self.impact,
+        }
+
+
+@dataclass(slots=True)
+class ImprovementArea:
+    """Area for improvement with actionable suggestions."""
+
+    category: str  # e.g., "코드 리뷰", "테스트", "문서화", "성능"
+    description: str
+    evidence: List[str] = field(default_factory=list)  # Specific examples
+    suggestions: List[str] = field(default_factory=list)  # Actionable recommendations
+    priority: str = "medium"  # "critical", "important", "nice-to-have"
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise improvement area."""
+        return {
+            "category": self.category,
+            "description": self.description,
+            "evidence": self.evidence,
+            "suggestions": self.suggestions,
+            "priority": self.priority,
+        }
+
+
+@dataclass(slots=True)
+class GrowthIndicator:
+    """Indicator of growth over time."""
+
+    aspect: str  # e.g., "코드 복잡도 관리", "리뷰 품질", "커뮤니케이션"
+    description: str
+    before_examples: List[str] = field(default_factory=list)  # Early PR examples
+    after_examples: List[str] = field(default_factory=list)  # Recent PR examples
+    progress_summary: str = ""  # Summary of improvement
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise growth indicator."""
+        return {
+            "aspect": self.aspect,
+            "description": self.description,
+            "before_examples": self.before_examples,
+            "after_examples": self.after_examples,
+            "progress_summary": self.progress_summary,
+        }
+
+
+@dataclass(slots=True)
+class PersonalDevelopmentAnalysis:
+    """Comprehensive analysis of personal strengths, areas for improvement, and growth."""
+
+    strengths: List[StrengthPoint] = field(default_factory=list)
+    improvement_areas: List[ImprovementArea] = field(default_factory=list)
+    growth_indicators: List[GrowthIndicator] = field(default_factory=list)
+    overall_assessment: str = ""
+    key_achievements: List[str] = field(default_factory=list)
+    next_focus_areas: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise personal development analysis."""
+        return {
+            "strengths": [s.to_dict() for s in self.strengths],
+            "improvement_areas": [i.to_dict() for i in self.improvement_areas],
+            "growth_indicators": [g.to_dict() for g in self.growth_indicators],
+            "overall_assessment": self.overall_assessment,
+            "key_achievements": self.key_achievements,
+            "next_focus_areas": self.next_focus_areas,
+        }
+
+
+@dataclass(slots=True)
 class MetricSnapshot:
     """Computed metrics ready for reporting."""
 
