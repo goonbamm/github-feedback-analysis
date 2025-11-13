@@ -151,7 +151,7 @@ class LLMClient:
 
         if bundle.review_comments:
             summary_lines.append("인라인 리뷰 코멘트:")
-            summary_lines.extend(f"- {comment}" for comment in bundle.review_comments[:20])
+            summary_lines.extend(f"- {comment}" for comment in bundle.review_comments[:LLM_DEFAULTS['sample_size_commits']])
             summary_lines.append("")
 
         summary_lines.append("변경된 파일:")
@@ -228,19 +228,37 @@ class LLMClient:
     def _parse_response(self, response_payload: Dict[str, Any]) -> ReviewSummary:
         """Extract the JSON content from the LLM response."""
 
-        choices = response_payload.get("choices") or []
+        choices = response_payload.get("choices")
         if not choices:
-            raise ValueError("LLM response did not contain choices")
+            raise ValueError("LLM response missing 'choices' array")
 
-        message = choices[0].get("message") or {}
-        content = message.get("content") or ""
+        if not isinstance(choices, list) or len(choices) == 0:
+            raise ValueError("LLM response 'choices' array is empty")
+
+        message = choices[0].get("message")
+        if not message:
+            raise ValueError("LLM response missing 'message' object")
+
+        content = message.get("content", "").strip()
+        if not content:
+            raise ValueError("LLM response message has empty content")
 
         try:
             raw = json.loads(content)
         except json.JSONDecodeError as exc:  # pragma: no cover - defensive fallback
-            raise ValueError("LLM response was not valid JSON") from exc
+            raise ValueError(f"LLM response was not valid JSON: {exc}") from exc
+
+        # Validate required fields in parsed JSON
+        if not isinstance(raw, dict):
+            raise ValueError("LLM response JSON must be an object")
+
+        if "overview" not in raw:
+            raise ValueError("LLM response missing required 'overview' field")
 
         overview = str(raw.get("overview", "")).strip()
+        if not overview:
+            raise ValueError("LLM response 'overview' field cannot be empty")
+
         strengths = self._parse_points(raw.get("strengths", []))
         improvements = self._parse_points(raw.get("improvements", []))
 
@@ -441,13 +459,24 @@ class LLMClient:
             except (requests.RequestException, ValueError) as exc:
                 last_exception = exc
 
+                # Define retryable and permanent error status codes
+                RETRYABLE_STATUS_CODES = {429, 408, 500, 502, 503, 504}  # Rate limit, timeout, server errors
+                PERMANENT_ERROR_STATUS_CODES = {400, 401, 403, 404, 422}  # Bad request, auth, not found
+
                 # Don't retry on certain errors
                 if isinstance(exc, requests.HTTPError):
                     status_code = exc.response.status_code
-                    # Don't retry on client errors (except rate limit and timeout)
-                    if 400 <= status_code < 500 and status_code not in [429, 408]:
-                        logger.error(f"LLM request failed with status {status_code}: {exc}")
+                    # Don't retry on permanent client errors
+                    if status_code in PERMANENT_ERROR_STATUS_CODES:
+                        logger.error(f"LLM request failed with non-retryable status {status_code}: {exc}")
                         raise
+                    # Retry on known transient errors
+                    if status_code not in RETRYABLE_STATUS_CODES:
+                        logger.warning(f"LLM request failed with unexpected status {status_code}, will retry...")
+                elif isinstance(exc, requests.ConnectionError):
+                    logger.warning(f"LLM connection error: {exc}, will retry...")
+                elif isinstance(exc, requests.Timeout):
+                    logger.warning(f"LLM request timeout: {exc}, will retry...")
 
                 # Log the error and retry if we have attempts left
                 if attempt < max_retries:
@@ -479,8 +508,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample commits for analysis (limit to 20)
-        sample_commits = commits[:20]
+        # Sample commits for analysis
+        sample_commits = commits[:LLM_DEFAULTS['sample_size_commits']]
 
         try:
             commit_list = "\n".join([
@@ -570,8 +599,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample PR titles for analysis (limit to 20)
-        sample_prs = pr_titles[:20]
+        # Sample PR titles for analysis
+        sample_prs = pr_titles[:LLM_DEFAULTS['sample_size_prs']]
 
         try:
             pr_list = "\n".join([
@@ -669,8 +698,8 @@ class LLMClient:
                 "examples_improve": [],
             }
 
-        # Sample review comments (limit to 15)
-        sample_reviews = review_comments[:15]
+        # Sample review comments for analysis
+        sample_reviews = review_comments[:LLM_DEFAULTS['sample_size_reviews']]
 
         try:
             review_list = "\n".join([
@@ -774,8 +803,8 @@ class LLMClient:
                 "examples_poor": [],
             }
 
-        # Sample issues (limit to 15)
-        sample_issues = issues[:15]
+        # Sample issues for analysis
+        sample_issues = issues[:LLM_DEFAULTS['sample_size_issues']]
 
         try:
             issue_list = "\n".join([

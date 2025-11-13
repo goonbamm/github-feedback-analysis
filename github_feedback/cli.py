@@ -708,10 +708,44 @@ def _collect_detailed_feedback(
             task_type="collection"
         )
 
-        commits_data = collected_data.get("commits", [])
-        pr_titles_data = collected_data.get("pr_titles", [])
-        review_comments_data = collected_data.get("review_comments", [])
-        issues_data = collected_data.get("issues", [])
+        # Validate and extract collected data
+        commits_data = collected_data.get("commits")
+        pr_titles_data = collected_data.get("pr_titles")
+        review_comments_data = collected_data.get("review_comments")
+        issues_data = collected_data.get("issues")
+
+        # Log collection results
+        if commits_data is None:
+            logger.warning("Commit collection failed or returned None")
+            commits_data = []
+        elif not commits_data:
+            logger.info("No commits found for analysis")
+        else:
+            logger.info(f"Collected {len(commits_data)} commits for analysis")
+
+        if pr_titles_data is None:
+            logger.warning("PR titles collection failed or returned None")
+            pr_titles_data = []
+        elif not pr_titles_data:
+            logger.info("No PR titles found for analysis")
+        else:
+            logger.info(f"Collected {len(pr_titles_data)} PR titles for analysis")
+
+        if review_comments_data is None:
+            logger.warning("Review comments collection failed or returned None")
+            review_comments_data = []
+        elif not review_comments_data:
+            logger.info("No review comments found for analysis")
+        else:
+            logger.info(f"Collected {len(review_comments_data)} review comments for analysis")
+
+        if issues_data is None:
+            logger.warning("Issues collection failed or returned None")
+            issues_data = []
+        elif not issues_data:
+            logger.info("No issues found for analysis")
+        else:
+            logger.info(f"Collected {len(issues_data)} issues for analysis")
 
         # Analyze using LLM
         llm_client = LLMClient(
@@ -755,12 +789,16 @@ def _collect_detailed_feedback(
         console.print("[success]✓ Detailed feedback analysis complete", style="success")
         return detailed_feedback_snapshot
 
-    except Exception as exc:
+    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as exc:
+        logger.warning(f"Detailed feedback analysis failed: {exc}", exc_info=True)
         console.print(
             f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
         )
         console.print("[cyan]Continuing with standard analysis...", style="cyan")
         return None
+    except KeyboardInterrupt:
+        console.print("\n[warning]Analysis interrupted by user", style="warning")
+        raise
 
 
 def _prepare_metrics_payload(metrics: MetricSnapshot) -> dict:

@@ -79,7 +79,7 @@ class Reviewer:
         return summary_path
 
     def _fallback_summary(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
-        """Provide a deterministic summary when the LLM cannot be reached."""
+        """Provide a deterministic summary with heuristic analysis when the LLM cannot be reached."""
 
         overview = (
             f"Pull Request #{bundle.number}는 {bundle.changed_files}개 파일을 수정했으며, "
@@ -87,35 +87,97 @@ class Reviewer:
         )
 
         strengths: List[ReviewPoint] = []
-        if bundle.body.strip():
+        improvements: List[ReviewPoint] = []
+
+        # Heuristic 1: Assess PR description quality
+        if bundle.body and len(bundle.body.strip()) > 100:
             strengths.append(
                 ReviewPoint(
-                    message="Pull Request 설명이 의도를 명확히 설명하고 있습니다.",
-                    example=bundle.body.strip().splitlines()[0],
+                    message="Pull Request 설명이 상세하고 맥락을 잘 제공합니다.",
+                    example=bundle.body.strip().splitlines()[0][:100],
                 )
             )
-        if bundle.files:
-            first_file = bundle.files[0]
-            strengths.append(
+        elif bundle.body and bundle.body.strip():
+            improvements.append(
                 ReviewPoint(
-                    message=f"`{first_file.filename}`에 집중된 변경사항이 포함되어 있습니다.",
-                    example=truncate_patch(first_file.patch or ""),
+                    message="PR 설명이 너무 간략합니다. 더 많은 맥락을 제공해보세요.",
+                    example="변경 이유, 영향 범위, 테스트 방법 등을 포함하세요.",
+                )
+            )
+        else:
+            improvements.append(
+                ReviewPoint(
+                    message="PR 설명이 없습니다. 리뷰어를 위해 변경사항을 설명해주세요.",
+                    example="무엇을, 왜, 어떻게 변경했는지 설명이 필요합니다.",
                 )
             )
 
-        improvements: List[ReviewPoint] = []
-        if not bundle.review_comments:
-            improvements.append(
+        # Heuristic 2: Check for test files
+        test_files = [f for f in bundle.files if 'test' in f.filename.lower() or 'spec' in f.filename.lower()]
+        if test_files:
+            strengths.append(
                 ReviewPoint(
-                    message="리뷰어를 돕기 위해 셀프 리뷰 코멘트를 추가하는 것을 고려해보세요.",
-                    example="Pull Request에 인라인 코멘트가 제공되지 않았습니다.",
+                    message=f"테스트 파일이 포함되어 있습니다 ({len(test_files)}개).",
+                    example=", ".join([f.filename for f in test_files[:3]]),
                 )
             )
-        if bundle.files:
+        else:
             improvements.append(
                 ReviewPoint(
-                    message="회귀 테스트에 영향이 있는지 다시 확인해보세요.",
-                    example=f"`{bundle.files[-1].filename}`의 변경사항에 대한 테스트 커버리지 갭을 검토하세요.",
+                    message="테스트 파일이 감지되지 않았습니다.",
+                    example="변경사항에 대한 테스트 추가를 고려해보세요.",
+                )
+            )
+
+        # Heuristic 3: Assess PR size
+        total_changes = bundle.additions + bundle.deletions
+        if total_changes > 1000:
+            improvements.append(
+                ReviewPoint(
+                    message=f"PR이 매우 큽니다 ({total_changes}줄 변경).",
+                    example="리뷰를 쉽게 하기 위해 작은 PR로 나누는 것을 고려해보세요.",
+                )
+            )
+        elif total_changes < 100:
+            strengths.append(
+                ReviewPoint(
+                    message=f"적절한 크기의 PR입니다 ({total_changes}줄 변경).",
+                    example="작은 PR은 리뷰하기 쉽고 머지 충돌이 적습니다.",
+                )
+            )
+
+        # Heuristic 4: Check for documentation files
+        doc_files = [f for f in bundle.files if any(ext in f.filename.lower() for ext in ['.md', 'readme', 'doc'])]
+        if doc_files:
+            strengths.append(
+                ReviewPoint(
+                    message="문서 업데이트가 포함되어 있습니다.",
+                    example=", ".join([f.filename for f in doc_files[:2]]),
+                )
+            )
+
+        # Heuristic 5: Assess review comments
+        if bundle.review_comments and len(bundle.review_comments) > 0:
+            strengths.append(
+                ReviewPoint(
+                    message=f"셀프 리뷰 코멘트가 있습니다 ({len(bundle.review_comments)}개).",
+                    example="리뷰어에게 도움이 되는 코멘트를 제공했습니다.",
+                )
+            )
+        else:
+            improvements.append(
+                ReviewPoint(
+                    message="셀프 리뷰 코멘트를 추가하는 것을 고려해보세요.",
+                    example="복잡한 로직이나 주요 결정사항에 대해 설명하세요.",
+                )
+            )
+
+        # Ensure we have at least some content
+        if not strengths:
+            strengths.append(
+                ReviewPoint(
+                    message="변경사항이 제출되었습니다.",
+                    example=f"{bundle.changed_files}개 파일에 걸친 변경사항.",
                 )
             )
 
@@ -252,10 +314,38 @@ class Reviewer:
             raise
         return markdown_path
 
-    def review_pull_request(self, repo: str, number: int) -> tuple[Path, Path, Path]:
-        """End-to-end review helper used by the CLI command."""
+    def review_pull_request(
+        self,
+        repo: str,
+        number: int,
+        force_refresh: bool = False
+    ) -> tuple[Path, Path, Path]:
+        """End-to-end review helper used by the CLI command.
 
+        Args:
+            repo: Repository name in owner/repo format
+            number: Pull request number
+            force_refresh: If True, regenerate review even if cached version exists
+
+        Returns:
+            Tuple of (artefact_path, summary_path, markdown_path)
+        """
+
+        # Check if cached review exists
+        target_dir = self._target_dir(repo, number)
+        artefact_path = target_dir / ARTEFACTS_FILENAME
+        summary_path = target_dir / REVIEW_SUMMARY_FILENAME
+        markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
+
+        # Return cached results if all files exist and force_refresh is False
+        if not force_refresh and all(p.exists() for p in [artefact_path, summary_path, markdown_path]):
+            logger.info(f"Using cached review for PR #{number} from {target_dir}")
+            return artefact_path, summary_path, markdown_path
+
+        # Generate new review
+        logger.info(f"Generating new review for PR #{number}")
         bundle = self.collector.collect_pull_request_details(repo=repo, number=number)
+
         # Create target directory once at the start for better performance
         target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
 
