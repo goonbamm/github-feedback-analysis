@@ -8,7 +8,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 import typer
@@ -46,6 +46,7 @@ from .constants import (
     SPINNERS,
     SUCCESS_MESSAGES,
     TABLE_CONFIG,
+    TaskType,
 )
 from .exceptions import (
     CollectionError,
@@ -152,19 +153,67 @@ def _validate_collected_data(data: Optional[List], data_type: str) -> List:
         return data
 
 
+def _handle_task_exception(
+    exception: Exception,
+    key: str,
+    label: str,
+    timeout: int,
+    task_type: TaskType,
+) -> tuple[Exception, Any, str]:
+    """Handle exceptions from parallel tasks with consistent error creation.
+
+    Args:
+        exception: The exception that occurred
+        key: Task identifier
+        label: Human-readable task label
+        timeout: Timeout value in seconds
+        task_type: Type of task (TaskType.COLLECTION or TaskType.ANALYSIS)
+
+    Returns:
+        Tuple of (error, default_result, status_indicator)
+    """
+    # Re-raise keyboard interrupts and system exits
+    if isinstance(exception, (KeyboardInterrupt, SystemExit)):
+        raise exception
+
+    is_timeout = isinstance(exception, TimeoutError)
+    is_analysis = task_type == TaskType.ANALYSIS
+
+    if is_timeout:
+        error = (
+            LLMTimeoutError(f"{label} timed out after {timeout}s", analysis_type=key)
+            if is_analysis
+            else CollectionTimeoutError(f"{label} timed out after {timeout}s", source=key)
+        )
+        status_indicator = "⚠"
+    else:
+        error = (
+            LLMAnalysisError(f"{label} failed: {exception}", analysis_type=key)
+            if is_analysis
+            else CollectionError(f"{label} failed: {exception}", source=key)
+        )
+        status_indicator = "✗"
+
+    default_result = None if is_analysis else []
+    return error, default_result, status_indicator
+
+
 def _run_parallel_tasks(
-    tasks: Dict[str, tuple],
+    tasks: Dict[str, Tuple[Callable, Tuple, str]],
     max_workers: int,
     timeout: int,
-    task_type: str = "collection",
+    task_type: TaskType = TaskType.COLLECTION,
 ) -> Dict[str, Any]:
     """Run multiple tasks in parallel with progress indicator and consistent error handling.
 
     Args:
-        tasks: Dict mapping task keys to (func, args, label) tuples
+        tasks: Dict mapping task keys to (func, args, label) tuples where:
+            - func: Callable to execute
+            - args: Tuple of arguments to pass to func
+            - label: Human-readable task label for progress display
         max_workers: Maximum number of concurrent workers
         timeout: Timeout in seconds for each task
-        task_type: Type of task ('collection' or 'analysis') for error messages
+        task_type: Type of task (TaskType.COLLECTION or TaskType.ANALYSIS)
 
     Returns:
         Dict mapping task keys to results (None for failed tasks)
@@ -200,33 +249,14 @@ def _run_parallel_tasks(
                     try:
                         results[key] = future.result(timeout=timeout)
                         progress.update(task_id, advance=1, description=f"[green]✓ {label}")
-                    except KeyboardInterrupt:
-                        raise
-                    except TimeoutError as e:
-                        if task_type == "analysis":
-                            error = LLMTimeoutError(
-                                f"{label} timed out after {timeout}s",
-                                analysis_type=key
-                            )
-                        else:
-                            error = CollectionTimeoutError(
-                                f"{label} timed out after {timeout}s",
-                                source=key
-                            )
-                        console.print(f"[warning]✗ {error}", style="warning")
-                        results[key] = None if task_type == "analysis" else []
-                        progress.update(task_id, advance=1, description=f"[yellow]⚠ {label}")
-                    except (Exception, KeyboardInterrupt) as e:
-                        # Re-raise keyboard interrupts and system exits
-                        if isinstance(e, (KeyboardInterrupt, SystemExit)):
-                            raise
-                        if task_type == "analysis":
-                            error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
-                        else:
-                            error = CollectionError(f"{label} failed: {e}", source=key)
-                        console.print(f"[warning]✗ {error}", style="warning")
-                        results[key] = None if task_type == "analysis" else []
-                        progress.update(task_id, advance=1, description=f"[red]✗ {label}")
+                    except Exception as e:
+                        error, default_result, status_indicator = _handle_task_exception(
+                            e, key, label, timeout, task_type
+                        )
+                        console.print(f"[warning]{status_indicator} {error}", style="warning")
+                        results[key] = default_result
+                        color = "yellow" if status_indicator == "⚠" else "red"
+                        progress.update(task_id, advance=1, description=f"[{color}]{status_indicator} {label}")
     else:
         # Fallback to simple progress without Rich
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -242,31 +272,12 @@ def _run_parallel_tasks(
                     results[key] = future.result(timeout=timeout)
                     completed += 1
                     console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
-                except KeyboardInterrupt:
-                    raise
-                except TimeoutError as e:
-                    if task_type == "analysis":
-                        error = LLMTimeoutError(
-                            f"{label} timed out after {timeout}s",
-                            analysis_type=key
-                        )
-                    else:
-                        error = CollectionTimeoutError(
-                            f"{label} timed out after {timeout}s",
-                            source=key
-                        )
-                    console.print(f"[warning]✗ {error}", style="warning")
-                    results[key] = None if task_type == "analysis" else []
-                except (Exception, KeyboardInterrupt) as e:
-                    # Re-raise keyboard interrupts and system exits
-                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
-                        raise
-                    if task_type == "analysis":
-                        error = LLMAnalysisError(f"{label} failed: {e}", analysis_type=key)
-                    else:
-                        error = CollectionError(f"{label} failed: {e}", source=key)
-                    console.print(f"[warning]✗ {error}", style="warning")
-                    results[key] = None if task_type == "analysis" else []
+                except Exception as e:
+                    error, default_result, status_indicator = _handle_task_exception(
+                        e, key, label, timeout, task_type
+                    )
+                    console.print(f"[warning]{status_indicator} {error}", style="warning")
+                    results[key] = default_result
 
     return results
 
@@ -771,7 +782,7 @@ def _collect_detailed_feedback(
             collection_tasks,
             PARALLEL_CONFIG['max_workers_data_collection'],
             PARALLEL_CONFIG['collection_timeout'],
-            task_type="collection"
+            task_type=TaskType.COLLECTION
         )
 
         # Validate and extract collected data
@@ -803,7 +814,7 @@ def _collect_detailed_feedback(
             analysis_tasks,
             PARALLEL_CONFIG['max_workers_llm_analysis'],
             PARALLEL_CONFIG['analysis_timeout'],
-            task_type="analysis"
+            task_type=TaskType.ANALYSIS
         )
 
         commit_analysis = results.get("commit_messages")
