@@ -31,6 +31,10 @@ MAX_FILES_WITH_PATCH_SNIPPETS = LLM_DEFAULTS['max_files_with_patch_snippets']
 DEFAULT_CACHE_EXPIRE_DAYS = 7
 LLM_CACHE_DIR = Path.home() / ".cache" / "github_feedback" / "llm_cache"
 
+# HTTP Status codes for retry logic
+RETRYABLE_STATUS_CODES = frozenset({429, 408, 500, 502, 503, 504})  # Rate limit, timeout, server errors
+PERMANENT_ERROR_STATUS_CODES = frozenset({400, 401, 403, 404, 422})  # Bad request, auth, not found
+
 
 def _get_cache_key(data: Any) -> str:
     """Generate a cache key from input data using SHA256 hash."""
@@ -459,6 +463,92 @@ class LLMClient:
         if not choices:
             raise ValueError("LLM endpoint response format is invalid (missing 'choices')")
 
+    def _check_cache(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float,
+    ) -> tuple[str | None, str | None]:
+        """Check cache for existing response.
+
+        Args:
+            messages: Chat messages for the LLM
+            temperature: Sampling temperature
+
+        Returns:
+            Tuple of (cached_response, cache_key) where cached_response is None if not found
+        """
+        if not self.enable_cache:
+            return None, None
+
+        cache_data = {
+            "messages": messages,
+            "temperature": temperature,
+            "model": self.model,
+        }
+        cache_key = _get_cache_key(cache_data)
+        cached_response = _load_from_cache(cache_key, self.cache_expire_days)
+
+        return cached_response, cache_key
+
+    def _validate_response(self, response: requests.Response) -> str:
+        """Validate and extract content from LLM response.
+
+        Args:
+            response: HTTP response from LLM endpoint
+
+        Returns:
+            Extracted content string
+
+        Raises:
+            ValueError: If response format is invalid or content is missing
+        """
+        try:
+            response_payload = response.json()
+        except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
+            raise ValueError("LLM response was not valid JSON") from exc
+
+        choices = response_payload.get("choices") or []
+        if not choices:
+            raise ValueError("LLM response did not contain choices")
+
+        message = choices[0].get("message") or {}
+        content = str(message.get("content") or "").strip()
+        if not content:
+            raise ValueError("LLM response did not contain content")
+
+        return content
+
+    def _should_retry_error(self, exc: Exception) -> bool:
+        """Determine if an error should trigger a retry.
+
+        Args:
+            exc: Exception that occurred during request
+
+        Returns:
+            True if error is retryable, False if it's permanent
+
+        Raises:
+            Exception: Re-raises the exception if it's non-retryable
+        """
+        if isinstance(exc, requests.HTTPError):
+            status_code = exc.response.status_code
+            # Don't retry on permanent client errors
+            if status_code in PERMANENT_ERROR_STATUS_CODES:
+                logger.error(f"LLM request failed with non-retryable status {status_code}: {exc}")
+                raise
+            # Retry on known transient errors
+            if status_code not in RETRYABLE_STATUS_CODES:
+                logger.warning(f"LLM request failed with unexpected status {status_code}, will retry...")
+            return True
+        elif isinstance(exc, requests.ConnectionError):
+            logger.warning(f"LLM connection error: {exc}, will retry...")
+            return True
+        elif isinstance(exc, requests.Timeout):
+            logger.warning(f"LLM request timeout: {exc}, will retry...")
+            return True
+        # For ValueError and other exceptions, allow retry
+        return True
+
     def complete(
         self,
         messages: list[dict[str, str]],
@@ -482,23 +572,14 @@ class LLMClient:
             ValueError: If response is invalid after all retries
             requests.HTTPError: If HTTP error persists after all retries
         """
-
         # Use default temperature if not specified
         if temperature is None:
             temperature = HEURISTIC_THRESHOLDS['llm_temperature']
 
         # Check cache first if enabled
-        cache_key = None
-        if self.enable_cache:
-            cache_data = {
-                "messages": messages,
-                "temperature": temperature,
-                "model": self.model,
-            }
-            cache_key = _get_cache_key(cache_data)
-            cached_response = _load_from_cache(cache_key, self.cache_expire_days)
-            if cached_response:
-                return cached_response
+        cached_response, cache_key = self._check_cache(messages, temperature)
+        if cached_response:
+            return cached_response
 
         # Apply rate limiting if configured
         if self.rate_limit_delay > 0:
@@ -521,19 +602,7 @@ class LLMClient:
                 )
                 response.raise_for_status()
 
-                try:
-                    response_payload = response.json()
-                except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
-                    raise ValueError("LLM response was not valid JSON") from exc
-
-                choices = response_payload.get("choices") or []
-                if not choices:
-                    raise ValueError("LLM response did not contain choices")
-
-                message = choices[0].get("message") or {}
-                content = str(message.get("content") or "").strip()
-                if not content:
-                    raise ValueError("LLM response did not contain content")
+                content = self._validate_response(response)
 
                 # Success! Log if this was a retry
                 if attempt > 0:
@@ -548,24 +617,8 @@ class LLMClient:
             except (requests.RequestException, ValueError) as exc:
                 last_exception = exc
 
-                # Define retryable and permanent error status codes
-                RETRYABLE_STATUS_CODES = {429, 408, 500, 502, 503, 504}  # Rate limit, timeout, server errors
-                PERMANENT_ERROR_STATUS_CODES = {400, 401, 403, 404, 422}  # Bad request, auth, not found
-
-                # Don't retry on certain errors
-                if isinstance(exc, requests.HTTPError):
-                    status_code = exc.response.status_code
-                    # Don't retry on permanent client errors
-                    if status_code in PERMANENT_ERROR_STATUS_CODES:
-                        logger.error(f"LLM request failed with non-retryable status {status_code}: {exc}")
-                        raise
-                    # Retry on known transient errors
-                    if status_code not in RETRYABLE_STATUS_CODES:
-                        logger.warning(f"LLM request failed with unexpected status {status_code}, will retry...")
-                elif isinstance(exc, requests.ConnectionError):
-                    logger.warning(f"LLM connection error: {exc}, will retry...")
-                elif isinstance(exc, requests.Timeout):
-                    logger.warning(f"LLM request timeout: {exc}, will retry...")
+                # Check if we should retry this error
+                self._should_retry_error(exc)
 
                 # Log the error and retry if we have attempts left
                 if attempt < max_retries:
