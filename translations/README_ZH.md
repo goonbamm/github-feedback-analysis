@@ -74,11 +74,35 @@
    - 公共仓库：`public_repo` 权限
 
 3. **初始设置时指定企业主机**
+
+   **交互模式（推荐）：**
+   ```bash
+   gfa init
+   ```
+   初始化时将显示企业主机选择菜单：
+   - 选择默认的 github.com
+   - 从示例企业主机列表中选择
+   - 从保存的自定义主机中选择
+   - 直接输入自定义 URL（会提示是否保存以备将来使用）
+
+   **使用 CLI 选项：**
    ```bash
    gfa init --enterprise-host https://github.your-company.com
    ```
 
-4. **联系管理员**
+4. **管理保存的企业主机**
+   ```bash
+   # 列出保存的主机
+   gfa config hosts list
+
+   # 添加新主机
+   gfa config hosts add https://github.your-company.com
+
+   # 删除主机
+   gfa config hosts remove https://github.your-company.com
+   ```
+
+5. **联系管理员**
    - 某些企业环境可能限制 PAT 生成
    - 如遇问题，请联系您的 GitHub 管理员
 
@@ -117,7 +141,9 @@ gfa init
 - GitHub Personal Access Token（安全存储在系统密钥环中）
 - LLM 端点（例如：`http://localhost:8000/v1/chat/completions`）
 - LLM 模型（例如：`gpt-4`）
-- GitHub Enterprise 主机（可选，仅当不使用 github.com 时）
+- GitHub Enterprise 主机（可选）
+  - 通过数字选择或直接输入自定义 URL
+  - 新主机将提示是否保存以备将来使用
 
 ### 2️⃣ 个人活动分析
 

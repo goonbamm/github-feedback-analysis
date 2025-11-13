@@ -139,6 +139,7 @@ class ServerConfig(BaseModel):
     api_url: str = "https://api.github.com"
     graphql_url: str = "https://api.github.com/graphql"
     web_url: str = "https://github.com"
+    custom_enterprise_hosts: list[str] = []
 
 
 class LLMConfig(BaseModel):
