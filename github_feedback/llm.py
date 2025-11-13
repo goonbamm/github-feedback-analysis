@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from functools import wraps
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import requests
 
@@ -23,6 +26,96 @@ console = Console()
 MAX_PATCH_LINES_PER_FILE = LLM_DEFAULTS['max_patch_lines_per_file']
 MAX_FILES_WITH_PATCH_SNIPPETS = LLM_DEFAULTS['max_files_with_patch_snippets']
 
+# Cache settings
+DEFAULT_CACHE_EXPIRE_DAYS = 7
+LLM_CACHE_DIR = Path.home() / ".cache" / "github_feedback" / "llm_cache"
+
+
+def _get_cache_key(data: Any) -> str:
+    """Generate a cache key from input data using SHA256 hash."""
+    # Convert data to a stable JSON string
+    json_str = json.dumps(data, sort_keys=True, ensure_ascii=False)
+    # Generate hash
+    return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
+
+
+def _get_cache_path(cache_key: str) -> Path:
+    """Get the file path for a cache key."""
+    LLM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return LLM_CACHE_DIR / f"{cache_key}.json"
+
+
+def _load_from_cache(cache_key: str, max_age_days: int = DEFAULT_CACHE_EXPIRE_DAYS) -> Optional[str]:
+    """Load cached LLM response if it exists and is not expired."""
+    cache_path = _get_cache_path(cache_key)
+
+    if not cache_path.exists():
+        return None
+
+    # Check cache age
+    age_seconds = time.time() - cache_path.stat().st_mtime
+    age_days = age_seconds / (24 * 3600)
+
+    if age_days > max_age_days:
+        logger.debug(f"Cache expired (age: {age_days:.1f} days)")
+        return None
+
+    try:
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            cached_data = json.load(f)
+            logger.debug(f"Cache hit (age: {age_days:.1f} days)")
+            return cached_data.get('response')
+    except (json.JSONDecodeError, IOError) as exc:
+        logger.warning(f"Failed to load cache: {exc}")
+        return None
+
+
+def _save_to_cache(cache_key: str, response: str) -> None:
+    """Save LLM response to cache."""
+    cache_path = _get_cache_path(cache_key)
+
+    try:
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'response': response,
+                'timestamp': time.time(),
+            }, f, ensure_ascii=False, indent=2)
+        logger.debug("Saved response to cache")
+    except IOError as exc:
+        logger.warning(f"Failed to save cache: {exc}")
+
+
+def with_llm_fallback(fallback_method_name: str) -> Callable:
+    """Decorator to add consistent error handling with fallback for LLM analysis methods.
+
+    Args:
+        fallback_method_name: Name of the fallback method to call on error
+
+    Returns:
+        Decorated function with error handling
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, data: List[Dict[str, str]]) -> Dict[str, Any]:
+            try:
+                return func(self, data)
+            except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+                # Fallback to simple heuristics on known errors
+                analysis_type = func.__name__.replace('analyze_', '').replace('_', ' ')
+                logger.warning(f"LLM {analysis_type} analysis failed: {exc}")
+                console.print(
+                    f"[warning]⚠ LLM {analysis_type} analysis unavailable - using heuristic analysis[/]",
+                    style="warning"
+                )
+                fallback_method = getattr(self, fallback_method_name)
+                # Get the sample data from the first few lines of the function
+                # We'll pass the data directly to fallback
+                sample_size = 20 if 'commit' in analysis_type or 'pr' in analysis_type else 15
+                sample_data = data[:sample_size]
+                return fallback_method(sample_data)
+        return wrapper
+    return decorator
+
 
 @dataclass(slots=True)
 class LLMClient:
@@ -33,6 +126,9 @@ class LLMClient:
     timeout: int = 60
     max_files_in_prompt: int = 10
     max_files_with_patch_snippets: int = 5
+    enable_cache: bool = True
+    cache_expire_days: int = DEFAULT_CACHE_EXPIRE_DAYS
+    rate_limit_delay: float = 0.0  # Delay between requests in seconds (0 = no limit)
 
     def _build_messages(self, bundle: PullRequestReviewBundle) -> List[Dict[str, str]]:
         """Create the prompt messages describing the pull request."""
@@ -268,7 +364,7 @@ class LLMClient:
         max_retries: int = 3,
         retry_delay: float = 2.0,
     ) -> str:
-        """Execute a generic chat completion request with retry logic.
+        """Execute a generic chat completion request with retry logic and caching.
 
         Args:
             messages: Chat messages for the LLM
@@ -283,6 +379,23 @@ class LLMClient:
             ValueError: If response is invalid after all retries
             requests.HTTPError: If HTTP error persists after all retries
         """
+
+        # Check cache first if enabled
+        cache_key = None
+        if self.enable_cache:
+            cache_data = {
+                "messages": messages,
+                "temperature": temperature,
+                "model": self.model,
+            }
+            cache_key = _get_cache_key(cache_data)
+            cached_response = _load_from_cache(cache_key, self.cache_expire_days)
+            if cached_response:
+                return cached_response
+
+        # Apply rate limiting if configured
+        if self.rate_limit_delay > 0:
+            time.sleep(self.rate_limit_delay)
 
         payload = {
             "model": self.model or "default-model",
@@ -319,6 +432,10 @@ class LLMClient:
                 if attempt > 0:
                     logger.info(f"LLM request succeeded on attempt {attempt + 1}")
 
+                # Save to cache if enabled
+                if self.enable_cache and cache_key:
+                    _save_to_cache(cache_key, content)
+
                 return content
 
             except (requests.RequestException, ValueError) as exc:
@@ -352,7 +469,7 @@ class LLMClient:
     def analyze_commit_messages(
         self, commits: List[Dict[str, str]]
     ) -> Dict[str, Any]:
-        """Analyze commit message quality using LLM."""
+        """Analyze commit message quality using LLM with fallback to heuristics."""
         if not commits:
             return {
                 "good_messages": 0,
@@ -365,64 +482,64 @@ class LLMClient:
         # Sample commits for analysis (limit to 20)
         sample_commits = commits[:20]
 
-        commit_list = "\n".join([
-            f"{i+1}. {safe_truncate_str(commit['message'], 100)} (SHA: {commit['sha'][:7]})"
-            for i, commit in enumerate(sample_commits)
-        ])
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "당신은 Git 커밋 메시지 품질을 평가하는 전문가입니다.\n\n"
-                    "다음 기준으로 평가하세요:\n\n"
-                    "**좋은 커밋 메시지 기준:**\n"
-                    "1. 첫 줄: 50자 이내, 명령형 동사 시작 (Add, Fix, Update, Refactor 등)\n"
-                    "2. 본문: 왜(why) 변경했는지 설명 (무엇을 변경했는지는 코드로 알 수 있음)\n"
-                    "3. Conventional Commits 형식 권장: `type(scope): subject`\n"
-                    "4. Issue/PR 번호 참조 포함\n"
-                    "5. 여러 변경사항은 여러 커밋으로 분리\n\n"
-                    "**나쁜 커밋 메시지 예:**\n"
-                    '- "fix", "update", "wip", "tmp" 같은 단어만 사용\n'
-                    "- 변경 내용 나열만 하고 이유 없음\n"
-                    "- 너무 길거나 (100자+) 짧음 (10자-)\n\n"
-                    "응답 형식:\n"
-                    "{\n"
-                    '  "good_count": 숫자,\n'
-                    '  "poor_count": 숫자,\n'
-                    '  "suggestions": [\n'
-                    '    "구체적이고 실행 가능한 개선 제안"\n'
-                    "  ],\n"
-                    '  "examples_good": [\n'
-                    "    {\n"
-                    '      "sha": "커밋 해시",\n'
-                    '      "message": "커밋 메시지",\n'
-                    '      "reason": "왜 좋은지 설명"\n'
-                    "    }\n"
-                    "  ],\n"
-                    '  "examples_poor": [\n'
-                    "    {\n"
-                    '      "sha": "커밋 해시",\n'
-                    '      "message": "커밋 메시지",\n'
-                    '      "reason": "왜 개선이 필요한지",\n'
-                    '      "suggestion": "개선 방법"\n'
-                    "    }\n"
-                    "  ],\n"
-                    '  "trends": {\n'
-                    '    "common_patterns": ["발견된 패턴"],\n'
-                    '    "improvement_areas": ["개선 영역"]\n'
-                    "  }\n"
-                    "}\n\n"
-                    "최대 20개 샘플만 분석하고, 대표적인 예시를 선정하세요. 모든 응답은 한국어로 작성하세요."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"다음 커밋 메시지들을 분석해주세요:\n\n{commit_list}",
-            },
-        ]
-
         try:
+            commit_list = "\n".join([
+                f"{i+1}. {safe_truncate_str(commit['message'], 100)} (SHA: {commit['sha'][:7]})"
+                for i, commit in enumerate(sample_commits)
+            ])
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "당신은 Git 커밋 메시지 품질을 평가하는 전문가입니다.\n\n"
+                        "다음 기준으로 평가하세요:\n\n"
+                        "**좋은 커밋 메시지 기준:**\n"
+                        "1. 첫 줄: 50자 이내, 명령형 동사 시작 (Add, Fix, Update, Refactor 등)\n"
+                        "2. 본문: 왜(why) 변경했는지 설명 (무엇을 변경했는지는 코드로 알 수 있음)\n"
+                        "3. Conventional Commits 형식 권장: `type(scope): subject`\n"
+                        "4. Issue/PR 번호 참조 포함\n"
+                        "5. 여러 변경사항은 여러 커밋으로 분리\n\n"
+                        "**나쁜 커밋 메시지 예:**\n"
+                        '- "fix", "update", "wip", "tmp" 같은 단어만 사용\n'
+                        "- 변경 내용 나열만 하고 이유 없음\n"
+                        "- 너무 길거나 (100자+) 짧음 (10자-)\n\n"
+                        "응답 형식:\n"
+                        "{\n"
+                        '  "good_count": 숫자,\n'
+                        '  "poor_count": 숫자,\n'
+                        '  "suggestions": [\n'
+                        '    "구체적이고 실행 가능한 개선 제안"\n'
+                        "  ],\n"
+                        '  "examples_good": [\n'
+                        "    {\n"
+                        '      "sha": "커밋 해시",\n'
+                        '      "message": "커밋 메시지",\n'
+                        '      "reason": "왜 좋은지 설명"\n'
+                        "    }\n"
+                        "  ],\n"
+                        '  "examples_poor": [\n'
+                        "    {\n"
+                        '      "sha": "커밋 해시",\n'
+                        '      "message": "커밋 메시지",\n'
+                        '      "reason": "왜 개선이 필요한지",\n'
+                        '      "suggestion": "개선 방법"\n'
+                        "    }\n"
+                        "  ],\n"
+                        '  "trends": {\n'
+                        '    "common_patterns": ["발견된 패턴"],\n'
+                        '    "improvement_areas": ["개선 영역"]\n'
+                        "  }\n"
+                        "}\n\n"
+                        "최대 20개 샘플만 분석하고, 대표적인 예시를 선정하세요. 모든 응답은 한국어로 작성하세요."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"다음 커밋 메시지들을 분석해주세요:\n\n{commit_list}",
+                },
+            ]
+
             response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
@@ -443,7 +560,7 @@ class LLMClient:
             return self._fallback_commit_analysis(sample_commits)
 
     def analyze_pr_titles(self, pr_titles: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Analyze pull request title quality using LLM."""
+        """Analyze pull request title quality using LLM with fallback to heuristics."""
         if not pr_titles:
             return {
                 "clear_titles": 0,
@@ -456,15 +573,16 @@ class LLMClient:
         # Sample PR titles for analysis (limit to 20)
         sample_prs = pr_titles[:20]
 
-        pr_list = "\n".join([
-            f"{i+1}. #{pr['number']}: {pr['title']}"
-            for i, pr in enumerate(sample_prs)
-        ])
+        try:
+            pr_list = "\n".join([
+                f"{i+1}. #{pr['number']}: {pr['title']}"
+                for i, pr in enumerate(sample_prs)
+            ])
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
                     "당신은 Pull Request 제목 품질을 평가하는 전문가입니다.\n\n"
                     "**좋은 PR 제목 기준:**\n"
                     "1. 길이: 15-80자 (너무 짧거나 길지 않게)\n"
@@ -516,9 +634,8 @@ class LLMClient:
                 "role": "user",
                 "content": f"다음 PR 제목들을 분석해주세요:\n\n{pr_list}",
             },
-        ]
+            ]
 
-        try:
             response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
@@ -541,7 +658,7 @@ class LLMClient:
     def analyze_review_tone(
         self, review_comments: List[Dict[str, str]]
     ) -> Dict[str, Any]:
-        """Analyze code review tone and style using LLM."""
+        """Analyze code review tone and style using LLM with fallback to heuristics."""
         if not review_comments:
             return {
                 "constructive_reviews": 0,
@@ -555,14 +672,15 @@ class LLMClient:
         # Sample review comments (limit to 15)
         sample_reviews = review_comments[:15]
 
-        review_list = "\n".join([
-            f"{i+1}. (PR #{review['pr_number']}, {review['author']}): {review['body'][:200]}"
-            for i, review in enumerate(sample_reviews)
-        ])
+        try:
+            review_list = "\n".join([
+                f"{i+1}. (PR #{review['pr_number']}, {review['author']}): {review['body'][:200]}"
+                for i, review in enumerate(sample_reviews)
+            ])
 
-        messages = [
-            {
-                "role": "system",
+            messages = [
+                {
+                    "role": "system",
                 "content": (
                     "당신은 팀 협업과 커뮤니케이션 전문가입니다.\n"
                     "코드 리뷰 코멘트의 톤을 분석하고 개선 방안을 제시하세요.\n\n"
@@ -623,9 +741,8 @@ class LLMClient:
                 "role": "user",
                 "content": f"다음 리뷰 코멘트들을 분석해주세요:\n\n{review_list}",
             },
-        ]
+            ]
 
-        try:
             response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
@@ -647,7 +764,7 @@ class LLMClient:
             return self._fallback_review_tone_analysis(sample_reviews)
 
     def analyze_issue_quality(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Analyze issue quality and clarity using LLM."""
+        """Analyze issue quality and clarity using LLM with fallback to heuristics."""
         if not issues:
             return {
                 "well_described": 0,
@@ -660,14 +777,15 @@ class LLMClient:
         # Sample issues (limit to 15)
         sample_issues = issues[:15]
 
-        issue_list = "\n".join([
-            f"{i+1}. #{issue['number']}: {issue['title']}\n   본문: {issue['body'][:150]}"
-            for i, issue in enumerate(sample_issues)
-        ])
+        try:
+            issue_list = "\n".join([
+                f"{i+1}. #{issue['number']}: {issue['title']}\n   본문: {issue['body'][:150]}"
+                for i, issue in enumerate(sample_issues)
+            ])
 
-        messages = [
-            {
-                "role": "system",
+            messages = [
+                {
+                    "role": "system",
                 "content": (
                     "당신은 프로젝트 관리 전문가로서 GitHub 이슈 품질을 평가합니다.\n\n"
                     "**이슈 타입별 기준:**\n\n"
@@ -733,9 +851,8 @@ class LLMClient:
                 "role": "user",
                 "content": f"다음 이슈들을 분석해주세요:\n\n{issue_list}",
             },
-        ]
+            ]
 
-        try:
             response = self.complete(messages, temperature=0.3)
             result = json.loads(response)
 
@@ -758,24 +875,63 @@ class LLMClient:
     # Fallback analysis methods ----------------------------------------
 
     def _fallback_commit_analysis(self, commits: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Simple heuristic-based commit message analysis."""
+        """Enhanced heuristic-based commit message analysis."""
         good_count = 0
         poor_count = 0
         examples_good = []
         examples_poor = []
+
+        # Enhanced patterns
+        good_patterns = [
+            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+',  # Conventional Commits
+            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize) [A-Z].+',  # Capitalized imperative
+            r'^[A-Z][a-z]+ .+ (#\d+|issue|pr)',  # With issue/PR reference
+        ]
+
+        poor_patterns = [
+            r'^(wip|tmp|test|debug|asdf|aaa|zzz)',  # Work-in-progress markers
+            r'^fix$|^update$|^bug$',  # Too vague
+            r'^.{1,5}$',  # Too short (1-5 chars)
+            r'^.{150,}',  # Too long (150+ chars)
+        ]
 
         for commit in commits:
             message = commit["message"].strip()
             lines = message.split("\n")
             first_line = lines[0] if lines else ""
 
-            # Simple heuristics
-            is_good = (
-                len(first_line) > 10
-                and len(first_line) < 100
-                and not first_line.lower().startswith(("fix", "update", "wip", "tmp"))
-                and "." not in first_line[-5:]
-            )
+            # Enhanced scoring
+            score = 0
+            issues = []
+
+            # Check length
+            if 10 <= len(first_line) <= 72:
+                score += 1
+            elif len(first_line) < 10:
+                issues.append("메시지가 너무 짧습니다")
+            elif len(first_line) > 100:
+                issues.append("첫 줄이 너무 깁니다")
+
+            # Check for good patterns
+            import re
+            for pattern in good_patterns:
+                if re.match(pattern, first_line, re.IGNORECASE):
+                    score += 2
+                    break
+
+            # Check for poor patterns
+            for pattern in poor_patterns:
+                if re.match(pattern, first_line.lower()):
+                    score -= 2
+                    issues.append("모호하거나 임시 메시지입니다")
+                    break
+
+            # Check for body (explains why)
+            if len(lines) > 2 and len(lines[2].strip()) > 20:
+                score += 1
+
+            # Classify based on score
+            is_good = score >= 2
 
             if is_good:
                 good_count += 1
@@ -783,6 +939,7 @@ class LLMClient:
                     examples_good.append({
                         "message": first_line,
                         "sha": commit["sha"][:7],
+                        "reason": "적절한 길이와 형식을 갖추었습니다"
                     })
             else:
                 poor_count += 1
@@ -790,32 +947,79 @@ class LLMClient:
                     examples_poor.append({
                         "message": first_line,
                         "sha": commit["sha"][:7],
+                        "reason": ", ".join(issues) if issues else "개선이 필요합니다",
+                        "suggestion": "Conventional Commits 형식을 사용해보세요 (예: feat: 새 기능 추가)"
                     })
 
         return {
             "good_messages": good_count,
             "poor_messages": poor_count,
             "suggestions": [
-                "커밋 메시지의 첫 줄은 50자 이내로 작성하세요.",
-                "명령형 동사로 시작하세요 (예: Add, Fix, Update).",
-                "본문에 변경 이유를 상세히 설명하세요.",
+                "커밋 메시지의 첫 줄은 50-72자 이내로 작성하세요.",
+                "Conventional Commits 형식을 사용하세요: type(scope): subject",
+                "명령형 동사로 시작하세요 (Add, Fix, Update, Refactor 등).",
+                "본문에 변경 이유를 상세히 설명하세요 (무엇보다 왜가 중요).",
+                "이슈나 PR 번호를 참조하세요 (#123, closes #456 등).",
             ],
             "examples_good": examples_good,
             "examples_poor": examples_poor,
         }
 
     def _fallback_pr_title_analysis(self, prs: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Simple heuristic-based PR title analysis."""
+        """Enhanced heuristic-based PR title analysis."""
+        import re
+
         clear_count = 0
         vague_count = 0
         examples_good = []
         examples_poor = []
 
+        # Enhanced patterns
+        clear_patterns = [
+            r'^\[(feat|fix|docs|style|refactor|test|chore|perf|ci|build)\].+',  # [type] format
+            r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build):.+',  # type: format
+            r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve) .+',  # Imperative verb
+        ]
+
+        vague_keywords = [
+            'update', 'fix', 'change', 'modify', 'edit', 'misc', 'various',
+            'stuff', 'things', 'code', 'work'
+        ]
+
         for pr in prs:
             title = pr["title"].strip()
+            score = 0
+            reasons = []
 
-            # Simple heuristics
-            is_clear = len(title) > 15 and len(title) < 100
+            # Check length
+            if 15 <= len(title) <= 80:
+                score += 1
+            else:
+                if len(title) < 15:
+                    reasons.append("제목이 너무 짧습니다")
+                else:
+                    reasons.append("제목이 너무 깁니다")
+
+            # Check for clear patterns
+            has_clear_pattern = False
+            for pattern in clear_patterns:
+                if re.match(pattern, title, re.IGNORECASE):
+                    score += 2
+                    has_clear_pattern = True
+                    break
+
+            # Check for vague keywords (only first word)
+            first_word = title.split()[0].lower() if title.split() else ""
+            if first_word in vague_keywords and not has_clear_pattern:
+                score -= 1
+                reasons.append("너무 일반적인 단어로 시작합니다")
+
+            # Check for specificity (has specific terms, not just generic words)
+            if len(title.split()) >= 4:  # At least 4 words
+                score += 1
+
+            # Classify
+            is_clear = score >= 2
 
             if is_clear:
                 clear_count += 1
@@ -823,6 +1027,8 @@ class LLMClient:
                     examples_good.append({
                         "number": pr["number"],
                         "title": title,
+                        "reason": "명확하고 설명적인 제목입니다",
+                        "score": min(10, score * 3)
                     })
             else:
                 vague_count += 1
@@ -830,15 +1036,19 @@ class LLMClient:
                     examples_poor.append({
                         "number": pr["number"],
                         "title": title,
+                        "reason": ", ".join(reasons) if reasons else "제목이 모호합니다",
+                        "suggestion": f"[{first_word if first_word in ['feat', 'fix', 'docs'] else 'feat'}] {title if len(title) > 10 else title + ' - 구체적인 변경 내용 설명'}"
                     })
 
         return {
             "clear_titles": clear_count,
             "vague_titles": vague_count,
             "suggestions": [
-                "PR 제목은 변경 사항을 명확하게 설명하세요.",
-                "너무 짧거나 모호한 제목은 피하세요.",
-                "일관된 형식을 사용하세요 (예: [타입] 설명).",
+                "PR 제목은 15-80자 사이로 작성하세요.",
+                "타입을 명시하세요: [feat], [fix], [docs], [refactor] 등.",
+                "'update', 'fix' 같은 일반적 단어만 사용하지 말고 구체적으로 설명하세요.",
+                "명령형 동사로 시작하세요: Add, Fix, Implement, Refactor 등.",
+                "변경의 범위와 영향을 제목에 포함하세요.",
             ],
             "examples_good": examples_good,
             "examples_poor": examples_poor,
@@ -866,7 +1076,9 @@ class LLMClient:
         }
 
     def _fallback_issue_analysis(self, issues: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Simple heuristic-based issue quality analysis."""
+        """Enhanced heuristic-based issue quality analysis."""
+        import re
+
         well_described = 0
         poorly_described = 0
         examples_good = []
@@ -874,36 +1086,105 @@ class LLMClient:
 
         for issue in issues:
             body = issue.get("body", "").strip()
+            title = issue.get("title", "").strip()
+            score = 0
+            strengths = []
+            missing = []
 
-            # Simple heuristics
-            is_good = len(body) > 100
+            # Check body length
+            if len(body) > 200:
+                score += 2
+                strengths.append("상세한 설명")
+            elif len(body) > 100:
+                score += 1
+            else:
+                missing.append("본문이 너무 짧습니다")
+
+            # Check for structured information
+            if re.search(r'(steps to reproduce|재현 단계|how to reproduce)', body, re.IGNORECASE):
+                score += 2
+                strengths.append("재현 단계 포함")
+
+            if re.search(r'(expected|actual|예상|실제)', body, re.IGNORECASE):
+                score += 1
+                strengths.append("예상/실제 결과 비교")
+
+            if re.search(r'(environment|version|os|browser|환경)', body, re.IGNORECASE):
+                score += 1
+                strengths.append("환경 정보 포함")
+
+            if re.search(r'(screenshot|image|!\\[|스크린샷)', body, re.IGNORECASE):
+                score += 1
+                strengths.append("스크린샷/이미지 첨부")
+
+            # Check for code blocks
+            if '```' in body or '`' in body:
+                score += 1
+                strengths.append("코드 예시 포함")
+
+            # Check for links/references
+            if re.search(r'(#\\d+|http|related|참고)', body, re.IGNORECASE):
+                score += 1
+
+            # Detect common missing elements
+            if score < 3:
+                if not re.search(r'(steps|재현|how to)', body, re.IGNORECASE):
+                    missing.append("재현 단계")
+                if not re.search(r'(expected|actual|예상|실제)', body, re.IGNORECASE):
+                    missing.append("예상/실제 결과")
+                if not re.search(r'(environment|version|환경)', body, re.IGNORECASE):
+                    missing.append("환경 정보")
+
+            # Classify
+            is_good = score >= 4
 
             if is_good:
                 well_described += 1
                 if len(examples_good) < 3:
                     examples_good.append({
                         "number": issue["number"],
-                        "title": issue["title"],
+                        "title": title,
+                        "type": self._detect_issue_type(title, body),
+                        "strengths": strengths[:3],  # Top 3 strengths
+                        "completeness_score": min(10, score)
                     })
             else:
                 poorly_described += 1
                 if len(examples_poor) < 3:
                     examples_poor.append({
                         "number": issue["number"],
-                        "title": issue["title"],
+                        "title": title,
+                        "missing_elements": missing,
+                        "suggestion": "이슈 템플릿을 사용하거나 재현 단계, 예상/실제 결과, 환경 정보를 추가하세요."
                     })
 
         return {
             "well_described": well_described,
             "poorly_described": poorly_described,
             "suggestions": [
-                "이슈 본문에 상세한 설명을 포함하세요.",
-                "재현 단계를 명확히 작성하세요.",
-                "예상 결과와 실제 결과를 비교하세요.",
+                "이슈 본문에 상세한 설명을 포함하세요 (최소 100자 이상).",
+                "Bug Report: 재현 단계, 예상 결과, 실제 결과, 환경 정보를 포함하세요.",
+                "Feature Request: 해결하려는 문제, 제안하는 솔루션, 사용 시나리오를 설명하세요.",
+                "코드 블록(```)이나 스크린샷을 활용하여 시각적으로 설명하세요.",
+                "관련 이슈나 PR을 참조하세요 (#123 형식).",
             ],
             "examples_good": examples_good,
             "examples_poor": examples_poor,
         }
+
+    def _detect_issue_type(self, title: str, body: str) -> str:
+        """Detect issue type from title and body."""
+        import re
+        text = (title + " " + body).lower()
+
+        if re.search(r'\b(bug|error|crash|fail|broken|issue)\b', text):
+            return "bug"
+        elif re.search(r'\b(feature|enhancement|improve|add|request)\b', text):
+            return "feature"
+        elif re.search(r'\b(question|how|why|documentation|docs)\b', text):
+            return "question"
+        else:
+            return "other"
 
 
 __all__ = ["LLMClient"]
