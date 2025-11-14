@@ -18,14 +18,6 @@ class ConfigurationError(GHFError):
     pass
 
 
-class InvalidConfigurationError(ConfigurationError):
-    """Raised when configuration validation fails."""
-    pass
-
-
-class MissingConfigurationError(ConfigurationError):
-    """Raised when required configuration is missing."""
-    pass
 
 
 # =============================================================================
@@ -38,14 +30,6 @@ class AuthenticationError(GHFError):
     pass
 
 
-class InvalidPATError(AuthenticationError):
-    """Raised when the GitHub Personal Access Token is invalid."""
-    pass
-
-
-class InsufficientPermissionsError(AuthenticationError):
-    """Raised when the PAT lacks required permissions."""
-    pass
 
 
 # =============================================================================
@@ -72,28 +56,6 @@ class CollectionTimeoutError(CollectionError):
     pass
 
 
-class APIRateLimitError(CollectionError):
-    """Raised when GitHub API rate limit is exceeded."""
-
-    def __init__(self, message: str, reset_at: int | None = None):
-        """Initialize rate limit error.
-
-        Args:
-            message: Error message
-            reset_at: Unix timestamp when rate limit resets
-        """
-        super().__init__(message)
-        self.reset_at = reset_at
-
-
-class RepositoryNotFoundError(CollectionError):
-    """Raised when the requested repository doesn't exist or is inaccessible."""
-    pass
-
-
-class RepositoryAccessDeniedError(CollectionError):
-    """Raised when access to the repository is denied."""
-    pass
 
 
 class ApiError(CollectionError):
@@ -144,9 +106,6 @@ class LLMTimeoutError(LLMAnalysisError):
     pass
 
 
-class MetricsComputationError(AnalysisError):
-    """Raised when metrics computation fails."""
-    pass
 
 
 # =============================================================================
@@ -159,9 +118,6 @@ class ReportGenerationError(GHFError):
     pass
 
 
-class MarkdownGenerationError(ReportGenerationError):
-    """Raised when markdown report generation fails."""
-    pass
 
 
 # =============================================================================
@@ -174,61 +130,5 @@ class ValidationError(GHFError):
     pass
 
 
-class InvalidRepositoryFormatError(ValidationError):
-    """Raised when repository format is invalid."""
-    pass
 
 
-class InvalidURLError(ValidationError):
-    """Raised when URL validation fails."""
-    pass
-
-
-class InvalidMonthsError(ValidationError):
-    """Raised when months value is invalid."""
-    pass
-
-
-# =============================================================================
-# Network Errors
-# =============================================================================
-
-
-class NetworkError(GHFError):
-    """Base exception for network-related errors."""
-    pass
-
-
-class ConnectionError(NetworkError):
-    """Raised when network connection fails."""
-    pass
-
-
-class RequestTimeoutError(NetworkError):
-    """Raised when network request times out."""
-    pass
-
-
-# =============================================================================
-# File System Errors
-# =============================================================================
-
-
-class FileSystemError(GHFError):
-    """Base exception for file system errors."""
-    pass
-
-
-class OutputDirectoryError(FileSystemError):
-    """Raised when output directory operations fail."""
-    pass
-
-
-class FileWriteError(FileSystemError):
-    """Raised when file write operations fail."""
-    pass
-
-
-class FileReadError(FileSystemError):
-    """Raised when file read operations fail."""
-    pass

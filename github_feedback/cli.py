@@ -1108,11 +1108,6 @@ def _generate_artifacts(
         markdown_path = reporter.generate_markdown(metrics)
         artifacts.append(("Markdown report", markdown_path))
 
-    # Skip prompt packet generation (prompts folder no longer needed)
-    # prompt_artifacts = reporter.generate_prompt_packets(metrics)
-    # for prompt_request, prompt_path in prompt_artifacts:
-    #     artifacts.append((f"Prompt • {prompt_request.title}", prompt_path))
-
     return artifacts, brief_content
 
 
