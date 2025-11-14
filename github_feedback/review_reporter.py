@@ -1,5 +1,4 @@
 """Aggregate pull request reviews into an integrated annual report."""
-
 from __future__ import annotations
 
 import json
@@ -7,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List
+
+import re
 
 from .console import Console
 from .llm import LLMClient
@@ -17,6 +18,8 @@ from .models import (
     ReviewPoint,
     StrengthPoint,
 )
+
+PR_NUMBER_PATTERN = re.compile(r"PR #(\d+)")
 
 console = Console()
 
@@ -359,156 +362,175 @@ class ReviewReporter:
             lines.append("")
             lines.append(analysis.overall_assessment)
             lines.append("")
-            lines.append("---")
-            lines.append("")
+            self._append_section_separator(lines)
 
-        # Create PR number to review mapping for link lookup
         pr_map = {review.number: review for review in reviews}
 
-        def extract_pr_number(evidence: str) -> int | None:
-            """Extract PR number from evidence string like 'PR #123: description'"""
-            import re
-            match = re.search(r'PR #(\d+)', evidence)
-            return int(match.group(1)) if match else None
+        lines.extend(self._render_strengths_section(analysis, pr_map))
+        self._append_section_separator(lines)
 
-        # Strengths section
+        lines.extend(self._render_improvements_section(analysis, pr_map))
+        self._append_section_separator(lines)
+
+        lines.extend(self._render_growth_section(analysis))
+        self._append_section_separator(lines)
+
+        lines.extend(self._render_optional_list_section("### 🏆 주요 성과", analysis.key_achievements))
+
+        if analysis.key_achievements:
+            self._append_section_separator(lines)
+
+        lines.extend(self._render_optional_list_section("### 🎯 다음 집중 영역", analysis.next_focus_areas))
+
+        if analysis.next_focus_areas:
+            self._append_section_separator(lines)
+
+        return lines
+
+    @staticmethod
+    def _append_section_separator(lines: List[str]) -> None:
+        lines.append("---")
+        lines.append("")
+
+    @staticmethod
+    def _extract_pr_number(evidence: str) -> int | None:
+        match = PR_NUMBER_PATTERN.search(evidence)
+        return int(match.group(1)) if match else None
+
+    @staticmethod
+    def _build_links(evidences: Iterable[str] | None, pr_map: dict[int, StoredReview]) -> str:
+        links: List[str] = []
+        if not evidences:
+            return "-"
+
+        for evidence in evidences:
+            pr_num = ReviewReporter._extract_pr_number(evidence)
+            if pr_num is None:
+                continue
+            review = pr_map.get(pr_num)
+            if review and review.html_url:
+                links.append(f"[PR #{pr_num}]({review.html_url})")
+
+        return "<br>".join(links) if links else "-"
+
+    def _render_strengths_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        lines: List[str] = []
         lines.append("### ✨ 장점 (구체적 근거)")
         lines.append("")
-        if analysis.strengths:
-            lines.append("| 장점 | 근거/내용 | 링크 |")
-            lines.append("|------|-----------|------|")
-            for strength in analysis.strengths:
-                impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(
-                    strength.impact, "⭐"
-                )
-                category = f"**{strength.category}** {impact_emoji}"
 
-                # Combine description and evidence
-                content_parts = [strength.description]
-                if strength.evidence:
-                    content_parts.append("<br>**구체적 근거:**")
-                    for evidence in strength.evidence:
-                        content_parts.append(f"• {evidence}")
-                content = "<br>".join(content_parts)
-
-                # Extract links from evidence
-                links = []
-                if strength.evidence:
-                    for evidence in strength.evidence:
-                        pr_num = extract_pr_number(evidence)
-                        if pr_num and pr_num in pr_map:
-                            review = pr_map[pr_num]
-                            if review.html_url:
-                                links.append(f"[PR #{pr_num}]({review.html_url})")
-
-                link_cell = "<br>".join(links) if links else "-"
-                lines.append(f"| {category} | {content} | {link_cell} |")
-            lines.append("")
-        else:
+        if not analysis.strengths:
             lines.append("분석된 장점이 없습니다.")
             lines.append("")
+            return lines
 
-        lines.append("---")
+        lines.append("| 장점 | 근거/내용 | 링크 |")
+        lines.append("|------|-----------|------|")
+
+        for strength in analysis.strengths:
+            impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(
+                strength.impact, "⭐"
+            )
+            category = f"**{strength.category}** {impact_emoji}"
+
+            content_parts = [strength.description]
+            if strength.evidence:
+                content_parts.append("<br>**구체적 근거:**")
+                for evidence in strength.evidence:
+                    content_parts.append(f"• {evidence}")
+            content = "<br>".join(content_parts)
+
+            link_cell = self._build_links(strength.evidence, pr_map)
+            lines.append(f"| {category} | {content} | {link_cell} |")
+
         lines.append("")
+        return lines
 
-        # Improvement areas section
+    def _render_improvements_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        lines: List[str] = []
         lines.append("### 💡 보완점 (실행 가능한 제안)")
         lines.append("")
-        if analysis.improvement_areas:
-            # Sort by priority
-            priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
-            sorted_improvements = sorted(
-                analysis.improvement_areas,
-                key=lambda x: priority_order.get(x.priority, 1),
-            )
 
-            lines.append("| 개선점 | 근거/내용 | 링크 |")
-            lines.append("|--------|-----------|------|")
-            for area in sorted_improvements:
-                priority_emoji = {
-                    "critical": "🚨",
-                    "important": "⚠️",
-                    "nice-to-have": "💭",
-                }.get(area.priority, "⚠️")
-                category = f"**{area.category}** {priority_emoji}"
-
-                # Combine description, evidence, and suggestions
-                content_parts = [area.description]
-                if area.evidence:
-                    content_parts.append("<br>**구체적 예시:**")
-                    for evidence in area.evidence:
-                        content_parts.append(f"• {evidence}")
-                if area.suggestions:
-                    content_parts.append("<br>**개선 제안:**")
-                    for suggestion in area.suggestions:
-                        content_parts.append(f"• {suggestion}")
-                content = "<br>".join(content_parts)
-
-                # Extract links from evidence
-                links = []
-                if area.evidence:
-                    for evidence in area.evidence:
-                        pr_num = extract_pr_number(evidence)
-                        if pr_num and pr_num in pr_map:
-                            review = pr_map[pr_num]
-                            if review.html_url:
-                                links.append(f"[PR #{pr_num}]({review.html_url})")
-
-                link_cell = "<br>".join(links) if links else "-"
-                lines.append(f"| {category} | {content} | {link_cell} |")
-            lines.append("")
-        else:
+        if not analysis.improvement_areas:
             lines.append("분석된 보완점이 없습니다.")
             lines.append("")
+            return lines
 
-        lines.append("---")
+        priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
+        sorted_improvements = sorted(
+            analysis.improvement_areas,
+            key=lambda area: priority_order.get(area.priority, 1),
+        )
+
+        lines.append("| 개선점 | 근거/내용 | 링크 |")
+        lines.append("|--------|-----------|------|")
+
+        for area in sorted_improvements:
+            priority_emoji = {
+                "critical": "🚨",
+                "important": "⚠️",
+                "nice-to-have": "💭",
+            }.get(area.priority, "⚠️")
+            category = f"**{area.category}** {priority_emoji}"
+
+            content_parts = [area.description]
+            if area.evidence:
+                content_parts.append("<br>**구체적 예시:**")
+                for evidence in area.evidence:
+                    content_parts.append(f"• {evidence}")
+            if area.suggestions:
+                content_parts.append("<br>**개선 제안:**")
+                for suggestion in area.suggestions:
+                    content_parts.append(f"• {suggestion}")
+            content = "<br>".join(content_parts)
+
+            link_cell = self._build_links(area.evidence, pr_map)
+            lines.append(f"| {category} | {content} | {link_cell} |")
+
         lines.append("")
+        return lines
 
-        # Growth indicators section
+    @staticmethod
+    def _render_growth_section(analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        lines: List[str] = []
         lines.append("### 🌱 성장한 점 (시간에 따른 변화)")
         lines.append("")
-        if analysis.growth_indicators:
-            for i, growth in enumerate(analysis.growth_indicators, 1):
-                lines.append(f"{i}. **{growth.aspect}**")
-                lines.append(f"   - {growth.description}")
-                if growth.before_examples:
-                    lines.append("   - **초기 단계:**")
-                    for example in growth.before_examples:
-                        lines.append(f"     - {example}")
-                if growth.after_examples:
-                    lines.append("   - **현재 단계:**")
-                    for example in growth.after_examples:
-                        lines.append(f"     - {example}")
-                if growth.progress_summary:
-                    lines.append(f"   - **성장 요약:** {growth.progress_summary}")
-                lines.append("")
-        else:
+
+        if not analysis.growth_indicators:
             lines.append("- 분석된 성장 지표가 없습니다.")
             lines.append("")
+            return lines
 
-        lines.append("---")
+        for i, growth in enumerate(analysis.growth_indicators, 1):
+            lines.append(f"{i}. **{growth.aspect}**")
+            lines.append(f"   - {growth.description}")
+            if growth.before_examples:
+                lines.append("   - **초기 단계:**")
+                for example in growth.before_examples:
+                    lines.append(f"     - {example}")
+            if growth.after_examples:
+                lines.append("   - **현재 단계:**")
+                for example in growth.after_examples:
+                    lines.append(f"     - {example}")
+            if growth.progress_summary:
+                lines.append(f"   - **성장 요약:** {growth.progress_summary}")
+            lines.append("")
+
+        return lines
+
+    @staticmethod
+    def _render_optional_list_section(title: str, items: Iterable[str]) -> List[str]:
+        items = list(items)
+        if not items:
+            return []
+
+        lines = [title, ""]
+        for item in items:
+            lines.append(f"- {item}")
         lines.append("")
-
-        # Key achievements
-        if analysis.key_achievements:
-            lines.append("### 🏆 주요 성과")
-            lines.append("")
-            for achievement in analysis.key_achievements:
-                lines.append(f"- {achievement}")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-
-        # Next focus areas
-        if analysis.next_focus_areas:
-            lines.append("### 🎯 다음 집중 영역")
-            lines.append("")
-            for area in analysis.next_focus_areas:
-                lines.append(f"- {area}")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-
         return lines
 
     def _fallback_report(self, repo: str, reviews: List[StoredReview]) -> str:
