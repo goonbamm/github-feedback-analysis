@@ -153,8 +153,25 @@ def _get_cache_key(data: Any) -> str:
 
 
 def _get_cache_path(cache_key: str) -> Path:
-    """Get the file path for a cache key."""
-    LLM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    """Get the file path for a cache key.
+
+    Args:
+        cache_key: Cache key hash
+
+    Returns:
+        Path to cache file
+
+    Raises:
+        OSError: If cache directory creation fails
+    """
+    try:
+        LLM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except PermissionError as exc:
+        logger.warning(f"Permission denied creating cache directory: {exc}")
+        raise
+    except OSError as exc:
+        logger.warning(f"Failed to create cache directory: {exc}")
+        raise
     return LLM_CACHE_DIR / f"{cache_key}.json"
 
 
@@ -190,8 +207,20 @@ def _load_from_cache(cache_key: str, max_age_days: int = DEFAULT_CACHE_EXPIRE_DA
 
 
 def _save_to_cache(cache_key: str, response: str) -> None:
-    """Save LLM response to cache."""
-    cache_path = _get_cache_path(cache_key)
+    """Save LLM response to cache.
+
+    Args:
+        cache_key: Cache key hash
+        response: LLM response to cache
+
+    Note:
+        Errors are logged but not raised to avoid disrupting the main workflow
+    """
+    try:
+        cache_path = _get_cache_path(cache_key)
+    except OSError as exc:
+        logger.warning(f"Failed to get cache path: {exc}")
+        return
 
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
@@ -205,8 +234,15 @@ def _save_to_cache(cache_key: str, response: str) -> None:
                 indent=2,
             )
         logger.debug("Saved response to cache")
-    except (IOError, PermissionError) as exc:
-        logger.warning(f"Failed to save cache: {exc}")
+    except PermissionError as exc:
+        logger.warning(f"Permission denied writing cache file: {exc}")
+    except OSError as exc:
+        if exc.errno == 28:  # ENOSPC - No space left on device
+            logger.warning(f"No space left on device for cache: {exc}")
+        else:
+            logger.warning(f"Failed to save cache: {exc}")
+    except (TypeError, ValueError) as exc:
+        logger.warning(f"Failed to serialize cache data: {exc}")
 
 
 @dataclass(frozen=True, slots=True)

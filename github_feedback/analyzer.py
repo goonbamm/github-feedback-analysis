@@ -103,6 +103,33 @@ class InsightExtractor:
         return [pr for pr in prs if any(kw in pr.title.lower() for kw in keywords)]
 
     @staticmethod
+    def categorize_prs_by_keywords(prs: list, keyword_groups: dict[str, list[str]]) -> dict[str, list]:
+        """Categorize pull requests by multiple keyword groups in a single pass.
+
+        This is more efficient than calling filter_prs_by_keywords multiple times
+        as it only iterates through the PRs once.
+
+        Args:
+            prs: List of pull requests to categorize
+            keyword_groups: Dictionary mapping category names to keyword lists
+                Example: {'doc': ['doc', 'readme'], 'test': ['test']}
+
+        Returns:
+            Dictionary mapping category names to filtered PR lists
+        """
+        # Initialize result dictionary with empty lists
+        result = {category: [] for category in keyword_groups}
+
+        # Single pass through all PRs
+        for pr in prs:
+            pr_title_lower = pr.title.lower()
+            for category, keywords in keyword_groups.items():
+                if any(kw in pr_title_lower for kw in keywords):
+                    result[category].append(pr)
+
+        return result
+
+    @staticmethod
     def extract_keyword_based_insight(
         prs: list,
         keywords: list[str],
@@ -918,18 +945,21 @@ class Analyzer:
             )
 
         if collection.pull_request_examples:
-            doc_prs = InsightExtractor.filter_prs_by_keywords(
-                collection.pull_request_examples, ['doc', 'readme', '문서']
+            # Optimize: filter PRs in a single pass to avoid multiple iterations
+            pr_categories = InsightExtractor.categorize_prs_by_keywords(
+                collection.pull_request_examples,
+                {
+                    'doc': ['doc', 'readme', '문서'],
+                    'test': ['test', '테스트']
+                }
             )
-            if len(doc_prs) < ACTIVITY_THRESHOLDS['moderate_doc_prs']:
+
+            if len(pr_categories['doc']) < ACTIVITY_THRESHOLDS['moderate_doc_prs']:
                 goals.append(
                     "문서화에 더 신경써서 프로젝트의 접근성과 유지보수성 향상하기"
                 )
 
-            test_prs = InsightExtractor.filter_prs_by_keywords(
-                collection.pull_request_examples, ['test', '테스트']
-            )
-            if len(test_prs) < ACTIVITY_THRESHOLDS['moderate_test_prs']:
+            if len(pr_categories['test']) < ACTIVITY_THRESHOLDS['moderate_test_prs']:
                 goals.append(
                     "테스트 커버리지를 높여 코드의 안정성과 신뢰도 강화하기"
                 )
