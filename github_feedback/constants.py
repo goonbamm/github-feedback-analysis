@@ -441,6 +441,7 @@ TABLE_CONFIG = {
     'index_width': 3,
     'activity_style': 'success',
     'description_max_length': 50,
+    'description_max_length_with_rank': 45,  # Shorter for tables with rank column
 }
 
 # =============================================================================

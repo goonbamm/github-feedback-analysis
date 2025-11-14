@@ -65,6 +65,7 @@ from .models import (
     MetricSnapshot,
 )
 from .reporter import Reporter
+from .repository_display import create_repository_table, format_relative_date
 from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
 from .utils import validate_pat_format, validate_url, validate_repo_format, validate_months
@@ -95,40 +96,6 @@ def handle_user_interruption(message: str = "Operation cancelled by user."):
     except (typer.Abort, KeyboardInterrupt, EOFError):
         console.print(f"\n[warning]{message}[/]")
         raise typer.Exit(code=0)
-
-
-def _format_relative_date(date_str: str) -> str:
-    """Format ISO date string as relative time.
-
-    Args:
-        date_str: ISO format date string (e.g., "2024-01-15T10:30:00Z")
-
-    Returns:
-        Human-readable relative time string (e.g., "2d ago", "1mo ago")
-        Returns "unknown" if parsing fails
-    """
-    if not date_str:
-        return ""
-
-    try:
-        from datetime import datetime
-
-        updated_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        updated_dt = updated_dt.replace(tzinfo=None)
-        days_ago = (datetime.now() - updated_dt).days
-
-        if days_ago == 0:
-            return "today"
-        elif days_ago == 1:
-            return "yesterday"
-        elif days_ago < DAYS_PER_MONTH_APPROX:
-            return f"{days_ago}d ago"
-        elif days_ago < DAYS_PER_YEAR:
-            return f"{days_ago // DAYS_PER_MONTH_APPROX}mo ago"
-        else:
-            return f"{days_ago // DAYS_PER_YEAR}y ago"
-    except (ValueError, AttributeError):
-        return "unknown"
 
 
 def _validate_collected_data(data: Optional[List], data_type: str) -> List:
@@ -356,7 +323,7 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
         except KeyboardInterrupt:
             raise
         except (requests.RequestException, ValueError) as exc:
-            console.print(f"[danger]Error fetching suggestions:[/] {exc}")
+            console.print_error(exc, "Error fetching suggestions:")
             return None
 
     if not suggestions:
@@ -623,7 +590,7 @@ def init(
         validate_months(months)
         validate_url(llm_endpoint, "LLM endpoint")
     except ValueError as exc:
-        console.print(f"[danger]Validation error:[/] {exc}")
+        console.print_validation_error(str(exc))
         raise typer.Exit(code=1) from exc
 
     host_input = (enterprise_host or "").strip()
@@ -635,7 +602,7 @@ def init(
             validate_url(host_input, "Enterprise host")
             host = host_input.rstrip("/")
         except ValueError as exc:
-            console.print(f"[danger]Validation error:[/] {exc}")
+            console.print_validation_error(str(exc))
             raise typer.Exit(code=1) from exc
 
         api_url = f"{host}/api/v3"
@@ -1212,7 +1179,7 @@ def _run_feedback_analysis(
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         return None, []
 
     llm_client = LLMClient(
@@ -1698,7 +1665,7 @@ def feedback(
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         console.print("[info]Hint:[/] Check your GitHub token with [accent]gfa show-config[/]")
         raise typer.Exit(code=1) from exc
 
@@ -1715,7 +1682,7 @@ def feedback(
     try:
         validate_repo_format(repo_input)
     except ValueError as exc:
-        console.print(f"[danger]Validation error:[/] {exc}")
+        console.print_validation_error(str(exc))
         console.print("[info]Example:[/] [accent]gfa feedback --repo torvalds/linux[/]")
         raise typer.Exit(code=1) from exc
 
@@ -1921,7 +1888,7 @@ def config_set(
         config.dump()
         console.print(f"[success]✓ Configuration updated:[/] {key} = {value}")
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         raise typer.Exit(code=1) from exc
 
 
@@ -1940,7 +1907,7 @@ def config_get(
         value = config.get_value(key)
         console.print(f"{key} = {value}")
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         raise typer.Exit(code=1) from exc
 
 
@@ -1988,7 +1955,7 @@ def config_hosts(
             try:
                 validate_url(host, "Enterprise host")
             except ValueError as exc:
-                console.print(f"[danger]Validation error:[/] {exc}")
+                console.print_validation_error(str(exc))
                 raise typer.Exit(code=1) from exc
 
             host = host.rstrip("/")
@@ -2020,12 +1987,12 @@ def config_hosts(
                 console.print("[info]Use 'gfa config hosts list' to see saved hosts[/]")
 
         else:
-            console.print(f"[danger]Error:[/] Unknown action '{action}'")
+            console.print_error(f"Unknown action '{action}'")
             console.print("[info]Valid actions:[/] list, add, remove")
             raise typer.Exit(code=1)
 
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         raise typer.Exit(code=1) from exc
 
 
@@ -2066,7 +2033,7 @@ def list_repos(
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         raise typer.Exit(code=1) from exc
 
     with console.status("[accent]Fetching repositories...", spinner="bouncingBar"):
@@ -2084,44 +2051,14 @@ def list_repos(
     # Limit the results
     repos = repos[:limit]
 
-    # Create a rich table
-    if Table:
-        table = Table(
-            title=f"{'Organization' if org else 'Your'} Repositories",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-        )
-
-        table.add_column("Repository", style="cyan", no_wrap=True)
-        table.add_column("Description", style="dim")
-        table.add_column("Stars", justify="right", style="warning")
-        table.add_column("Forks", justify="right", style="success")
-        table.add_column("Updated", justify="right", style="dim")
-
-        for repo in repos:
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            if len(description) > 50:
-                description = description[:47] + "..."
-
-            stars = str(repo.get("stargazers_count", 0))
-            forks = str(repo.get("forks_count", 0))
-
-            # Format updated date
-            updated_at = repo.get("updated_at", "")
-            updated_str = _format_relative_date(updated_at)
-
-            table.add_row(full_name, description, stars, forks, updated_str)
-
-        console.print(table)
-    else:
-        # Fallback if rich is not available
-        for i, repo in enumerate(repos, 1):
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            stars = repo.get("stargazers_count", 0)
-            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
+    # Display repositories using helper function
+    create_repository_table(
+        repos=repos,
+        title=f"{'Organization' if org else 'Your'} Repositories",
+        include_rank=False,
+        include_activity=False,
+        console=console,
+    )
 
 
 @app.command(name="suggest-repos")
@@ -2161,7 +2098,7 @@ def suggest_repos(
     try:
         collector = Collector(config)
     except ValueError as exc:
-        console.print(f"[danger]Error:[/] {exc}")
+        console.print_error(exc)
         raise typer.Exit(code=1) from exc
 
     with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
@@ -2176,53 +2113,18 @@ def suggest_repos(
         )
         raise typer.Exit(code=0)
 
-    # Create a rich table
-    if Table:
-        table = Table(
-            title="Suggested Repositories for Analysis",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-        )
-
-        table.add_column("Rank", justify="right", style="dim", width=4)
-        table.add_column("Repository", style="cyan", no_wrap=True)
-        table.add_column("Description", style="dim")
-        table.add_column("Activity", justify="right", style="success")
-        table.add_column("Updated", justify="right", style="warning")
-
-        for i, repo in enumerate(suggestions, 1):
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            if len(description) > 45:
-                description = description[:42] + "..."
-
-            # Activity indicator
-            stars = repo.get("stargazers_count", 0)
-            forks = repo.get("forks_count", 0)
-            issues = repo.get("open_issues_count", 0)
-            activity = f"⭐{stars} 🍴{forks} 📋{issues}"
-
-            # Format updated date
-            updated_at = repo.get("updated_at", "")
-            updated_str = _format_relative_date(updated_at)
-
-            rank_str = f"#{i}"
-            table.add_row(rank_str, full_name, description, activity, updated_str)
-
-        console.print(table)
-        console.print()
-        console.print(
-            "[info]To analyze a repository, use:[/] [accent]gfa feedback --repo <owner/name>[/]"
-        )
-    else:
-        # Fallback if rich is not available
-        console.print("Suggested Repositories for Analysis:\n")
-        for i, repo in enumerate(suggestions, 1):
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            stars = repo.get("stargazers_count", 0)
-            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
+    # Display repository suggestions using helper function
+    create_repository_table(
+        repos=suggestions,
+        title="Suggested Repositories for Analysis",
+        include_rank=True,
+        include_activity=True,
+        console=console,
+    )
+    console.print_section_separator()
+    console.print(
+        "[info]To analyze a repository, use:[/] [accent]gfa feedback --repo <owner/name>[/]"
+    )
 
 
 # Keep show-config as a deprecated alias for backward compatibility

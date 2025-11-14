@@ -68,6 +68,46 @@ try:  # pragma: no cover - exercised implicitly
             if self._verbose and not self._quiet:
                 super().log(*args, **kwargs)
 
+        def print_error(self, error: Exception | str, context: str = "") -> None:
+            """Print error message with consistent formatting.
+
+            Args:
+                error: Exception instance or error message string
+                context: Optional context prefix (e.g., "Validation error:", "Error fetching suggestions:")
+            """
+            if context:
+                self.print(f"[danger]{context}[/] {error}")
+            else:
+                self.print(f"[danger]Error:[/] {error}")
+
+        def print_validation_error(self, message: str) -> None:
+            """Print validation error with consistent formatting.
+
+            Args:
+                message: Validation error message
+            """
+            self.print(f"[danger]Validation error:[/] {message}")
+
+        def print_section_separator(self) -> None:
+            """Print empty line for visual separation between sections."""
+            self.print()
+
+        def print_success(self, message: str) -> None:
+            """Print success message with consistent formatting.
+
+            Args:
+                message: Success message
+            """
+            self.print(f"[success]{message}[/]")
+
+        def print_warning(self, message: str) -> None:
+            """Print warning message with consistent formatting.
+
+            Args:
+                message: Warning message
+            """
+            self.print(f"[warning]{message}[/]")
+
 except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envs
     class Console:  # type: ignore[override]
         """Minimal stand-in for :class:`rich.console.Console`."""
@@ -96,6 +136,29 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envs
                 print(f"{line} {title} {line}")
             else:
                 print(line)
+
+        def print_error(self, error: Any, context: str = "") -> None:
+            """Print error message (fallback implementation)."""
+            if context:
+                self.print(f"{context} {error}")
+            else:
+                self.print(f"Error: {error}")
+
+        def print_validation_error(self, message: str) -> None:
+            """Print validation error (fallback implementation)."""
+            self.print(f"Validation error: {message}")
+
+        def print_section_separator(self) -> None:
+            """Print empty line for visual separation (fallback implementation)."""
+            self.print()
+
+        def print_success(self, message: str) -> None:
+            """Print success message (fallback implementation)."""
+            self.print(message)
+
+        def print_warning(self, message: str) -> None:
+            """Print warning message (fallback implementation)."""
+            self.print(message)
 
 
 __all__ = ["Console"]
