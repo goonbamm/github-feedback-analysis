@@ -47,7 +47,7 @@ class ReviewCollector(BaseCollector):
         for pr in pull_requests:
             if not self.pr_matches_branch_filters(pr, filters):
                 continue
-            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+            if not self.pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
             valid_prs.append(pr)
 
@@ -72,7 +72,7 @@ class ReviewCollector(BaseCollector):
                     if submitted_dt < since:
                         continue
                 author = review.get("user")
-                if self.filter_bot(author, filters):
+                if self.filter_helper.filter_bot(author, filters):
                     continue
                 count += 1
 
@@ -183,7 +183,7 @@ class ReviewCollector(BaseCollector):
                         continue
 
                     review_author = review.get("user")
-                    if self.filter_bot(review_author, filters):
+                    if self.filter_helper.filter_bot(review_author, filters):
                         continue
 
                     review_comments.append(
@@ -216,41 +216,3 @@ class ReviewCollector(BaseCollector):
         if not username:
             raise ValueError("Failed to retrieve authenticated user from PAT")
         return username
-
-    def _pr_matches_file_filters(
-        self,
-        repo: str,
-        pr: Dict[str, Any],
-        filters: AnalysisFilters,
-        cache: Dict[int, List[Dict[str, Any]]],
-    ) -> bool:
-        """Check if PR matches file filters (reused from PR collector logic).
-
-        Args:
-            repo: Repository name
-            pr: Pull request object
-            filters: Analysis filters
-            cache: File cache to avoid redundant API calls
-
-        Returns:
-            True if PR matches filters
-        """
-        # Early exit if no file filters are specified
-        if not (
-            filters.include_paths
-            or filters.exclude_paths
-            or filters.include_languages
-        ):
-            return True
-
-        # Get PR files from cache or fetch from API
-        number = int(pr.get("number", 0))
-        files = cache.get(number)
-        if files is None:
-            files = self.api_client.request_all(
-                f"repos/{repo}/pulls/{number}/files", build_pagination_params()
-            )
-            cache[number] = files
-
-        filenames = [entry.get("filename", "") for entry in files]
-        return self.apply_file_filters(filenames, filters)

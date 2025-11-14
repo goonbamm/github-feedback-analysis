@@ -74,7 +74,7 @@ class CommitCollector(BaseCollector):
 
                 for commit in commits_data:
                     commit_author = commit.get("author")
-                    if self.filter_bot(commit_author, filters):
+                    if self.filter_helper.filter_bot(commit_author, filters):
                         continue
 
                     sha = commit.get("sha")
@@ -175,7 +175,7 @@ class CommitCollector(BaseCollector):
                 seen_shas.add(sha)
 
                 author = item.get("author")
-                if self.filter_bot(author, filters):
+                if self.filter_helper.filter_bot(author, filters):
                     continue
 
                 commit_data = item.get("commit", {})

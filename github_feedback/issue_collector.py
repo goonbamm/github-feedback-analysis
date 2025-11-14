@@ -40,7 +40,7 @@ class IssueCollector(BaseCollector):
             if "pull_request" in issue:
                 continue
             author = issue.get("user")
-            if self.filter_bot(author, filters):
+            if self.filter_helper.filter_bot(author, filters):
                 continue
             if not self._issue_matches_filters(issue, filters):
                 continue
@@ -88,7 +88,7 @@ class IssueCollector(BaseCollector):
                 continue
 
             author = issue.get("user")
-            if self.filter_bot(author, filters):
+            if self.filter_helper.filter_bot(author, filters):
                 continue
 
             issues.append(

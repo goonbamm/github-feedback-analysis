@@ -64,11 +64,11 @@ class PullRequestCollector(BaseCollector):
         metadata: List[Dict[str, Any]] = []
         for pr in all_prs:
             author = pr.get("user")
-            if self.filter_bot(author, filters):
+            if self.filter_helper.filter_bot(author, filters):
                 continue
             if not self.pr_matches_branch_filters(pr, filters):
                 continue
-            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+            if not self.pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
             metadata.append(pr)
 
@@ -145,11 +145,11 @@ class PullRequestCollector(BaseCollector):
         for pr in prs_raw:
             # Apply filters
             author_obj = pr.get("user")
-            if self.filter_bot(author_obj, filters):
+            if self.filter_helper.filter_bot(author_obj, filters):
                 continue
             if not self.pr_matches_branch_filters(pr, filters):
                 continue
-            if not self._pr_matches_file_filters(repo, pr, filters, pr_file_cache):
+            if not self.pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
 
             metadata.append(pr)
@@ -247,7 +247,7 @@ class PullRequestCollector(BaseCollector):
                 continue
 
             user = item.get("user")
-            if self.filter_bot(user, filters):
+            if self.filter_helper.filter_bot(user, filters):
                 continue
 
             # For Issues API response, we need to fetch PR details for branch filters
@@ -385,41 +385,3 @@ class PullRequestCollector(BaseCollector):
             numbers.append(number)
 
         return numbers
-
-    def _pr_matches_file_filters(
-        self,
-        repo: str,
-        pr: Dict[str, Any],
-        filters: AnalysisFilters,
-        cache: Dict[int, List[Dict[str, Any]]],
-    ) -> bool:
-        """Check if PR matches file filters.
-
-        Args:
-            repo: Repository name
-            pr: Pull request object
-            filters: Analysis filters
-            cache: File cache to avoid redundant API calls
-
-        Returns:
-            True if PR matches filters
-        """
-        # Early exit if no file filters are specified
-        if not (
-            filters.include_paths
-            or filters.exclude_paths
-            or filters.include_languages
-        ):
-            return True
-
-        # Get PR files from cache or fetch from API
-        number = int(pr.get("number", 0))
-        files = cache.get(number)
-        if files is None:
-            files = self.api_client.request_all(
-                f"repos/{repo}/pulls/{number}/files", build_pagination_params()
-            )
-            cache[number] = files
-
-        filenames = [entry.get("filename", "") for entry in files]
-        return self.apply_file_filters(filenames, filters)
