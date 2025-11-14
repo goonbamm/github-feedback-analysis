@@ -210,6 +210,9 @@ gfa init \
 | `--llm-model` | LLM 모델 식별자 | ✅ | - |
 | `--months` | 기본 분석 기간 (개월) | ❌ | 12 |
 | `--enterprise-host` | GitHub Enterprise 호스트 | ❌ | github.com |
+| `--test/--no-test` | LLM 연결 테스트 실행 여부 | ❌ | `--test` |
+
+> LLM 엔드포인트가 아직 준비되지 않았다면 `gfa init --no-test` 옵션으로 연결 검증 단계를 건너뛸 수 있습니다.
 
 </details>
 
@@ -723,25 +726,25 @@ pytest --cov=github_feedback --cov-report=html
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  CLI 진입점 및 명령어 (1,791줄)
-├── llm.py             # 🤖 LLM API 클라이언트 (1,409줄, 재시도 로직 포함)
-├── reporter.py         # 📄 보고서 생성 (1,358줄, brief 형식)
-├── retrospective.py    # 📅 연말 회고 분석 (1,021줄)
-├── analyzer.py         # 📊 메트릭 분석 및 계산 (959줄)
-├── review_reporter.py  # 📝 통합 리뷰 보고서 (749줄)
-├── config.py          # ⚙️  설정 관리 (529줄, 키링 통합)
-├── models.py          # 📦 Pydantic 데이터 모델 (525줄)
-├── pr_collector.py     # 🔍 PR 데이터 수집 (439줄)
-├── award_strategies.py # 🏆 어워드 계산 전략 (419줄, 100+ 어워드)
-├── api_client.py      # 🌐 GitHub REST API 클라이언트 (416줄)
-├── reviewer.py         # 🎯 PR 리뷰 로직 (416줄)
-├── collector.py        # 📡 데이터 수집 파사드 (397줄)
-├── commit_collector.py # 📝 커밋 데이터 수집 (263줄)
-├── review_collector.py # 👀 리뷰 데이터 수집 (256줄)
-├── repository_manager.py # 📂 저장소 관리 (250줄)
-├── filters.py         # 🔍 언어 감지 및 필터링 (234줄)
-├── exceptions.py      # ⚠️  예외 계층 구조 (235줄, 24+ 예외 타입)
-└── utils.py           # 🔧 유틸리티 함수
+├── cli.py              # 🖥️  CLI 진입점, 인터랙티브 초기 설정과 보고서 워크플로우
+├── llm.py              # 🤖 LLM API 클라이언트, 재시도·배치 처리 및 연결 진단
+├── reporter.py         # 📄 통합 보고서/브리프 생성기
+├── retrospective.py    # 📅 연말 회고 및 행동 패턴 분석 엔진
+├── analyzer.py         # 📊 메트릭 계산, 지표 요약, 어워드 산출
+├── review_reporter.py  # 📝 PR 리뷰 결과를 통합 보고서로 변환
+├── config.py           # ⚙️  설정 로딩/저장, 키링 연동 및 호스트 관리
+├── models.py           # 📦 Pydantic 데이터 모델 정의
+├── pr_collector.py     # 🔍 PR 데이터 수집 및 필터링 로직
+├── award_strategies.py # 🏆 어워드 계산 전략 모음 (100+ 규칙)
+├── api_client.py       # 🌐 GitHub REST API/GraphQL 호출 추상화
+├── reviewer.py         # 🎯 PR 리뷰 분석 및 LLM 프롬프트 구성
+├── collector.py        # 📡 데이터 수집 파사드, 병렬 수집 오케스트레이션
+├── commit_collector.py # 📝 커밋 데이터 수집기
+├── review_collector.py # 👀 리뷰 데이터 수집기
+├── repository_manager.py # 📂 저장소 조회 및 캐싱
+├── filters.py          # 🔍 활동/언어 필터링 유틸리티
+├── exceptions.py       # ⚠️  예외 계층 구조 및 사용자 친화 메시지
+└── utils.py            # 🔧 공통 유틸리티 함수
 ```
 
 ### 아키텍처 및 디자인 패턴
