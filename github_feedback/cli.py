@@ -1314,14 +1314,23 @@ def _generate_integrated_full_report(
 
     Returns:
         Path to the generated integrated report
+
+    Raises:
+        RuntimeError: If file operations fail
     """
-    # Read feedback report
+    # Read feedback report with comprehensive error handling
     try:
         with open(feedback_report_path, "r", encoding="utf-8") as f:
             feedback_content = f.read()
     except FileNotFoundError:
         console.print(f"[warning]Feedback report not found at {feedback_report_path}[/]")
         feedback_content = "_Feedback report not available._"
+    except PermissionError as exc:
+        console.print(f"[warning]Permission denied reading {feedback_report_path}[/]")
+        raise RuntimeError(f"Permission denied reading feedback report: {exc}") from exc
+    except OSError as exc:
+        console.print(f"[warning]Error reading feedback report: {exc}[/]")
+        raise RuntimeError(f"Failed to read feedback report: {exc}") from exc
 
     # Generate integrated report
     integrated_content = f"""# {repo_name} 전체 분석 및 PR 리뷰 보고서
@@ -1369,19 +1378,275 @@ def _generate_integrated_full_report(
 *Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
 """
 
-    # Save integrated report
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Save integrated report with comprehensive error handling
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError as exc:
+        raise RuntimeError(
+            f"Permission denied creating directory {output_dir}: {exc}"
+        ) from exc
+    except OSError as exc:
+        raise RuntimeError(
+            f"Failed to create directory {output_dir}: {exc}"
+        ) from exc
+
     integrated_report_path = output_dir / "integrated_full_report.md"
+
+    # Validate path before writing
+    if integrated_report_path.exists() and not integrated_report_path.is_file():
+        raise RuntimeError(
+            f"Cannot write to {integrated_report_path}: path exists but is not a file"
+        )
 
     try:
         with open(integrated_report_path, "w", encoding="utf-8") as f:
             f.write(integrated_content)
+    except PermissionError as exc:
+        raise RuntimeError(
+            f"Permission denied writing to {integrated_report_path}: {exc}"
+        ) from exc
     except OSError as exc:
+        # Check for specific errors
+        if exc.errno == 28:  # ENOSPC - No space left on device
+            raise RuntimeError(
+                f"No space left on device while writing to {integrated_report_path}"
+            ) from exc
         raise RuntimeError(
             f"Failed to write integrated report to {integrated_report_path}: {exc}"
         ) from exc
 
     return integrated_report_path
+
+
+def _get_authenticated_user(collector: Collector) -> str:
+    """Authenticate and get the current GitHub user.
+
+    Args:
+        collector: Collector instance for authentication
+
+    Returns:
+        GitHub username of authenticated user
+
+    Raises:
+        typer.Exit: If authentication fails
+    """
+    console.print()
+    console.rule("Phase 0: Authentication")
+    with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
+        try:
+            author = collector.get_authenticated_user()
+            console.print(f"[success]✓ Authenticated as: {author}[/]")
+            return author
+        except (ValueError, PermissionError) as exc:
+            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
+            raise typer.Exit(code=1) from exc
+
+
+def _collect_personal_activity(
+    collector: Collector,
+    repo_input: str,
+    months: int,
+    filters: AnalysisFilters,
+    author: str,
+):
+    """Collect personal activity data for a repository.
+
+    Args:
+        collector: Collector instance
+        repo_input: Repository name
+        months: Number of months to collect
+        filters: Analysis filters
+        author: GitHub username
+
+    Returns:
+        Collection result
+
+    Raises:
+        typer.Exit: If no activity found
+    """
+    console.print()
+    console.rule("Phase 1: Personal Activity Collection")
+    console.print(f"[accent]Collecting personal activity for {author}...[/]")
+    with console.status("[accent]Collecting repository data...", spinner="bouncingBar"):
+        collection = collector.collect(repo=repo_input, months=months, filters=filters, author=author)
+
+    _check_repository_activity(collection, repo_input, months)
+    return collection
+
+
+def _compute_and_display_metrics(
+    analyzer: Analyzer,
+    collection,
+    detailed_feedback_snapshot: Optional[DetailedFeedbackSnapshot],
+    monthly_trends_data,
+    tech_stack_data,
+    collaboration_data,
+) -> MetricSnapshot:
+    """Compute metrics and display summary.
+
+    Args:
+        analyzer: Analyzer instance
+        collection: Collection result
+        detailed_feedback_snapshot: Detailed feedback data
+        monthly_trends_data: Monthly trends data
+        tech_stack_data: Tech stack data
+        collaboration_data: Collaboration data
+
+    Returns:
+        Computed metrics snapshot
+    """
+    console.print()
+    console.rule("Phase 3: Metrics Computation")
+    with console.status("[accent]Synthesizing insights...", spinner="dots"):
+        metrics = analyzer.compute_metrics(
+            collection,
+            detailed_feedback=detailed_feedback_snapshot,
+            monthly_trends_data=monthly_trends_data,
+            tech_stack_data=tech_stack_data,
+            collaboration_data=collaboration_data,
+        )
+    console.print("[success]✓ Metrics computed successfully[/]")
+
+    console.print()
+    console.rule("Analysis Summary")
+    _render_metrics(metrics)
+
+    return metrics
+
+
+def _generate_reports_and_artifacts(
+    metrics: MetricSnapshot,
+    reporter: Reporter,
+    output_dir_resolved: Path,
+) -> tuple[List[tuple[str, Path]], Optional[str]]:
+    """Generate report artifacts.
+
+    Args:
+        metrics: Metrics snapshot
+        reporter: Reporter instance
+        output_dir_resolved: Output directory path
+
+    Returns:
+        Tuple of (artifacts, brief_content)
+    """
+    console.print()
+    console.rule("Phase 4: Report Generation")
+    metrics_payload = _prepare_metrics_payload(metrics)
+    artifacts, brief_content = _generate_artifacts(
+        metrics, reporter, output_dir_resolved, metrics_payload, save_intermediate_report=True
+    )
+    return artifacts, brief_content
+
+
+def _run_pr_reviews(
+    config: Config,
+    repo_input: str,
+    output_dir_resolved: Path,
+) -> tuple[Path | None, list[tuple[int, Path, Path, Path]]]:
+    """Run PR review analysis.
+
+    Args:
+        config: Configuration object
+        repo_input: Repository name
+        output_dir_resolved: Output directory
+
+    Returns:
+        Tuple of (feedback_report_path, pr_results)
+    """
+    console.print()
+    console.rule("Phase 6: PR Review Analysis")
+    console.print("[accent]Analyzing all your PRs with AI-powered reviews...[/]")
+    feedback_report_path, pr_results = _run_feedback_analysis(
+        config=config,
+        repo_input=repo_input,
+        output_dir=output_dir_resolved,
+    )
+
+    if feedback_report_path:
+        console.print(f"[success]✓ PR review analysis complete[/]")
+    else:
+        console.print("[warning]⚠ PR review analysis skipped or failed[/]")
+
+    return feedback_report_path, pr_results
+
+
+def _generate_final_report(
+    output_dir_resolved: Path,
+    repo_input: str,
+    brief_content: Optional[str],
+    feedback_report_path: Optional[Path],
+) -> Optional[Path]:
+    """Generate integrated full report.
+
+    Args:
+        output_dir_resolved: Output directory
+        repo_input: Repository name
+        brief_content: Brief report content
+        feedback_report_path: Path to feedback report
+
+    Returns:
+        Path to integrated report or None if not generated
+    """
+    console.print()
+    console.rule("Phase 7: Final Report Generation")
+
+    integrated_report_path = None
+    if feedback_report_path and brief_content:
+        console.print("[accent]Creating integrated full report...[/]")
+        try:
+            integrated_report_path = _generate_integrated_full_report(
+                output_dir=output_dir_resolved,
+                repo_name=repo_input,
+                brief_content=brief_content,
+                feedback_report_path=feedback_report_path,
+            )
+            console.print(f"[success]✓ Integrated full report generated[/]")
+        except Exception as exc:
+            console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
+    elif not feedback_report_path:
+        console.print("[warning]Feedback report not available, skipping integrated report generation[/]")
+    else:
+        console.print("[warning]Brief report content not available, skipping integrated report generation[/]")
+
+    return integrated_report_path
+
+
+def _display_final_summary(
+    author: str,
+    repo_input: str,
+    pr_results: list,
+    integrated_report_path: Optional[Path],
+    artifacts: List[tuple[str, Path]],
+) -> None:
+    """Display final summary of the analysis.
+
+    Args:
+        author: GitHub username
+        repo_input: Repository name
+        pr_results: PR review results
+        integrated_report_path: Path to integrated report
+        artifacts: List of generated artifacts
+    """
+    console.print()
+    console.rule("Summary")
+    console.print(f"[success]✓ Complete analysis for {author}[/]")
+    console.print(f"[success]✓ Repository:[/] {repo_input}")
+    console.print(f"[success]✓ PRs reviewed:[/] {len(pr_results)}")
+    console.print()
+
+    if integrated_report_path:
+        console.print("[info]📊 Final Report:[/]")
+        console.print(f"  • [accent]{integrated_report_path}[/]")
+        console.print()
+        console.print("[info]💡 Next steps:[/]")
+        console.print(f"  • View the full report: [accent]cat {integrated_report_path}[/]")
+        console.print("  • View individual PR reviews in: [accent]reports/reviews/[/]")
+    else:
+        console.print("[warning]No integrated report was generated.[/]")
+        console.print("[info]Individual artifacts:[/]")
+        for label, path in artifacts:
+            if "Internal report" not in label:
+                console.print(f"  • {label}: [accent]{path}[/]")
 
 
 @app.command()
@@ -1418,6 +1683,7 @@ def feedback(
     """
     from datetime import datetime, timedelta, timezone
 
+    # Initialize configuration and components
     config = _load_config()
     months = config.defaults.months
     filters = AnalysisFilters(
@@ -1436,7 +1702,7 @@ def feedback(
         console.print("[info]Hint:[/] Check your GitHub token with [accent]gfa show-config[/]")
         raise typer.Exit(code=1) from exc
 
-    # Handle interactive mode or no repo specified
+    # Select repository
     if interactive or repo is None:
         repo_input = _select_repository_interactive(collector)
         if not repo_input:
@@ -1445,10 +1711,7 @@ def feedback(
     else:
         repo_input = repo.strip()
 
-    analyzer = Analyzer(web_base_url=config.server.web_url)
-    output_dir_resolved = _resolve_output_dir(output_dir)
-    reporter = Reporter(output_dir=output_dir_resolved)
-
+    # Validate repository format
     try:
         validate_repo_format(repo_input)
     except ValueError as exc:
@@ -1456,28 +1719,16 @@ def feedback(
         console.print("[info]Example:[/] [accent]gfa feedback --repo torvalds/linux[/]")
         raise typer.Exit(code=1) from exc
 
-    # Phase 0: Get authenticated user
-    console.print()
-    console.rule("Phase 0: Authentication")
-    with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
-        try:
-            author = collector.get_authenticated_user()
-            console.print(f"[success]✓ Authenticated as: {author}[/]")
-        except (ValueError, PermissionError) as exc:
-            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
-            raise typer.Exit(code=1) from exc
+    # Initialize analyzer and reporter
+    analyzer = Analyzer(web_base_url=config.server.web_url)
+    output_dir_resolved = _resolve_output_dir(output_dir)
+    reporter = Reporter(output_dir=output_dir_resolved)
 
-    # Phase 1: Collect personal activity data
-    console.print()
-    console.rule("Phase 1: Personal Activity Collection")
-    console.print(f"[accent]Collecting personal activity for {author}...[/]")
-    with console.status("[accent]Collecting repository data...", spinner="bouncingBar"):
-        collection = collector.collect(repo=repo_input, months=months, filters=filters, author=author)
+    # Execute analysis workflow
+    author = _get_authenticated_user(collector)
+    collection = _collect_personal_activity(collector, repo_input, months, filters, author)
 
-    # Check if repository has any activity
-    _check_repository_activity(collection, repo_input, months)
-
-    # Phase 2: Collect detailed feedback
+    # Collect detailed feedback
     console.print()
     console.rule("Phase 2: Detailed Feedback Analysis")
     from github_feedback.constants import DAYS_PER_MONTH_APPROX
@@ -1486,110 +1737,92 @@ def feedback(
         collector, analyzer, config, repo_input, since, filters, author
     )
 
-    # Phase 2.5: Collect year-end review data in parallel
+    # Collect year-end data
     console.print()
     console.rule("Phase 2.5: Year-End Review Data")
     monthly_trends_data, tech_stack_data, collaboration_data = _collect_yearend_data(
         collector, repo_input, since, filters, author
     )
 
-    # Phase 3: Compute metrics
-    console.print()
-    console.rule("Phase 3: Metrics Computation")
-    with console.status("[accent]Synthesizing insights...", spinner="dots"):
-        metrics = analyzer.compute_metrics(
-            collection,
-            detailed_feedback=detailed_feedback_snapshot,
-            monthly_trends_data=monthly_trends_data,
-            tech_stack_data=tech_stack_data,
-            collaboration_data=collaboration_data,
-        )
-    console.print("[success]✓ Metrics computed successfully[/]")
-
-    # Phase 4: Generate reports
-    console.print()
-    console.rule("Phase 4: Report Generation")
-    metrics_payload = _prepare_metrics_payload(metrics)
-    # Generate artifacts and brief report content in memory (no _internal folder needed)
-    artifacts, brief_content = _generate_artifacts(
-        metrics, reporter, output_dir_resolved, metrics_payload, save_intermediate_report=True
+    # Compute metrics and display
+    metrics = _compute_and_display_metrics(
+        analyzer, collection, detailed_feedback_snapshot,
+        monthly_trends_data, tech_stack_data, collaboration_data
     )
 
-    # Phase 5: Display results
-    console.print()
-    console.rule("Analysis Summary")
-    _render_metrics(metrics)
+    # Generate reports
+    artifacts, brief_content = _generate_reports_and_artifacts(metrics, reporter, output_dir_resolved)
 
-    # Phase 6: PR Review Analysis
-    console.print()
-    console.rule("Phase 6: PR Review Analysis")
-    console.print("[accent]Analyzing all your PRs with AI-powered reviews...[/]")
-    feedback_report_path, pr_results = _run_feedback_analysis(
-        config=config,
-        repo_input=repo_input,
-        output_dir=output_dir_resolved,
+    # Run PR reviews
+    feedback_report_path, pr_results = _run_pr_reviews(config, repo_input, output_dir_resolved)
+
+    # Generate final integrated report
+    integrated_report_path = _generate_final_report(
+        output_dir_resolved, repo_input, brief_content, feedback_report_path
     )
 
-    if feedback_report_path:
-        console.print(f"[success]✓ PR review analysis complete[/]")
-    else:
-        console.print("[warning]⚠ PR review analysis skipped or failed[/]")
-
-    # Phase 7: Generate Integrated Full Report
-    console.print()
-    console.rule("Phase 7: Final Report Generation")
-
-    integrated_report_path = None
-    if feedback_report_path and brief_content:
-        console.print("[accent]Creating integrated full report...[/]")
-        try:
-            integrated_report_path = _generate_integrated_full_report(
-                output_dir=output_dir_resolved,
-                repo_name=repo_input,
-                brief_content=brief_content,
-                feedback_report_path=feedback_report_path,
-            )
-            console.print(f"[success]✓ Integrated full report generated[/]")
-        except Exception as exc:
-            console.print(f"[warning]Failed to generate integrated report: {exc}[/]")
-    elif not feedback_report_path:
-        console.print("[warning]Feedback report not available, skipping integrated report generation[/]")
-    else:
-        console.print("[warning]Brief report content not available, skipping integrated report generation[/]")
-
-    # Final summary
-    console.print()
-    console.rule("Summary")
-    console.print(f"[success]✓ Complete analysis for {author}[/]")
-    console.print(f"[success]✓ Repository:[/] {repo_input}")
-    console.print(f"[success]✓ PRs reviewed:[/] {len(pr_results)}")
-    console.print()
-
-    if integrated_report_path:
-        console.print("[info]📊 Final Report:[/]")
-        console.print(f"  • [accent]{integrated_report_path}[/]")
-        console.print()
-        console.print("[info]💡 Next steps:[/]")
-        console.print(f"  • View the full report: [accent]cat {integrated_report_path}[/]")
-        console.print("  • View individual PR reviews in: [accent]reports/reviews/[/]")
-    else:
-        console.print("[warning]No integrated report was generated.[/]")
-        console.print("[info]Individual artifacts:[/]")
-        for label, path in artifacts:
-            if "Internal report" not in label:  # Don't show internal reports
-                console.print(f"  • {label}: [accent]{path}[/]")
+    # Display summary
+    _display_final_summary(author, repo_input, pr_results, integrated_report_path, artifacts)
 
 
 def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
-    """Persist raw metrics to disk for later reporting."""
+    """Persist raw metrics to disk for later reporting.
 
-    output_dir = output_dir.expanduser()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    metrics_path = output_dir / filename
+    Args:
+        output_dir: Directory to save metrics
+        metrics_data: Metrics data to serialize
+        filename: Output filename
+
+    Returns:
+        Path to saved metrics file
+
+    Raises:
+        RuntimeError: If file operations fail
+    """
     import json
 
-    with metrics_path.open("w", encoding="utf-8") as handle:
-        json.dump(metrics_data, handle, indent=2)
+    output_dir = output_dir.expanduser()
+
+    # Create directory with error handling
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError as exc:
+        raise RuntimeError(
+            f"Permission denied creating directory {output_dir}: {exc}"
+        ) from exc
+    except OSError as exc:
+        raise RuntimeError(
+            f"Failed to create directory {output_dir}: {exc}"
+        ) from exc
+
+    metrics_path = output_dir / filename
+
+    # Validate path before writing
+    if metrics_path.exists() and not metrics_path.is_file():
+        raise RuntimeError(
+            f"Cannot write to {metrics_path}: path exists but is not a file"
+        )
+
+    # Write metrics with error handling
+    try:
+        with metrics_path.open("w", encoding="utf-8") as handle:
+            json.dump(metrics_data, handle, indent=2)
+    except PermissionError as exc:
+        raise RuntimeError(
+            f"Permission denied writing to {metrics_path}: {exc}"
+        ) from exc
+    except OSError as exc:
+        if exc.errno == 28:  # ENOSPC - No space left on device
+            raise RuntimeError(
+                f"No space left on device while writing to {metrics_path}"
+            ) from exc
+        raise RuntimeError(
+            f"Failed to write metrics to {metrics_path}: {exc}"
+        ) from exc
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Failed to serialize metrics data: {exc}"
+        ) from exc
 
     return metrics_path
 

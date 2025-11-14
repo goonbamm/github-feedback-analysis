@@ -29,6 +29,106 @@ _keyring_lock = threading.Lock()
 _keyring_fallback_attempted = False
 
 
+def _try_encrypted_keyring() -> bool:
+    """Try to set up encrypted file keyring backend.
+
+    Returns:
+        True if EncryptedKeyring was successfully set up, False otherwise
+    """
+    try:
+        from keyrings.alt.file import EncryptedKeyring
+        keyring.set_keyring(EncryptedKeyring())
+        # Test the backend
+        try:
+            keyring.get_password(KEYRING_SERVICE, "test")
+            return True
+        except Exception:
+            # EncryptedKeyring is available but needs to be initialized
+            # This is fine, it will work when we try to set a password
+            return True
+    except ImportError:
+        return False
+
+
+def _is_viable_backend(backend) -> bool:
+    """Check if a backend is viable for use.
+
+    Args:
+        backend: Keyring backend to check
+
+    Returns:
+        True if backend is viable, False otherwise
+    """
+    from keyring.backends import fail
+
+    # Filter out fail/null backends and check priority
+    if isinstance(backend, fail.Keyring) or backend.priority <= 0:
+        return False
+
+    # Skip SecretService backend if we're trying fallbacks (it likely already failed)
+    backend_name = backend.__class__.__name__
+    if 'SecretService' in backend_name:
+        return False
+
+    return True
+
+
+def _test_keyring_backend(backend) -> bool:
+    """Test if a keyring backend works.
+
+    Args:
+        backend: Keyring backend to test
+
+    Returns:
+        True if backend works, False otherwise
+    """
+    try:
+        keyring.set_keyring(backend)
+        keyring.get_password(KEYRING_SERVICE, "test")
+        return True
+    except Exception:
+        return False
+
+
+def _try_alternative_backends() -> bool:
+    """Try alternative keyring backends.
+
+    Returns:
+        True if a working backend was found, False otherwise
+    """
+    import warnings
+
+    # Get all available backends
+    available = keyring.backend.get_all_keyring()
+
+    # Filter out non-viable backends and sort by priority
+    viable = [b for b in available if _is_viable_backend(b)]
+
+    if not viable:
+        warnings.warn(
+            "No secure keyring backend available. "
+            "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+            UserWarning
+        )
+        return False
+
+    # Sort by priority (highest first)
+    viable.sort(key=lambda x: x.priority, reverse=True)
+
+    # Try each backend until we find one that works
+    for backend in viable:
+        if _test_keyring_backend(backend):
+            return True
+
+    # No working backend found
+    warnings.warn(
+        "System keyring is not accessible. "
+        "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
+        UserWarning
+    )
+    return False
+
+
 def _setup_keyring_fallback() -> bool:
     """Set up a fallback keyring backend if the default backend fails.
 
@@ -41,7 +141,6 @@ def _setup_keyring_fallback() -> bool:
     Returns:
         True if a working keyring backend was set up, False otherwise.
     """
-    import sys
     import warnings
 
     global _keyring_fallback_attempted
@@ -60,68 +159,11 @@ def _setup_keyring_fallback() -> bool:
 
         try:
             # First try encrypted file backend if keyrings.alt is available
-            try:
-                from keyrings.alt.file import EncryptedKeyring
-                keyring.set_keyring(EncryptedKeyring())
-                # Test the backend
-                try:
-                    keyring.get_password(KEYRING_SERVICE, "test")
-                    return True
-                except Exception:
-                    # EncryptedKeyring is available but needs to be initialized
-                    # This is fine, it will work when we try to set a password
-                    return True
-            except ImportError:
-                # keyrings.alt is not available, try other backends
-                pass
+            if _try_encrypted_keyring():
+                return True
 
-            # If keyrings.alt is not available, try other available backends
-            from keyring.backends import fail
-
-            # Get all available backends
-            available = keyring.backend.get_all_keyring()
-
-            # Filter out fail/null backends and sort by priority
-            viable = [
-                b for b in available
-                if not isinstance(b, fail.Keyring) and b.priority > 0
-            ]
-
-            if viable:
-                # Sort by priority (highest first) and use the best one
-                viable.sort(key=lambda x: x.priority, reverse=True)
-
-                # Try each backend until we find one that works
-                for backend in viable:
-                    backend_name = backend.__class__.__name__
-                    # Skip SecretService backend if we're trying fallbacks
-                    # (it likely already failed)
-                    if 'SecretService' in backend_name:
-                        continue
-
-                    try:
-                        # Test the backend
-                        keyring.set_keyring(backend)
-                        keyring.get_password(KEYRING_SERVICE, "test")
-                        # If we get here, it works
-                        return True
-                    except Exception:
-                        continue
-
-                # No working backend found
-                warnings.warn(
-                    "System keyring is not accessible. "
-                    "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
-                    UserWarning
-                )
-                return False
-            else:
-                warnings.warn(
-                    "No secure keyring backend available. "
-                    "Install 'keyrings.alt' for secure storage: pip install keyrings.alt",
-                    UserWarning
-                )
-                return False
+            # If encrypted keyring is not available, try other backends
+            return _try_alternative_backends()
 
         except Exception as e:
             # If all else fails, warn the user
