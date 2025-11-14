@@ -66,7 +66,7 @@ class AnalyticsCollector(BaseCollector):
                     seen_shas.add(sha)
 
                     author = commit.get("author")
-                    if self.filter_bot(author, filters):
+                    if self.filter_helper.filter_bot(author, filters):
                         continue
 
                     commit_data = commit.get("commit", {})
@@ -92,7 +92,7 @@ class AnalyticsCollector(BaseCollector):
                     continue
 
                 author = pr.get("user")
-                if self.filter_bot(author, filters):
+                if self.filter_helper.filter_bot(author, filters):
                     continue
 
                 month_key = created_at.strftime("%Y-%m")
@@ -212,7 +212,7 @@ class AnalyticsCollector(BaseCollector):
 
                 for review in reviews:
                     reviewer = review.get("user")
-                    if self.filter_bot(reviewer, filters):
+                    if self.filter_helper.filter_bot(reviewer, filters):
                         continue
 
                     reviewer_login = (reviewer or {}).get("login", "")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from functools import wraps
@@ -85,13 +86,11 @@ class HeuristicAnalyzer:
     @staticmethod
     def check_patterns(text: str, patterns: list[str], flags=0) -> bool:
         """Check if text matches any of the given regex patterns."""
-        import re
         return any(re.match(pattern, text, flags) for pattern in patterns)
 
     @staticmethod
     def search_patterns(text: str, patterns: list[str], flags=0) -> bool:
         """Check if text contains any of the given regex patterns."""
-        import re
         return any(re.search(pattern, text, flags) for pattern in patterns)
 
     @staticmethod
@@ -1119,8 +1118,6 @@ class LLMClient:
 
     def _fallback_commit_analysis(self, commits: list[dict[str, str]]) -> dict[str, Any]:
         """Enhanced heuristic-based commit message analysis using helper class."""
-        import re
-
         # Patterns for classification
         good_patterns = [
             r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+',
@@ -1196,7 +1193,6 @@ class LLMClient:
         min_len: int, max_len: int, too_long: int, min_body_len: int
     ) -> tuple[int, list[str]]:
         """Score a commit message and return score with issues list."""
-        import re
         score = 0
         issues = []
 
@@ -1225,8 +1221,6 @@ class LLMClient:
 
     def _fallback_pr_title_analysis(self, prs: list[dict[str, str]]) -> dict[str, Any]:
         """Enhanced heuristic-based PR title analysis using helper class."""
-        import re
-
         # Patterns and configuration
         clear_patterns = [
             r'^\[(feat|fix|docs|style|refactor|test|chore|perf|ci|build)\].+',
@@ -1294,7 +1288,6 @@ class LLMClient:
         min_len: int, max_len: int, min_words: int
     ) -> tuple[int, list[str]]:
         """Score a PR title and return score with reasons list."""
-        import re
         score = 0
         reasons = []
 
@@ -1346,8 +1339,6 @@ class LLMClient:
 
     def _fallback_issue_analysis(self, issues: list[dict[str, str]]) -> dict[str, Any]:
         """Enhanced heuristic-based issue quality analysis using helper class."""
-        import re
-
         body_short = HEURISTIC_THRESHOLDS['issue_body_short']
         body_detailed = HEURISTIC_THRESHOLDS['issue_body_detailed']
         good_score = HEURISTIC_THRESHOLDS['issue_good_score']
@@ -1405,7 +1396,6 @@ class LLMClient:
         self, body: str, body_short: int, body_detailed: int, good_score: int
     ) -> tuple[int, list[str], list[str]]:
         """Score issue quality and return score, strengths, and missing elements."""
-        import re
         score = 0
         strengths = []
         missing = []
@@ -1447,7 +1437,6 @@ class LLMClient:
 
     def _detect_issue_type(self, title: str, body: str) -> str:
         """Detect issue type from title and body."""
-        import re
         text = (title + " " + body).lower()
 
         if re.search(r'\b(bug|error|crash|fail|broken|issue)\b', text):
