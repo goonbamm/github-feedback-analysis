@@ -23,6 +23,7 @@ from .models import (
     DetailedFeedbackSnapshot,
     CommitMessageFeedback,
     PRTitleFeedback,
+    PullRequestSummary,
     ReviewToneFeedback,
     IssueFeedback,
     MonthlyTrend,
