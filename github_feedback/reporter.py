@@ -868,8 +868,14 @@ class Reporter:
             lines.append("| 영향 | 패턴 | 제안 |")
             lines.append("|------|------|------|")
 
+            # Impact emoji mapping for better readability
+            impact_emojis = {
+                "positive": "✅",
+                "negative": "⚠️",
+            }
+
             for pattern in retro.behavior_patterns:
-                impact_emoji = "✅" if pattern.impact == "positive" else "⚠️" if pattern.impact == "negative" else "ℹ️"
+                impact_emoji = impact_emojis.get(pattern.impact, "ℹ️")
                 recommendation = pattern.recommendation if pattern.recommendation else "-"
                 lines.append(f"| {impact_emoji} | {pattern.description} | {recommendation} |")
             lines.append("")
