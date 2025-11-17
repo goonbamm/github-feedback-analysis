@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from pathlib import Path
@@ -246,7 +247,20 @@ class GitHubApiClient:
                     raise AuthenticationError("GitHub API rejected the provided PAT")
 
                 response.raise_for_status()
-                payload = response.json()
+
+                try:
+                    payload = response.json()
+                except json.JSONDecodeError as json_exc:
+                    # Log response details for debugging
+                    logger.error(
+                        f"Failed to decode JSON from {path}. "
+                        f"Status: {response.status_code}, "
+                        f"Content-Type: {response.headers.get('content-type', 'unknown')}, "
+                        f"Content length: {len(response.content)}"
+                    )
+                    raise ApiError(
+                        f"Invalid JSON response from {path}: {json_exc}"
+                    ) from json_exc
 
                 if not validator(payload):
                     raise ApiError(
