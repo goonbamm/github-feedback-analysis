@@ -1418,10 +1418,6 @@ def _generate_integrated_full_report(
         console.print(f"[warning]Error reading feedback report: {exc}[/]")
         raise RuntimeError(f"Failed to read feedback report: {exc}") from exc
 
-    # Load personal development analysis for final summary
-    personal_dev_path = feedback_report_path.parent / "personal_development.json"
-    final_summary_section = _generate_final_summary_table(personal_dev_path)
-
     # Generate integrated report
     integrated_content = f"""# {repo_name} 전체 분석 및 PR 리뷰 보고서
 
@@ -1443,10 +1439,6 @@ def _generate_integrated_full_report(
 ## 2. PR 리뷰 분석 (PR Feedback)
 
 {feedback_content}
-
----
-
-{final_summary_section}
 
 ---
 
