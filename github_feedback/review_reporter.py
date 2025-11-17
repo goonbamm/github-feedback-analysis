@@ -36,6 +36,9 @@ class StoredReview:
     overview: str
     strengths: List[ReviewPoint]
     improvements: List[ReviewPoint]
+    body: str = ""
+    review_bodies: List[str] | None = None
+    review_comments: List[str] | None = None
 
 
 class ReviewReporter:
@@ -112,6 +115,11 @@ class ReviewReporter:
             strengths = self._load_points(summary_data.get("strengths", []))
             improvements = self._load_points(summary_data.get("improvements", []))
 
+            # Load additional fields from artefacts
+            body = str(artefact_data.get("body") or "").strip()
+            review_bodies = artefact_data.get("review_bodies", [])
+            review_comments = artefact_data.get("review_comments", [])
+
             reviews.append(
                 StoredReview(
                     number=number,
@@ -122,6 +130,9 @@ class ReviewReporter:
                     overview=overview,
                     strengths=strengths,
                     improvements=improvements,
+                    body=body,
+                    review_bodies=review_bodies if isinstance(review_bodies, list) else [],
+                    review_comments=review_comments if isinstance(review_comments, list) else [],
                 )
             )
 
@@ -140,8 +151,24 @@ class ReviewReporter:
             )
             if review.html_url:
                 lines.append(f"  URL: {review.html_url}")
+
+            # Include PR body for analyzing description quality
+            if review.body:
+                body_preview = review.body[:300] + "..." if len(review.body) > 300 else review.body
+                lines.append(f"  PR 설명: {body_preview}")
+
             if review.overview:
                 lines.append(f"  Overview: {review.overview}")
+
+            # Include review comments for tone analysis
+            if review.review_comments:
+                lines.append(f"  리뷰 코멘트 ({len(review.review_comments)}개):")
+                for idx, comment in enumerate(review.review_comments[:5], 1):  # Show first 5 comments
+                    comment_preview = comment[:150] + "..." if len(comment) > 150 else comment
+                    lines.append(f"    {idx}. {comment_preview}")
+                if len(review.review_comments) > 5:
+                    lines.append(f"    ... 외 {len(review.review_comments) - 5}개 코멘트")
+
             if review.strengths:
                 lines.append("  Strengths:")
                 for point in review.strengths:
@@ -177,38 +204,59 @@ class ReviewReporter:
                 "role": "system",
                 "content": (
                     "당신은 개발자의 코드 기여 패턴을 분석하는 전문가입니다.\n\n"
-                    "제공된 PR 리뷰 데이터를 바탕으로 개인의 **코드 작성 스타일, 기술적 강점, 개선 영역**을 "
+                    "제공된 PR 리뷰 데이터를 바탕으로 개인의 **코드 작성 스타일, 커뮤니케이션 능력, 기술적 강점, 개선 영역**을 "
                     "구체적인 근거와 함께 분석하세요. 일반적인 '장점/단점' 나열이 아닌, "
-                    "**실제 코드와 PR에서 관찰되는 패턴**에 집중하세요.\n\n"
+                    "**실제 PR, 리뷰 코멘트, PR 제목, PR 설명에서 관찰되는 패턴**에 집중하세요.\n\n"
                     "**분석 원칙:**\n"
                     "1. 모든 인사이트는 구체적인 PR 예시로 뒷받침\n"
-                    "2. 코드 기여의 특징을 카테고리별로 분류 (아키텍처 설계, 테스트 작성, 리팩토링, 문제 해결 등)\n"
+                    "2. 코드 기여의 특징을 카테고리별로 분류 (아키텍처 설계, 테스트 작성, 리팩토링, 문제 해결, 커뮤니케이션 등)\n"
                     "3. 개선 영역은 실행 가능한 구체적 제안과 함께 제공\n"
                     "4. 시간에 따른 변화는 초기 PR과 최근 PR의 실제 차이로 설명\n"
                     "5. 건설적이고 데이터 중심의 톤 유지\n\n"
+                    "**필수 분석 영역 (각 영역에서 구체적 근거 제시 필요):**\n"
+                    "1. **PR 제목 품질**: 제목이 변경 내용을 명확히 전달하는지, 일관된 형식을 따르는지 분석\n"
+                    "2. **PR 설명 완성도**: PR 설명이 변경 이유, 구현 방법, 테스트 계획을 포함하는지 분석\n"
+                    "3. **리뷰 코멘트 톤**: 리뷰 코멘트가 건설적이고 구체적인지, 협력적 태도를 보이는지 분석\n"
+                    "4. **코드 품질 패턴**: 실제 코드 변경에서 관찰되는 설계 원칙, 테스트 습관, 문서화 수준\n"
+                    "5. **문제 해결 접근**: 복잡한 문제를 어떻게 분해하고 해결하는지 패턴 분석\n\n"
                     "**상세도 요구사항:**\n"
                     "- **category**: 단순히 '코드 품질', '개선 영역' 같은 일반적인 용어 대신, "
                     "구체적이고 의미 있는 카테고리 이름 사용 (예: '복잡한 비즈니스 로직을 명확한 함수로 분리하는 리팩토링 능력', "
-                    "'엣지 케이스를 고려한 철저한 단위 테스트 작성')\n"
+                    "'명확하고 일관된 PR 제목으로 변경 의도를 효과적으로 전달', '건설적이고 구체적인 리뷰 코멘트로 협업 품질 향상')\n"
                     "- **description**: 최소 2-3문장으로 상세하게 작성. 단순 나열이 아닌 구체적인 패턴과 그 영향 설명\n"
-                    "- **evidence**: PR 번호만이 아닌 실제 코드 변경 내용이나 리뷰 코멘트의 핵심 요약 포함\n"
+                    "- **evidence**: PR 번호와 함께 실제 관찰된 내용 포함 (예: PR 제목, PR 설명 내용, 리뷰 코멘트 예시, 코드 변경 내용)\n"
                     "- **suggestions**: '테스트를 추가하세요' 같은 일반적인 조언이 아닌, 실행 가능한 구체적 액션 아이템\n\n"
                     "**응답 형식 (JSON):**\n"
                     "{\n"
                     '  "strengths": [\n'
                     "    {\n"
-                    '      "category": "구체적이고 상세한 강점 카테고리 (예: \'복잡한 데이터 흐름을 명확한 타입 정의로 안전하게 구현\')",\n'
-                    '      "description": "관찰된 패턴에 대한 상세한 설명 (2-3문장). 어떤 기술을 어떻게 활용했고, 그것이 왜 효과적인지 구체적으로 설명.",\n'
-                    '      "evidence": ["PR #123: UserService에서 복잡한 인증 로직을 3개의 작은 함수로 분리하여 테스트 커버리지 85%로 증가", "PR #145: 에러 핸들링을 Result 타입으로 일관되게 처리하여 런타임 에러 감소", ...],\n'
+                    '      "category": "구체적이고 상세한 강점 카테고리 (코드/커뮤니케이션/문서화 등 다양한 측면 포함)",\n'
+                    '      "description": "관찰된 패턴에 대한 상세한 설명 (2-3문장). 어떤 기술/습관을 어떻게 활용했고, 그것이 왜 효과적인지 구체적으로 설명.",\n'
+                    '      "evidence": [\n'
+                    '        "PR #123 \'feat: 인증 시스템에 JWT 토큰 검증 로직 추가\': 명확한 컨벤션 prefix와 핵심 변경사항을 포함한 제목",\n'
+                    '        "PR #145: PR 설명에 변경 이유(기존 세션 방식의 확장성 문제), 구현 방법(JWT 라이브러리 선택 이유), 테스트 계획(단위/통합 테스트)을 상세히 기술",\n'
+                    '        "PR #167: 리뷰 코멘트 \'이 부분은 edge case를 고려하면 null check가 필요할 것 같아요. 예를 들어...\' 처럼 구체적인 문제와 예시를 함께 제시",\n'
+                    '        "PR #189: 복잡한 인증 로직을 validateToken, refreshToken, revokeToken으로 분리하여 테스트 커버리지 85%로 증가"\n'
+                    '      ],\n'
                     '      "impact": "high|medium|low"\n'
                     "    }\n"
                     "  ],\n"
                     '  "improvement_areas": [\n'
                     "    {\n"
-                    '      "category": "구체적이고 상세한 개선 영역 (예: \'API 응답 스키마 변경에 대한 버전 관리 및 하위 호환성 고려\')",\n'
+                    '      "category": "구체적이고 상세한 개선 영역 (코드/커뮤니케이션/문서화 등 다양한 측면 포함)",\n'
                     '      "description": "현재 패턴의 구체적인 제한점과 개선이 필요한 이유 (2-3문장). 어떤 상황에서 문제가 되는지 명확히 설명.",\n'
-                    '      "evidence": ["PR #134: API 응답 필드 변경 시 기존 클라이언트 호환성 고려 없이 직접 수정", "PR #156: 데이터베이스 마이그레이션 시 롤백 스크립트 미작성으로 배포 리스크 존재", ...],\n'
-                    '      "suggestions": ["API 변경 시 버전 헤더(v1, v2) 또는 별도 엔드포인트로 분리하여 하위 호환성 유지", "마이그레이션 파일 작성 시 up/down 스크립트를 함께 작성하고 로컬에서 롤백 테스트 수행", ...],\n'
+                    '      "evidence": [\n'
+                    '        "PR #134 \'Update API\': 제목이 너무 모호하여 어떤 API를 어떻게 수정했는지 파악 불가",\n'
+                    '        "PR #156: PR 설명이 \'버그 수정\'으로만 작성되어 있어 어떤 버그를 어떻게 해결했는지 불명확",\n'
+                    '        "PR #178: 리뷰 코멘트 \'이거 고쳐주세요\' 처럼 구체적인 이유나 제안 없이 요청만 하여 협업 효율 저하",\n'
+                    '        "PR #192: API 응답 필드 변경 시 기존 클라이언트 호환성 고려 없이 직접 수정하여 배포 시 장애 위험"\n'
+                    '      ],\n'
+                    '      "suggestions": [\n'
+                    '        "PR 제목은 \'feat/fix/refactor: 구체적인 변경 내용\' 형식으로 일관되게 작성 (예: \'fix: UserAPI에서 null 사용자 처리 시 500 에러 발생 문제 해결\')",\n'
+                    '        "PR 설명에 최소한 (1)변경 이유 (2)구현 방법 (3)테스트 방법 세 가지를 포함하여 리뷰어의 이해를 돕기",\n'
+                    '        "리뷰 코멘트 작성 시 \'왜\'와 \'어떻게\'를 함께 제시 (예: \'이 부분은 동시성 이슈가 발생할 수 있으니 lock을 추가하는 게 좋을 것 같습니다\')",\n'
+                    '        "API 변경 시 버전 헤더(v1, v2) 또는 별도 엔드포인트로 분리하여 하위 호환성 유지"\n'
+                    '      ],\n'
                     '      "priority": "critical|important|nice-to-have"\n'
                     "    }\n"
                     "  ],\n"
@@ -238,11 +286,18 @@ class ReviewReporter:
                     f"{context}\n\n"
                     f"초기 PR 수: {len(early_reviews)}개\n"
                     f"최근 PR 수: {len(recent_reviews)}개\n\n"
-                    "특히 다음 관점에서 분석해주세요:\n"
-                    "1. 코드 설계 및 구조화 능력\n"
-                    "2. 문제 해결 접근 방식\n"
-                    "3. 테스트 및 문서화 습관\n"
-                    "4. 기술 스택 활용 및 확장"
+                    "다음 영역을 **반드시** 포함하여 분석해주세요:\n\n"
+                    "**1. 커뮤니케이션 품질**\n"
+                    "   - PR 제목: 변경 내용을 명확히 전달하는지, 일관된 컨벤션(feat/fix/refactor 등)을 따르는지\n"
+                    "   - PR 설명: 변경 이유, 구현 방법, 테스트 계획 등 필수 정보를 포함하는지\n"
+                    "   - 리뷰 코멘트 톤: 건설적이고 구체적인지, 협력적 태도를 보이는지\n\n"
+                    "**2. 코드 품질 및 설계**\n"
+                    "   - 코드 설계 및 구조화 능력\n"
+                    "   - 문제 해결 접근 방식\n"
+                    "   - 테스트 및 문서화 습관\n"
+                    "   - 기술 스택 활용 및 확장\n\n"
+                    "**중요:** 각 영역에서 실제 PR 제목, PR 설명 내용, 리뷰 코멘트 예시를 evidence에 포함하여 "
+                    "구체적인 근거를 제시하세요. 추상적인 평가가 아닌 관찰된 사실에 기반한 분석을 작성하세요."
                 ),
             },
         ]
