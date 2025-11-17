@@ -296,7 +296,7 @@ def _format_analysis_data(data: list[dict[str, str]], analysis_type: str) -> str
         ])
     elif analysis_type == "issues":
         return "\n".join([
-            f"{i+1}. #{data[i]['number']}: {data[i]['title']}\n   본문: {data[i].get('body', '')[:150]}"
+            f"{i+1}. #{data[i]['number']}: {data[i]['title']}\n   본문: {data[i].get('body', '')[:150]}\n   URL: {data[i].get('url', '')}"
             for i in range(len(data))
         ])
     else:

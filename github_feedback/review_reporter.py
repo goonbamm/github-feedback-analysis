@@ -19,8 +19,14 @@ from .models import (
     StrengthPoint,
 )
 from .prompts import (
+    get_code_contribution_quality_system_prompt,
+    get_code_contribution_quality_user_prompt,
+    get_growth_trajectory_system_prompt,
+    get_growth_trajectory_user_prompt,
     get_personal_development_system_prompt,
     get_personal_development_user_prompt,
+    get_pr_communication_quality_system_prompt,
+    get_pr_communication_quality_user_prompt,
     get_team_report_system_prompt,
     get_team_report_user_prompt,
 )
@@ -45,6 +51,9 @@ class StoredReview:
     body: str = ""
     review_bodies: List[str] | None = None
     review_comments: List[str] | None = None
+    additions: int = 0
+    deletions: int = 0
+    changed_files: int = 0
 
 
 class ReviewReporter:
@@ -125,6 +134,9 @@ class ReviewReporter:
             body = str(artefact_data.get("body") or "").strip()
             review_bodies = artefact_data.get("review_bodies", [])
             review_comments = artefact_data.get("review_comments", [])
+            additions = int(artefact_data.get("additions") or 0)
+            deletions = int(artefact_data.get("deletions") or 0)
+            changed_files = int(artefact_data.get("changed_files") or 0)
 
             reviews.append(
                 StoredReview(
@@ -139,6 +151,9 @@ class ReviewReporter:
                     body=body,
                     review_bodies=review_bodies if isinstance(review_bodies, list) else [],
                     review_comments=review_comments if isinstance(review_comments, list) else [],
+                    additions=additions,
+                    deletions=deletions,
+                    changed_files=changed_files,
                 )
             )
 
@@ -191,40 +206,96 @@ class ReviewReporter:
 
         return "\n".join(lines).strip()
 
+    def _build_pr_communication_context(self, reviews: List[StoredReview]) -> str:
+        """Build focused context for PR communication quality (titles and descriptions)."""
+        lines: List[str] = []
+        for review in reviews:
+            lines.append(f"PR #{review.number}: {review.title}")
+            if review.body:
+                body_preview = review.body[:200] + "..." if len(review.body) > 200 else review.body
+                lines.append(f"  설명: {body_preview}")
+            lines.append("")
+        return "\n".join(lines).strip()
+
+    def _build_code_quality_context(self, reviews: List[StoredReview]) -> str:
+        """Build focused context for code quality analysis (review feedback and code changes)."""
+        lines: List[str] = []
+        for review in reviews:
+            lines.append(f"PR #{review.number}: {review.title}")
+
+            # Include code change metrics
+            if review.changed_files > 0:
+                total_changes = review.additions + review.deletions
+                lines.append(f"  코드 변경: {review.changed_files}개 파일, +{review.additions}/-{review.deletions} ({total_changes}줄)")
+
+            if review.overview:
+                lines.append(f"  리뷰 평가: {review.overview}")
+            if review.strengths:
+                lines.append("  강점:")
+                for point in review.strengths[:3]:  # Limit to top 3
+                    lines.append(f"    • {point.message}")
+            if review.improvements:
+                lines.append("  개선점:")
+                for point in review.improvements[:3]:  # Limit to top 3
+                    lines.append(f"    • {point.message}")
+            lines.append("")
+        return "\n".join(lines).strip()
+
     def _analyze_personal_development(
         self, repo: str, reviews: List[StoredReview]
     ) -> PersonalDevelopmentAnalysis:
-        """Analyze personal development based on PR reviews using LLM."""
+        """Analyze personal development based on PR reviews using LLM with focused requests."""
         if not self.llm or not reviews:
             return self._fallback_personal_development(reviews)
-
-        context = self._build_prompt_context(repo, reviews)
 
         # Split reviews into early and recent for growth analysis
         midpoint = len(reviews) // 2
         early_reviews = reviews[:midpoint] if midpoint > 0 else []
         recent_reviews = reviews[midpoint:] if midpoint > 0 else reviews
 
-        messages = [
-            {
-                "role": "system",
-                "content": get_personal_development_system_prompt(),
-            },
-            {
-                "role": "user",
-                "content": get_personal_development_user_prompt(
-                    context,
-                    len(early_reviews),
-                    len(recent_reviews)
-                ),
-            },
-        ]
-
         try:
             import json as json_module
 
-            content = self.llm.complete(messages, temperature=0.4)
-            data = json_module.loads(content)
+            # 1. Analyze PR communication quality (titles and descriptions)
+            console.log("Analyzing PR communication quality...")
+            comm_context = self._build_pr_communication_context(reviews)
+            comm_messages = [
+                {"role": "system", "content": get_pr_communication_quality_system_prompt()},
+                {"role": "user", "content": get_pr_communication_quality_user_prompt(comm_context)},
+            ]
+            comm_content = self.llm.complete(comm_messages, temperature=0.4)
+            comm_data = json_module.loads(comm_content)
+
+            # 2. Analyze code contribution quality
+            console.log("Analyzing code contribution quality...")
+            code_context = self._build_code_quality_context(reviews)
+            code_messages = [
+                {"role": "system", "content": get_code_contribution_quality_system_prompt()},
+                {"role": "user", "content": get_code_contribution_quality_user_prompt(code_context)},
+            ]
+            code_content = self.llm.complete(code_messages, temperature=0.4)
+            code_data = json_module.loads(code_content)
+
+            # 3. Analyze growth trajectory
+            console.log("Analyzing growth trajectory...")
+            early_context = self._build_pr_communication_context(early_reviews) if early_reviews else "없음"
+            recent_context = self._build_pr_communication_context(recent_reviews) if recent_reviews else "없음"
+            growth_messages = [
+                {"role": "system", "content": get_growth_trajectory_system_prompt()},
+                {"role": "user", "content": get_growth_trajectory_user_prompt(early_context, recent_context)},
+            ]
+            growth_content = self.llm.complete(growth_messages, temperature=0.4)
+            growth_data = json_module.loads(growth_content)
+
+            # Aggregate results from all three focused analyses
+            data = {
+                "strengths": comm_data.get("strengths", []) + code_data.get("strengths", []),
+                "improvement_areas": comm_data.get("improvement_areas", []) + code_data.get("improvement_areas", []),
+                "growth_indicators": growth_data.get("growth_indicators", []),
+                "overall_assessment": f"커뮤니케이션 및 코드 품질 분석을 통한 종합 평가 (총 {len(reviews)}개 PR 분석)",
+                "key_achievements": growth_data.get("key_achievements", []),
+                "next_focus_areas": growth_data.get("next_focus_areas", []),
+            }
 
             # Parse strengths
             strengths = []

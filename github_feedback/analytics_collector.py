@@ -180,6 +180,7 @@ class AnalyticsCollector(BaseCollector):
         repo: str,
         pr_metadata: List[Dict[str, Any]],
         filters: Optional[AnalysisFilters] = None,
+        author: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Analyze collaboration patterns from PR reviews.
 
@@ -187,6 +188,7 @@ class AnalyticsCollector(BaseCollector):
             repo: Repository name (owner/repo)
             pr_metadata: List of PR metadata
             filters: Optional analysis filters
+            author: Optional GitHub username to exclude from collaborators (self)
 
         Returns:
             Dictionary with collaboration metrics
@@ -217,6 +219,10 @@ class AnalyticsCollector(BaseCollector):
 
                     reviewer_login = (reviewer or {}).get("login", "")
                     if not reviewer_login:
+                        continue
+
+                    # Exclude the author from collaborators (self-reviews)
+                    if author and reviewer_login == author:
                         continue
 
                     local_counts[reviewer_login] = (

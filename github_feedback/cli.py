@@ -1191,7 +1191,7 @@ def _collect_yearend_data(
         ),
         "collaboration": (
             collector.collect_collaboration_network,
-            (repo_input, pr_metadata, filters),
+            (repo_input, pr_metadata, filters, author),
             "collaboration network"
         ),
     }

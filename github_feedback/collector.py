@@ -306,10 +306,11 @@ class Collector:
         repo: str,
         pr_metadata: List[Dict[str, Any]],
         filters: Optional[AnalysisFilters] = None,
+        author: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Analyze collaboration patterns from PR reviews."""
         return self.analytics_collector.collect_collaboration_network(
-            repo, pr_metadata, filters
+            repo, pr_metadata, filters, author
         )
 
     # Repository management methods

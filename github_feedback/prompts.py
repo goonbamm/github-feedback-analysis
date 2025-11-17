@@ -275,6 +275,7 @@ def get_issue_quality_analysis_system_prompt() -> str:
         "    {\n"
         '      "number": 이슈 번호,\n'
         '      "title": "제목",\n'
+        '      "url": "이슈 URL (제공된 경우)",\n'
         '      "type": "bug|feature|other",\n'
         '      "strengths": ["잘된 점들"],\n'
         '      "completeness_score": 1-10\n'
@@ -284,6 +285,7 @@ def get_issue_quality_analysis_system_prompt() -> str:
         "    {\n"
         '      "number": 이슈 번호,\n'
         '      "title": "제목",\n'
+        '      "url": "이슈 URL (제공된 경우)",\n'
         '      "missing_elements": ["누락된 요소들"],\n'
         '      "suggestion": "개선 방법"\n'
         "    }\n"
@@ -436,7 +438,7 @@ def get_team_report_system_prompt() -> str:
         "- 팀 문화 및 커뮤니케이션 특성\n\n"
         "**보고서 구조:**\n\n"
         "# 🎯 통합 코드 리뷰 보고서\n\n"
-        "## 📊 리뷰 활동 요약\n"
+        "## 📊 PR 활동 요약\n"
         "- 전체 PR 수 및 기간별 분포\n"
         "- 평균 리뷰 시간, 병합까지 소요 시간\n"
         "- 주요 활동 트렌드 (증가/감소/안정)\n\n"
@@ -548,6 +550,140 @@ def get_award_summary_quote_user_prompt(
     )
 
 
+def get_pr_communication_quality_system_prompt() -> str:
+    """Get focused system prompt for PR communication quality (titles and descriptions)."""
+    return (
+        "당신은 PR 커뮤니케이션 품질을 평가하는 전문가입니다.\n\n"
+        "**분석 목표:**\n"
+        "PR 제목과 설명의 품질을 평가하여 커뮤니케이션 능력을 파악합니다.\n\n"
+        "**PR 제목 평가 기준:**\n"
+        "1. 명확성: 변경 내용을 한눈에 파악할 수 있는가?\n"
+        "2. 구체성: 구체적인 동사와 대상을 명시하는가?\n"
+        "3. 일관성: 컨벤션(feat/fix/refactor 등)을 일관되게 사용하는가?\n\n"
+        "**PR 설명 평가 기준:**\n"
+        "1. 변경 이유(Why): 왜 이 변경이 필요한지 설명하는가?\n"
+        "2. 구현 방법(How): 어떻게 구현했는지 설명하는가?\n"
+        "3. 테스트 계획: 어떻게 테스트했는지 명시하는가?\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "strengths": [\n'
+        "    {\n"
+        '      "category": "구체적인 강점 (예: \'명확하고 일관된 PR 제목 작성\')",\n'
+        '      "description": "관찰된 패턴 설명 (2-3문장)",\n'
+        '      "evidence": ["PR #123: 제목 예시", "PR #145: 설명 예시"],\n'
+        '      "impact": "high|medium|low"\n'
+        "    }\n"
+        "  ],\n"
+        '  "improvement_areas": [\n'
+        "    {\n"
+        '      "category": "구체적인 개선점 (예: \'PR 설명의 테스트 계획 누락\')",\n'
+        '      "description": "개선이 필요한 이유 (2-3문장)",\n'
+        '      "evidence": ["PR #134: 설명 예시"],\n'
+        '      "suggestions": ["구체적인 개선 방법"],\n'
+        '      "priority": "critical|important|nice-to-have"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_pr_communication_quality_user_prompt(pr_data: str) -> str:
+    """Get user prompt for PR communication quality analysis."""
+    return (
+        "다음 PR 데이터를 분석하여 커뮤니케이션 품질을 평가해주세요:\n\n"
+        f"{pr_data}\n\n"
+        "PR 제목과 설명의 품질을 중심으로 강점과 개선점을 구체적으로 분석해주세요."
+    )
+
+
+def get_code_contribution_quality_system_prompt() -> str:
+    """Get focused system prompt for code contribution quality analysis."""
+    return (
+        "당신은 코드 기여 품질을 평가하는 전문가입니다.\n\n"
+        "**분석 목표:**\n"
+        "PR 리뷰 결과와 코드 변경 규모를 바탕으로 코드 품질, 설계, 테스트 습관을 파악합니다.\n\n"
+        "**평가 기준:**\n"
+        "1. 코드 설계: 아키텍처, 모듈화, 재사용성\n"
+        "2. 코드 품질: 가독성, 일관성, 에러 처리\n"
+        "3. 코드 변경 규모: PR 크기가 적절한가, 너무 크거나 작지 않은가\n"
+        "4. 테스트: 테스트 커버리지, 테스트 품질\n"
+        "5. 문서화: 주석, README, API 문서\n"
+        "6. 문제 해결: 복잡한 문제를 어떻게 해결하는가\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "strengths": [\n'
+        "    {\n"
+        '      "category": "구체적인 강점 (예: \'복잡한 로직을 명확한 함수로 분리\')",\n'
+        '      "description": "관찰된 패턴 설명 (2-3문장)",\n'
+        '      "evidence": ["PR #123: 코드 변경 내용", "PR #145: 리뷰 코멘트"],\n'
+        '      "impact": "high|medium|low"\n'
+        "    }\n"
+        "  ],\n"
+        '  "improvement_areas": [\n'
+        "    {\n"
+        '      "category": "구체적인 개선점 (예: \'테스트 커버리지 부족\')",\n'
+        '      "description": "개선이 필요한 이유 (2-3문장)",\n'
+        '      "evidence": ["PR #134: 리뷰 피드백"],\n'
+        '      "suggestions": ["구체적인 개선 방법"],\n'
+        '      "priority": "critical|important|nice-to-have"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_code_contribution_quality_user_prompt(pr_review_data: str) -> str:
+    """Get user prompt for code contribution quality analysis."""
+    return (
+        "다음 PR 리뷰 데이터를 분석하여 코드 기여 품질을 평가해주세요:\n\n"
+        f"{pr_review_data}\n\n"
+        "코드 설계, 품질, 테스트, 문서화 측면에서 강점과 개선점을 분석해주세요."
+    )
+
+
+def get_growth_trajectory_system_prompt() -> str:
+    """Get focused system prompt for growth trajectory analysis."""
+    return (
+        "당신은 개발자 성장 패턴을 분석하는 전문가입니다.\n\n"
+        "**분석 목표:**\n"
+        "초기 PR과 최근 PR을 비교하여 시간에 따른 성장과 변화를 파악합니다.\n\n"
+        "**분석 영역:**\n"
+        "1. 커뮤니케이션 개선: PR 제목/설명이 명확해졌는가?\n"
+        "2. 코드 품질 향상: 코드 리뷰 피드백이 줄었는가?\n"
+        "3. 기술 확장: 새로운 기술/도구를 도입했는가?\n"
+        "4. 문제 복잡도: 더 복잡한 문제를 해결하는가?\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "growth_indicators": [\n'
+        "    {\n"
+        '      "aspect": "변화가 관찰된 영역",\n'
+        '      "description": "구체적인 변화 내용 (2-3문장)",\n'
+        '      "before_examples": ["초기 PR 예시"],\n'
+        '      "after_examples": ["최근 PR 예시"],\n'
+        '      "progress_summary": "변화의 방향과 의미"\n'
+        "    }\n"
+        "  ],\n"
+        '  "key_achievements": ["주요 성과"],\n'
+        '  "next_focus_areas": ["다음 집중 영역"]\n'
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_growth_trajectory_user_prompt(early_prs: str, recent_prs: str) -> str:
+    """Get user prompt for growth trajectory analysis."""
+    return (
+        "다음 초기 PR과 최근 PR을 비교하여 성장 패턴을 분석해주세요:\n\n"
+        "**초기 PR (전반부):**\n"
+        f"{early_prs}\n\n"
+        "**최근 PR (후반부):**\n"
+        f"{recent_prs}\n\n"
+        "시간에 따른 변화와 성장을 구체적으로 분석해주세요."
+    )
+
+
 __all__ = [
     "get_pr_review_system_prompt",
     "get_commit_analysis_system_prompt",
@@ -564,4 +700,10 @@ __all__ = [
     "get_team_report_user_prompt",
     "get_award_summary_quote_system_prompt",
     "get_award_summary_quote_user_prompt",
+    "get_pr_communication_quality_system_prompt",
+    "get_pr_communication_quality_user_prompt",
+    "get_code_contribution_quality_system_prompt",
+    "get_code_contribution_quality_user_prompt",
+    "get_growth_trajectory_system_prompt",
+    "get_growth_trajectory_user_prompt",
 ]
