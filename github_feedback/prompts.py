@@ -159,7 +159,7 @@ def get_pr_title_analysis_user_prompt() -> str:
     return "다음 PR 제목들을 분석해주세요:\n\n{data_list}"
 
 
-def get_review_tone_analysis_system_prompt() -> str:
+def get_review_tone_analysis_system_prompt(web_url: str = "https://github.com") -> str:
     """Get system prompt for review tone analysis."""
     return (
         "당신은 팀 협업과 커뮤니케이션 전문가입니다.\n"
@@ -204,7 +204,7 @@ def get_review_tone_analysis_system_prompt() -> str:
         '      "pr_number": PR 번호,\n'
         '      "author": "작성자",\n'
         '      "comment": "코멘트 내용",\n'
-        '      "url": "https://github.com/owner/repo/pull/123#pullrequestreview-...",\n'
+        f'      "url": "{web_url}/owner/repo/pull/123#pullrequestreview-...",\n'
         '      "strengths": ["구체적인 장점 1 (2-3개 문장)", "구체적인 장점 2"]\n'
         "    }\n"
         "  ],\n"
@@ -213,7 +213,7 @@ def get_review_tone_analysis_system_prompt() -> str:
         '      "pr_number": PR 번호,\n'
         '      "author": "작성자",\n'
         '      "comment": "원본 코멘트",\n'
-        '      "url": "https://github.com/owner/repo/pull/123#pullrequestreview-...",\n'
+        f'      "url": "{web_url}/owner/repo/pull/123#pullrequestreview-...",\n'
         '      "issues": ["구체적인 문제점 1 (2-3개 문장)", "구체적인 문제점 2"],\n'
         '      "improved_version": "개선된 표현 예시 (구체적으로)"\n'
         "    }\n"
