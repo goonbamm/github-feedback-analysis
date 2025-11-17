@@ -1698,7 +1698,16 @@ def feedback(
     # Initialize analyzer and reporter
     analyzer = Analyzer(web_base_url=config.server.web_url)
     output_dir_resolved = _resolve_output_dir(output_dir)
-    reporter = Reporter(output_dir=output_dir_resolved)
+
+    # Create LLM client for reporter (used for generating summary quotes)
+    from .llm import LLMClient
+    llm_client = LLMClient(
+        endpoint=config.llm.endpoint,
+        model=config.llm.model,
+        timeout=config.llm.timeout,
+        web_url=config.server.web_url,
+    )
+    reporter = Reporter(output_dir=output_dir_resolved, llm_client=llm_client)
 
     # Execute analysis workflow
     author = _get_authenticated_user(collector)

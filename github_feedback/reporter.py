@@ -123,6 +123,7 @@ class Reporter:
 
     output_dir: Path = Path("reports")
     _current_repo: Optional[str] = None  # Temporary storage for current repo during report generation
+    llm_client: Optional[Any] = None  # Optional LLM client for generating summary quotes
 
     def ensure_structure(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -162,6 +163,22 @@ class Reporter:
     def _build_header_and_summary(self, metrics: MetricSnapshot) -> List[str]:
         """Build header and summary section."""
         lines = ["# 🚀 GitHub Feedback Report", ""]
+
+        # Generate witty summary quote if LLM client is available
+        if self.llm_client and (metrics.awards or metrics.highlights or metrics.summary):
+            try:
+                quote = self.llm_client.generate_award_summary_quote(
+                    metrics.awards,
+                    metrics.highlights,
+                    metrics.summary,
+                )
+                if quote:
+                    lines.append(f"> ✨ **{quote}**")
+                    lines.append("")
+            except Exception as e:
+                # Silently skip if quote generation fails
+                console.log("Failed to generate award summary quote", f"error={e}")
+
         lines.append(f"**Repository**: {metrics.repo}")
         lines.append(f"**Period**: {metrics.months} months")
 

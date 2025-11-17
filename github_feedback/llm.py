@@ -19,6 +19,8 @@ from .console import Console
 from .constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .prompts import (
+    get_award_summary_quote_system_prompt,
+    get_award_summary_quote_user_prompt,
     get_commit_analysis_system_prompt,
     get_commit_analysis_user_prompt,
     get_issue_quality_analysis_system_prompt,
@@ -936,6 +938,61 @@ class LLMClient:
             "examples_good": result.get("examples_good", []),
             "examples_poor": result.get("examples_poor", []),
         }
+
+    def generate_award_summary_quote(
+        self,
+        awards: list[str],
+        highlights: list[str],
+        summary: dict[str, str],
+    ) -> str:
+        """Generate a witty summary quote for the award winner.
+
+        Args:
+            awards: List of awards received
+            highlights: List of growth highlights
+            summary: Summary dictionary with key metrics
+
+        Returns:
+            A witty summary quote, or empty string if generation fails
+        """
+        # Return empty if no data to work with
+        if not awards and not highlights and not summary:
+            return ""
+
+        try:
+            # Build messages
+            messages = [
+                {
+                    "role": "system",
+                    "content": get_award_summary_quote_system_prompt(),
+                },
+                {
+                    "role": "user",
+                    "content": get_award_summary_quote_user_prompt(awards, highlights, summary),
+                },
+            ]
+
+            # Call LLM
+            response = self.complete(messages)
+
+            # Check for empty response
+            if not response or not response.strip():
+                logger.warning("Empty response from LLM for award summary quote")
+                return ""
+
+            result = json.loads(response)
+            quote = result.get("quote", "")
+
+            return quote.strip()
+
+        except (ValueError, requests.RequestException, json.JSONDecodeError) as exc:
+            # Log warning but don't fail the report generation
+            logger.warning(f"LLM award summary quote generation failed: {exc}")
+            console.print(
+                "[warning]⚠ 수상자 요약 문구 생성 실패 - 계속 진행합니다[/]",
+                style="warning",
+            )
+            return ""
 
     # Fallback analysis methods ----------------------------------------
 

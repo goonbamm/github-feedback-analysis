@@ -488,6 +488,70 @@ def get_team_report_user_prompt(context: str) -> str:
     )
 
 
+def get_award_summary_quote_system_prompt() -> str:
+    """Get system prompt for generating a witty award summary quote."""
+    return (
+        "당신은 재치있고 유머러스한 문장을 만드는 카피라이터입니다.\n\n"
+        "**목표:**\n"
+        "개발자의 성과와 어워드를 바탕으로, 유명한 명언이나 문구를 패러디하여 "
+        "재치있고 인상적인 한 문장을 만드세요.\n\n"
+        "**참고할 유명한 문장 패러디 예시:**\n"
+        "- '저장소의 미래를 묻거든 고개를 들어 이 사람을 보라' (윤동주 '서시' 패러디)\n"
+        "- '코드가 있는 곳에 길이 있다, 이 사람이 그 길이다' (희망 문구 패러디)\n"
+        "- '천 개의 커밋도 이 한 사람으로부터 시작되었다' (노자 '천리길도 한 걸음부터' 패러디)\n"
+        "- '코드 리뷰의 시작과 끝, 이 사람을 보라' (알파와 오메가 패러디)\n"
+        "- 'To Merge or Not to Merge, 이 사람이 답이다' (셰익스피어 '햄릿' 패러디)\n"
+        "- '우리는 이 사람의 커밋 위에 서 있다' (뉴턴 '거인의 어깨' 패러디)\n\n"
+        "**작성 원칙:**\n"
+        "1. 반드시 유명한 문구나 명언을 패러디할 것\n"
+        "2. 개발자의 주요 어워드나 성과를 자연스럽게 녹여낼 것\n"
+        "3. 한 문장으로 간결하게 표현할 것 (최대 2문장)\n"
+        "4. 과장되지 않으면서도 재치있고 인상적일 것\n"
+        "5. 기술 용어(커밋, PR, 리뷰 등)를 적절히 활용할 것\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "quote": "재치있는 한 문장 요약",\n'
+        '  "reference": "패러디한 원본 문구나 출처 (선택사항)"\n'
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_award_summary_quote_user_prompt(
+    awards: list[str],
+    highlights: list[str],
+    summary: dict[str, str],
+) -> str:
+    """Get user prompt for award summary quote generation.
+
+    Args:
+        awards: List of awards received
+        highlights: List of growth highlights
+        summary: Summary dictionary with key metrics
+
+    Returns:
+        User prompt string
+    """
+    # Format awards
+    awards_text = "\n".join(f"- {award}" for award in awards[:10]) if awards else "없음"
+
+    # Format highlights
+    highlights_text = "\n".join(f"- {highlight}" for highlight in highlights[:5]) if highlights else "없음"
+
+    # Format summary
+    summary_text = "\n".join(f"- {key}: {value}" for key, value in summary.items()) if summary else "없음"
+
+    return (
+        "다음 개발자의 성과와 어워드를 바탕으로, 유명한 명언을 패러디한 "
+        "재치있고 인상적인 한 문장을 만들어주세요:\n\n"
+        f"**획득한 어워드:**\n{awards_text}\n\n"
+        f"**주요 성과:**\n{highlights_text}\n\n"
+        f"**핵심 지표:**\n{summary_text}\n\n"
+        "이 사람의 가장 두드러진 특징을 포착하여, "
+        "유명한 문구를 패러디한 재치있는 한 문장을 만들어주세요."
+    )
+
+
 __all__ = [
     "get_pr_review_system_prompt",
     "get_commit_analysis_system_prompt",
@@ -502,4 +566,6 @@ __all__ = [
     "get_personal_development_user_prompt",
     "get_team_report_system_prompt",
     "get_team_report_user_prompt",
+    "get_award_summary_quote_system_prompt",
+    "get_award_summary_quote_user_prompt",
 ]
