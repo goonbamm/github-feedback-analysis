@@ -301,10 +301,21 @@ class Reporter:
         if not metrics.spotlight_examples:
             return []
 
+        # Filter out categories with no entries
+        non_empty_categories = {
+            category: entries
+            for category, entries in metrics.spotlight_examples.items()
+            if entries
+        }
+
+        # If no categories have content, don't create the section
+        if not non_empty_categories:
+            return []
+
         lines = ["## 🎯 Spotlight Examples", ""]
         lines.append("> 주목할 만한 기여 사례")
         lines.append("")
-        for category, entries in metrics.spotlight_examples.items():
+        for category, entries in non_empty_categories.items():
             lines.append(f"### {category.replace('_', ' ').title()}")
             lines.append("")
             lines.append("| 사례 |")
@@ -406,10 +417,23 @@ class Reporter:
         if not metrics.detailed_feedback:
             return []
 
+        feedback = metrics.detailed_feedback
+
+        # Check if there's any actual feedback content
+        has_content = any([
+            feedback.commit_feedback,
+            feedback.pr_title_feedback,
+            feedback.review_tone_feedback,
+            feedback.issue_feedback
+        ])
+
+        # If no feedback content exists, don't create the section
+        if not has_content:
+            return []
+
         lines = ["## 💡 Detailed Feedback", ""]
         lines.append("> 코드, PR, 리뷰, 이슈 품질에 대한 상세 분석")
         lines.append("")
-        feedback = metrics.detailed_feedback
 
         # Commit message feedback
         if feedback.commit_feedback:
@@ -802,6 +826,10 @@ class Reporter:
         if not metrics.tech_stack:
             return []
 
+        # Check if there are any languages to display
+        if not metrics.tech_stack.top_languages:
+            return []
+
         lines = ["## 💻 Tech Stack Analysis", ""]
         lines.append("> 사용한 기술과 언어 분포")
         lines.append("")
@@ -1186,24 +1214,30 @@ class Reporter:
             return []
 
         retro = metrics.retrospective
+
+        # Build all subsections using dedicated methods
+        subsections = []
+        subsections.extend(self._build_executive_summary_subsection(retro))
+        subsections.extend(self._build_key_wins_subsection(retro))
+        subsections.extend(self._build_time_comparisons_subsection(retro))
+        subsections.extend(self._build_behavior_patterns_subsection(retro))
+        subsections.extend(self._build_learning_insights_subsection(retro))
+        subsections.extend(self._build_impact_assessments_subsection(retro))
+        subsections.extend(self._build_collaboration_insights_subsection(retro))
+        subsections.extend(self._build_balance_metrics_subsection(retro))
+        subsections.extend(self._build_code_health_subsection(retro))
+        subsections.extend(self._build_actionable_insights_subsection(retro))
+        subsections.extend(self._build_areas_for_growth_subsection(retro))
+        subsections.extend(self._build_narrative_subsection(retro))
+
+        # If no subsections have content, don't create the section
+        if not subsections:
+            return []
+
         lines = ["## 🔍 Deep Retrospective Analysis", ""]
         lines.append("> 데이터 기반의 심층적인 회고와 인사이트")
         lines.append("")
-
-        # Build all subsections using dedicated methods
-        lines.extend(self._build_executive_summary_subsection(retro))
-        lines.extend(self._build_key_wins_subsection(retro))
-        lines.extend(self._build_time_comparisons_subsection(retro))
-        lines.extend(self._build_behavior_patterns_subsection(retro))
-        lines.extend(self._build_learning_insights_subsection(retro))
-        lines.extend(self._build_impact_assessments_subsection(retro))
-        lines.extend(self._build_collaboration_insights_subsection(retro))
-        lines.extend(self._build_balance_metrics_subsection(retro))
-        lines.extend(self._build_code_health_subsection(retro))
-        lines.extend(self._build_actionable_insights_subsection(retro))
-        lines.extend(self._build_areas_for_growth_subsection(retro))
-        lines.extend(self._build_narrative_subsection(retro))
-
+        lines.extend(subsections)
         lines.append("---")
         lines.append("")
         return lines
