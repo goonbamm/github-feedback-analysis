@@ -414,6 +414,35 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             return None
 
 
+def _load_default_hosts() -> list[str]:
+    """Load default hosts from config file.
+
+    Returns:
+        List of default host examples
+    """
+    # Default fallback hosts if config file is not found
+    fallback_hosts = [
+        "github.com (Default)",
+        "github.company.com",
+        "github.enterprise.local",
+        "ghe.example.com",
+    ]
+
+    try:
+        # Get the path to hosts.config.json in the project root
+        config_path = Path(__file__).parent.parent / "hosts.config.json"
+
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                return config_data.get("default_hosts", fallback_hosts)
+        else:
+            return fallback_hosts
+    except Exception:
+        # If any error occurs, use fallback
+        return fallback_hosts
+
+
 def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tuple[str, bool]]:
     """Interactive enterprise host selection with preset and custom options.
 
@@ -425,13 +454,8 @@ def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tup
         - selected_host: The enterprise host URL (empty string for github.com)
         - should_save: Whether to save this host to custom list
     """
-    # Default example hosts
-    default_hosts = [
-        "github.com (Default)",
-        "github.company.com",
-        "github.enterprise.local",
-        "ghe.example.com",
-    ]
+    # Load default example hosts from config
+    default_hosts = _load_default_hosts()
 
     console.print("\n[accent]Select GitHub Enterprise Host:[/]")
     console.print("[info]Choose from the list or enter a custom URL[/]\n")
