@@ -122,9 +122,18 @@ class Reporter:
     """Create human-readable artefacts from metrics."""
 
     output_dir: Path = Path("reports")
+    _current_repo: Optional[str] = None  # Temporary storage for current repo during report generation
 
     def ensure_structure(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_repo_from_context(self) -> str:
+        """Get the current repository being processed.
+
+        Returns:
+            Repository in 'owner/repo' format, or empty string if not available
+        """
+        return self._current_repo or ""
 
     def _categorize_awards(self, awards: List[str]) -> dict:
         """Categorize awards by type for better organization."""
@@ -643,21 +652,41 @@ class Reporter:
         )
 
     def _build_pr_title_feedback(self, pr_title_feedback) -> List[str]:
-        """Build PR title feedback subsection."""
-        def format_pr_example(example):
-            if isinstance(example, dict):
-                return f"#{example.get('number', '')}: `{example.get('title', '')}`"
-            return str(example)
+        """Build PR title feedback subsection with new table format."""
+        def format_pr_evidence(example):
+            title = example.get('title', '')
+            reason = example.get('reason', '')
+            suggestion = example.get('suggestion', '')
 
-        return self._build_feedback_section(
+            # Escape special characters to prevent table breakage
+            title_escaped = _escape_table_cell(title)
+            reason_escaped = _escape_table_cell(reason)
+            suggestion_escaped = _escape_table_cell(suggestion)
+
+            # Build detailed evidence with title and reason
+            parts = [f"**제목**: `{title_escaped}`"]
+            if reason_escaped:
+                parts.append(f"<br>**근거**: {reason_escaped}")
+            if suggestion_escaped:
+                parts.append(f"<br>**개선방안**: {suggestion_escaped}")
+
+            return "<br>".join(parts)
+
+        def format_pr_link(example):
+            number = example.get('number', '')
+            if number:
+                return f"[#{number}](https://github.com/{self._get_repo_from_context()}/pull/{number})"
+            return "-"
+
+        return self._build_feedback_table(
             title="### 🔀 PR 제목 품질",
             feedback_data=pr_title_feedback,
-            stats_config={
-                'total': ('total_prs', '총 PR', '개'),
-                'good': ('clear_titles', '명확한 제목', '개'),
-                'poor': ('vague_titles', '모호한 제목', '개'),
-            },
-            example_formatter=format_pr_example,
+            good_category="명확하고 구체적인 PR 제목",
+            poor_category="PR 제목 구체화 필요",
+            fallback_good_msg="좋은 PR 제목",
+            fallback_poor_msg="PR 제목 개선 필요",
+            evidence_formatter=format_pr_evidence,
+            link_formatter=format_pr_link,
         )
 
     def _build_review_tone_feedback(self, review_tone_feedback) -> List[str]:
@@ -1172,6 +1201,9 @@ class Reporter:
         self.ensure_structure()
         report_path = self.output_dir / "report.md"
 
+        # Store repo for use in link generation
+        self._current_repo = metrics.repo
+
         console.log("Writing markdown report", f"path={report_path}")
 
         # Build all sections in improved order
@@ -1227,6 +1259,9 @@ class Reporter:
         Returns:
             Markdown report content as a string
         """
+        # Store repo for use in link generation
+        self._current_repo = metrics.repo
+
         # Build all sections in improved order (same as generate_markdown)
         sections = [
             # 1. Header with basic info
