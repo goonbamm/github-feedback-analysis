@@ -62,7 +62,7 @@ def get_commit_analysis_system_prompt(web_url: str, repo: str, max_samples: int)
         "   - 어떤 규칙을 잘 따랐는지/위반했는지 명시\n"
         "   - 구체적인 개선점이나 장점을 설명\n"
         "   - 예: '첫 줄이 50자를 초과하여 가독성이 떨어집니다. 또한 명령형 동사로 시작하지 않아 일관성이 부족합니다.'\n"
-        f"2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: {web_url}/{repo}/commit/{{sha}}\n"
+        "2. 각 예시에는 커밋 SHA만 포함하세요 (URL은 시스템에서 자동으로 생성됩니다)\n"
         "3. 예시 개수는 적어도 되지만(각 1-3개), **품질과 구체성**이 가장 중요합니다\n\n"
         "응답 형식:\n"
         "{\n"
@@ -75,7 +75,6 @@ def get_commit_analysis_system_prompt(web_url: str, repo: str, max_samples: int)
         "    {\n"
         '      "sha": "전체 커밋 해시",\n'
         '      "message": "커밋 메시지",\n'
-        f'      "url": "{web_url}/{repo}/commit/{{sha}}",\n'
         '      "reason": "왜 좋은지 **구체적이고 상세하게** 설명 (2-3개 문장)"\n'
         "    }\n"
         "  ],\n"
@@ -83,7 +82,6 @@ def get_commit_analysis_system_prompt(web_url: str, repo: str, max_samples: int)
         "    {\n"
         '      "sha": "전체 커밋 해시",\n'
         '      "message": "커밋 메시지",\n'
-        f'      "url": "{web_url}/{repo}/commit/{{sha}}",\n'
         '      "reason": "왜 개선이 필요한지 **구체적이고 상세하게** 설명 (2-3개 문장)",\n'
         '      "suggestion": "개선 방법을 구체적으로 제시"\n'
         "    }\n"
@@ -189,7 +187,7 @@ def get_review_tone_analysis_system_prompt(web_url: str = "https://github.com") 
         "   - 어떤 점이 좋은지/문제가 되는지 명확히 설명\n"
         "   - 구체적인 개선점이나 장점을 나열\n"
         "   - 예: strengths: ['구체적인 해결책을 제시함', '존중하는 톤 사용', '코드 예시 포함']\n"
-        "2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요\n"
+        "2. 각 예시에는 PR 번호(pr_number)와 작성자(author)만 포함하세요 (URL은 시스템에서 자동으로 생성됩니다)\n"
         "3. examples_improve에는 반드시 improved_version을 포함하여 어떻게 개선할 수 있는지 보여주세요\n\n"
         "응답 형식:\n"
         "{\n"
@@ -204,7 +202,6 @@ def get_review_tone_analysis_system_prompt(web_url: str = "https://github.com") 
         '      "pr_number": PR 번호,\n'
         '      "author": "작성자",\n'
         '      "comment": "코멘트 내용",\n'
-        f'      "url": "{web_url}/owner/repo/pull/123#pullrequestreview-...",\n'
         '      "strengths": ["구체적인 장점 1 (2-3개 문장)", "구체적인 장점 2"]\n'
         "    }\n"
         "  ],\n"
@@ -213,7 +210,6 @@ def get_review_tone_analysis_system_prompt(web_url: str = "https://github.com") 
         '      "pr_number": PR 번호,\n'
         '      "author": "작성자",\n'
         '      "comment": "원본 코멘트",\n'
-        f'      "url": "{web_url}/owner/repo/pull/123#pullrequestreview-...",\n'
         '      "issues": ["구체적인 문제점 1 (2-3개 문장)", "구체적인 문제점 2"],\n'
         '      "improved_version": "개선된 표현 예시 (구체적으로)"\n'
         "    }\n"

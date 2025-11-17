@@ -836,13 +836,14 @@ class LLMClient:
 
         result = self._analyze_with_config(commits, config, "commits")
 
-        # Add URLs to examples if not present (for fallback or LLM responses without URLs)
+        # Always construct URLs from SHA heuristically to ensure correctness
+        # (LLM-generated URLs may have incorrect enterprise-host or repository)
         if repo:
             for example in result.get("examples_good", []):
-                if "url" not in example and "sha" in example:
+                if "sha" in example:
                     example["url"] = f"{self.web_url}/{repo}/commit/{example['sha']}"
             for example in result.get("examples_poor", []):
-                if "url" not in example and "sha" in example:
+                if "sha" in example:
                     example["url"] = f"{self.web_url}/{repo}/commit/{example['sha']}"
 
         # Map result keys to expected output format
@@ -882,9 +883,14 @@ class LLMClient:
         }
 
     def analyze_review_tone(
-        self, review_comments: list[dict[str, str]]
+        self, review_comments: list[dict[str, str]], repo: str = ""
     ) -> dict[str, Any]:
-        """Analyze code review tone and style using LLM with fallback to heuristics."""
+        """Analyze code review tone and style using LLM with fallback to heuristics.
+
+        Args:
+            review_comments: List of review comment dictionaries
+            repo: Repository name in format 'owner/repo' (e.g., 'goonbamm/github-feedback-analysis')
+        """
         config = AnalysisConfig(
             analysis_type="review tone",
             sample_size=LLM_DEFAULTS["sample_size_reviews"],
@@ -902,6 +908,16 @@ class LLMClient:
         )
 
         result = self._analyze_with_config(review_comments, config, "reviews")
+
+        # Always construct URLs from PR number heuristically to ensure correctness
+        # (LLM-generated URLs may have incorrect enterprise-host or repository)
+        if repo:
+            for example in result.get("examples_good", []):
+                if "pr_number" in example:
+                    example["url"] = f"{self.web_url}/{repo}/pull/{example['pr_number']}"
+            for example in result.get("examples_improve", []):
+                if "pr_number" in example:
+                    example["url"] = f"{self.web_url}/{repo}/pull/{example['pr_number']}"
 
         return {
             "constructive_reviews": result.get("constructive_count", 0),
@@ -1404,7 +1420,6 @@ class LLMClient:
                         "pr_number": review.get("pr_number", ""),
                         "author": review.get("author", ""),
                         "comment": body[:150] + "..." if len(body) > 150 else body,
-                        "url": review.get("url", ""),
                         "strengths": strengths[:3],
                     })
             elif score <= -2:
@@ -1421,7 +1436,6 @@ class LLMClient:
                         "pr_number": review.get("pr_number", ""),
                         "author": review.get("author", ""),
                         "comment": body[:150] + "..." if len(body) > 150 else body,
-                        "url": review.get("url", ""),
                         "issues": issues[:3] if issues else ["더 부드러운 표현을 사용하면 좋겠습니다"],
                         "improved_version": improved[:200] + "..." if len(improved) > 200 else improved,
                     })

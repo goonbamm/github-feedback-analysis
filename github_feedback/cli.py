@@ -947,7 +947,7 @@ def _collect_detailed_feedback(
         analysis_tasks = {
             "commit_messages": (lambda: llm_client.analyze_commit_messages(commits_data, repo), (), "commits"),
             "pr_titles": (lambda: llm_client.analyze_pr_titles(pr_titles_data), (), "PR titles"),
-            "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data), (), "review tone"),
+            "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data, repo), (), "review tone"),
             "issue_quality": (lambda: llm_client.analyze_issue_quality(issues_data), (), "issues"),
             "personal_development": (lambda: llm_client.analyze_personal_development(pr_titles_data, review_comments_data, repo), (), "personal development"),
         }
