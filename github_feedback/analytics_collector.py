@@ -205,6 +205,9 @@ class AnalyticsCollector(BaseCollector):
             local_reviewers: Set[str] = set()
             local_total = 0
 
+            # Get PR author to exclude from collaborators
+            pr_author = pr.get("user", {}).get("login", "") if pr.get("user") else ""
+
             try:
                 reviews = self.api_client.request_all(
                     f"repos/{repo}/pulls/{number}/reviews", build_pagination_params()
@@ -217,6 +220,10 @@ class AnalyticsCollector(BaseCollector):
 
                     reviewer_login = (reviewer or {}).get("login", "")
                     if not reviewer_login:
+                        continue
+
+                    # Exclude self-reviews (when reviewer is the PR author)
+                    if reviewer_login == pr_author:
                         continue
 
                     local_counts[reviewer_login] = (

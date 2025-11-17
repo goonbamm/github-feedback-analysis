@@ -232,8 +232,16 @@ def get_review_tone_analysis_user_prompt() -> str:
     return "다음 리뷰 코멘트들을 분석해주세요:\n\n{data_list}"
 
 
-def get_issue_quality_analysis_system_prompt() -> str:
-    """Get system prompt for issue quality analysis."""
+def get_issue_quality_analysis_system_prompt(web_url: str = "https://github.com", repo: str = "") -> str:
+    """Get system prompt for issue quality analysis.
+
+    Args:
+        web_url: GitHub web URL for generating issue links
+        repo: Repository name in format 'owner/repo'
+
+    Returns:
+        System prompt string
+    """
     return (
         "당신은 프로젝트 관리 전문가로서 GitHub 이슈 품질을 평가합니다.\n\n"
         "**이슈 타입별 기준:**\n\n"
@@ -257,6 +265,9 @@ def get_issue_quality_analysis_system_prompt() -> str:
         "**품질 평가:**\n"
         "- 잘 작성됨: 위 체크리스트 70% 이상 충족\n"
         "- 개선 필요: 체크리스트 50% 미만 또는 핵심 정보 누락\n\n"
+        "**중요: 응답 작성 시 주의사항**\n"
+        f"1. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: {web_url}/{repo}/issues/{{number}}\n"
+        "2. URL은 이슈 번호를 사용하여 정확히 생성하세요\n\n"
         "응답 형식:\n"
         "{\n"
         '  "well_described_count": 숫자,\n'
@@ -275,6 +286,7 @@ def get_issue_quality_analysis_system_prompt() -> str:
         "    {\n"
         '      "number": 이슈 번호,\n'
         '      "title": "제목",\n'
+        f'      "url": "{web_url}/{repo}/issues/{{number}}",\n'
         '      "type": "bug|feature|other",\n'
         '      "strengths": ["잘된 점들"],\n'
         '      "completeness_score": 1-10\n'
@@ -284,6 +296,7 @@ def get_issue_quality_analysis_system_prompt() -> str:
         "    {\n"
         '      "number": 이슈 번호,\n'
         '      "title": "제목",\n'
+        f'      "url": "{web_url}/{repo}/issues/{{number}}",\n'
         '      "missing_elements": ["누락된 요소들"],\n'
         '      "suggestion": "개선 방법"\n'
         "    }\n"
@@ -410,7 +423,8 @@ def get_personal_development_user_prompt(
         "   - 코드 설계 및 구조화 능력\n"
         "   - 문제 해결 접근 방식\n"
         "   - 테스트 및 문서화 습관\n"
-        "   - 기술 스택 활용 및 확장\n\n"
+        "   - 기술 스택 활용 및 확장\n"
+        "   - 코드 변화 패턴 분석 (PR의 additions/deletions 정보를 바탕으로 작은 단위 커밋 습관, 대규모 리팩토링 패턴 등 분석)\n\n"
         "**중요:** 각 영역에서 실제 PR 제목, PR 설명 내용, 리뷰 코멘트 예시를 evidence에 포함하여 "
         "구체적인 근거를 제시하세요. 추상적인 평가가 아닌 관찰된 사실에 기반한 분석을 작성하세요."
     )
@@ -548,6 +562,102 @@ def get_award_summary_quote_user_prompt(
     )
 
 
+def get_communication_analysis_prompt() -> str:
+    """Get prompt for analyzing communication quality (PR titles, descriptions, review comments)."""
+    return (
+        "당신은 개발자의 커뮤니케이션 패턴을 분석하는 전문가입니다.\n\n"
+        "제공된 PR 데이터와 리뷰 코멘트를 바탕으로 개발자의 **커뮤니케이션 품질**을 분석하세요.\n\n"
+        "**분석 영역:**\n"
+        "1. **PR 제목 품질**: 제목이 변경 내용을 명확히 전달하는지, 일관된 형식을 따르는지\n"
+        "2. **PR 설명 완성도**: PR 설명이 변경 이유, 구현 방법, 테스트 계획을 포함하는지\n"
+        "3. **리뷰 코멘트 톤**: 리뷰 코멘트가 건설적이고 구체적인지, 협력적 태도를 보이는지\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "strengths": [\n'
+        "    {\n"
+        '      "category": "구체적인 강점 (예: \'명확하고 일관된 PR 제목 작성\')",\n'
+        '      "description": "관찰된 패턴 상세 설명 (2-3문장)",\n'
+        '      "evidence": ["PR #123: 예시", "PR #145: 예시"],\n'
+        '      "impact": "high|medium|low"\n'
+        "    }\n"
+        "  ],\n"
+        '  "improvement_areas": [\n'
+        "    {\n"
+        '      "category": "구체적인 개선 영역 (예: \'PR 설명 보완 필요\')",\n'
+        '      "description": "현재 패턴의 제한점 (2-3문장)",\n'
+        '      "evidence": ["PR #134: 예시"],\n'
+        '      "suggestions": ["구체적인 개선 방법"],\n'
+        '      "priority": "critical|important|nice-to-have"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_code_quality_analysis_prompt() -> str:
+    """Get prompt for analyzing code quality and design patterns."""
+    return (
+        "당신은 개발자의 코드 품질과 설계 패턴을 분석하는 전문가입니다.\n\n"
+        "제공된 PR 데이터를 바탕으로 개발자의 **코드 품질 및 설계 능력**을 분석하세요.\n\n"
+        "**분석 영역:**\n"
+        "1. **코드 설계 및 구조화**: 코드를 어떻게 설계하고 구조화하는지\n"
+        "2. **문제 해결 접근**: 복잡한 문제를 어떻게 분해하고 해결하는지\n"
+        "3. **테스트 및 문서화**: 테스트 작성 습관과 문서화 수준\n"
+        "4. **코드 변화 패턴**: PR의 additions/deletions를 바탕으로 작은 단위 커밋 습관, 대규모 리팩토링 패턴 등\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "strengths": [\n'
+        "    {\n"
+        '      "category": "구체적인 강점 (예: \'복잡한 로직을 명확한 함수로 분리하는 능력\')",\n'
+        '      "description": "관찰된 패턴 상세 설명 (2-3문장)",\n'
+        '      "evidence": ["PR #189: 예시 (코드 변화: +150/-50)"],\n'
+        '      "impact": "high|medium|low"\n'
+        "    }\n"
+        "  ],\n"
+        '  "improvement_areas": [\n'
+        "    {\n"
+        '      "category": "구체적인 개선 영역 (예: \'대규모 변경 시 단계별 분할 필요\')",\n'
+        '      "description": "현재 패턴의 제한점 (2-3문장)",\n'
+        '      "evidence": ["PR #192: 예시 (코드 변화: +1200/-800)"],\n'
+        '      "suggestions": ["구체적인 개선 방법"],\n'
+        '      "priority": "critical|important|nice-to-have"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
+def get_growth_assessment_prompt() -> str:
+    """Get prompt for analyzing growth indicators and overall assessment."""
+    return (
+        "당신은 개발자의 성장 패턴을 분석하는 전문가입니다.\n\n"
+        "제공된 PR 데이터와 이전 분석 결과를 바탕으로 개발자의 **성장 지표 및 전체 평가**를 작성하세요.\n\n"
+        "**분석 영역:**\n"
+        "1. **성장 지표**: 초기 PR과 최근 PR의 차이를 분석하여 시간에 따른 변화 파악\n"
+        "2. **전체 평가**: 코드 기여 패턴에 대한 종합적인 평가\n"
+        "3. **주요 성과**: 기술적으로 의미있는 구체적 기여\n"
+        "4. **다음 집중 영역**: 기술 역량 향상을 위한 구체적 집중 영역\n\n"
+        "**응답 형식 (JSON):**\n"
+        "{\n"
+        '  "growth_indicators": [\n'
+        "    {\n"
+        '      "aspect": "변화가 관찰된 구체적 영역 (예: \'PR 제목 명확성\')",\n'
+        '      "description": "구체적인 변화 내용 (2-3문장)",\n'
+        '      "before_examples": ["초기 PR의 구체적 특징"],\n'
+        '      "after_examples": ["최근 PR의 개선된 패턴"],\n'
+        '      "progress_summary": "변화의 방향과 의미"\n'
+        "    }\n"
+        "  ],\n"
+        '  "overall_assessment": "코드 기여 패턴 종합 평가 (2-3문장)",\n'
+        '  "key_achievements": ["구체적 기여 (예: \'인증 시스템 JWT 전환으로 보안성 향상\')"],\n'
+        '  "next_focus_areas": ["구체적 집중 영역 (예: \'대용량 트래픽 처리 최적화\')"]  \n'
+        "}\n\n"
+        "모든 응답은 한국어로 작성하세요."
+    )
+
+
 __all__ = [
     "get_pr_review_system_prompt",
     "get_commit_analysis_system_prompt",
@@ -564,4 +674,7 @@ __all__ = [
     "get_team_report_user_prompt",
     "get_award_summary_quote_system_prompt",
     "get_award_summary_quote_user_prompt",
+    "get_communication_analysis_prompt",
+    "get_code_quality_analysis_prompt",
+    "get_growth_assessment_prompt",
 ]

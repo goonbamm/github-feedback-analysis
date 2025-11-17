@@ -264,6 +264,8 @@ class PullRequestCollector(BaseCollector):
                     "author": (item.get("user") or {}).get("login", ""),
                     "url": item.get("html_url", ""),
                     "state": item.get("state", ""),
+                    "additions": item.get("additions", 0),
+                    "deletions": item.get("deletions", 0),
                 }
             )
 
