@@ -1731,7 +1731,7 @@ def feedback(
         timeout=config.llm.timeout,
         web_url=config.server.web_url,
     )
-    reporter = Reporter(output_dir=output_dir_resolved, llm_client=llm_client)
+    reporter = Reporter(output_dir=output_dir_resolved, llm_client=llm_client, web_url=config.server.web_url)
 
     # Execute analysis workflow
     author = _get_authenticated_user(collector)

@@ -124,6 +124,7 @@ class Reporter:
     output_dir: Path = Path("reports")
     _current_repo: Optional[str] = None  # Temporary storage for current repo during report generation
     llm_client: Optional[Any] = None  # Optional LLM client for generating summary quotes
+    web_url: str = "https://github.com"  # Base URL for GitHub links (configurable for enterprise)
 
     def ensure_structure(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -716,7 +717,7 @@ class Reporter:
         def format_pr_link(example):
             number = example.get('number', '')
             if number:
-                return f"[#{number}](https://github.com/{self._get_repo_from_context()}/pull/{number})"
+                return f"[#{number}]({self.web_url}/{self._get_repo_from_context()}/pull/{number})"
             return "-"
 
         return self._build_feedback_table(

@@ -888,7 +888,7 @@ class LLMClient:
         config = AnalysisConfig(
             analysis_type="review tone",
             sample_size=LLM_DEFAULTS["sample_size_reviews"],
-            system_prompt=get_review_tone_analysis_system_prompt(),
+            system_prompt=get_review_tone_analysis_system_prompt(self.web_url),
             user_prompt_template=get_review_tone_analysis_user_prompt(),
             empty_result={
                 "constructive_reviews": 0,
