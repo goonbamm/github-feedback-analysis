@@ -332,9 +332,9 @@ class RetrospectiveAnalyzer:
         # Generate actionable insights
         retrospective.actionable_insights = self._generate_actionable_insights(retrospective)
 
-        # Synthesize narrative
-        retrospective.executive_summary = self._create_executive_summary(retrospective, metrics)
-        retrospective.key_wins = self._identify_key_wins(retrospective, metrics)
+        # Synthesize narrative (executive_summary and key_wins removed to avoid duplication)
+        # retrospective.executive_summary = ""  # Covered by main Executive Summary
+        # retrospective.key_wins = []  # Covered by Growth Highlights
         retrospective.areas_for_growth = self._identify_growth_areas(retrospective, metrics)
         retrospective.retrospective_narrative = self._create_narrative(retrospective, metrics)
 
@@ -859,87 +859,8 @@ class RetrospectiveAnalyzer:
 
         return insights[:10]  # Return top 10 insights
 
-    def _create_executive_summary(
-        self, retrospective: RetrospectiveSnapshot, metrics: MetricSnapshot
-    ) -> str:
-        """Create high-level executive summary."""
-        parts = []
-
-        # Period summary
-        parts.append(f"**분석 기간**: {retrospective.period_description}")
-        parts.append("")
-
-        # Key metrics
-        total_commits = metrics.stats.get("commits", {}).get("total", 0)
-        total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
-        total_reviews = metrics.stats.get("reviews", {}).get("total", 0)
-        parts.append(
-            f"이 기간 동안 **{total_commits}개의 커밋**, **{total_prs}개의 PR**, "
-            f"**{total_reviews}건의 리뷰**로 활발한 기여를 이어갔습니다."
-        )
-        parts.append("")
-
-        # Highlight trends
-        if retrospective.time_comparisons:
-            positive_trends = [
-                tc for tc in retrospective.time_comparisons if tc.direction == "increasing"
-            ]
-            if positive_trends:
-                trend = positive_trends[0]
-                parts.append(
-                    f"특히 **{trend.metric_name}**이(가) 전반기 대비 **{trend.change_percentage:.1f}% 증가**하여 "
-                    f"지속적인 성장세를 보이고 있습니다."
-                )
-                parts.append("")
-
-        # Behavior highlights
-        if retrospective.behavior_patterns:
-            positive_patterns = [p for p in retrospective.behavior_patterns if p.impact == "positive"]
-            if positive_patterns:
-                parts.append(f"**강점**: {positive_patterns[0].description}")
-                parts.append("")
-
-        # Balance check
-        if retrospective.balance_metrics:
-            if retrospective.balance_metrics.burnout_risk_level == "low":
-                parts.append(
-                    f"✅ **지속가능성 점수 {retrospective.balance_metrics.sustainability_score:.0f}점**으로 "
-                    f"건강한 작업 패턴을 유지하고 있습니다."
-                )
-            elif retrospective.balance_metrics.burnout_risk_level == "high":
-                parts.append(
-                    f"⚠️ 번아웃 위험이 감지되었습니다. 업무량 조절이 필요합니다."
-                )
-            parts.append("")
-
-        return "\n".join(parts)
-
-    def _identify_key_wins(
-        self, retrospective: RetrospectiveSnapshot, metrics: MetricSnapshot
-    ) -> List[str]:
-        """Identify top 3-5 key achievements."""
-        wins = []
-
-        # High-impact contributions
-        high_impact = [ia for ia in retrospective.impact_assessments if ia.estimated_impact == "high"]
-        for impact in high_impact[:2]:
-            wins.append(f"{impact.category}: {impact.impact_description}")
-
-        # Positive behavior patterns
-        positive_patterns = [
-            p for p in retrospective.behavior_patterns if p.impact == "positive"
-        ][:2]
-        for pattern in positive_patterns:
-            wins.append(pattern.description)
-
-        # Learning achievements
-        expert_areas = [
-            li for li in retrospective.learning_insights if li.expertise_level == "expert"
-        ]
-        for area in expert_areas[:1]:
-            wins.append(f"{area.domain}에서 전문가 수준의 역량 입증")
-
-        return wins[:5]
+    # Removed _create_executive_summary - now covered by main Executive Summary section
+    # Removed _identify_key_wins - now covered by Growth Highlights section
 
     def _identify_growth_areas(
         self, retrospective: RetrospectiveSnapshot, metrics: MetricSnapshot

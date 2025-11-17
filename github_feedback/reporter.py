@@ -897,48 +897,11 @@ class Reporter:
         lines.append("")
         return lines
 
-    def _build_evidence_section_improved(self, metrics: MetricSnapshot) -> List[str]:
-        """Build evidence section."""
-        if not metrics.evidence:
-            return []
+    # Evidence Links section removed - links are already embedded in each section
+    # where they are relevant (Detailed Feedback, Spotlight Examples, etc.)
 
-        lines = ["## 🔗 Evidence Links", ""]
-        lines.append("> 상세 데이터를 확인할 수 있는 링크")
-        lines.append("")
-        for domain, links in metrics.evidence.items():
-            lines.append(f"### {domain.title()}")
-            for link in links:
-                lines.append(f"- [{domain.title()} 보기]({link})")
-            lines.append("")
-        lines.append("---")
-        lines.append("")
-        return lines
-
-    def _build_executive_summary_subsection(self, retro) -> List[str]:
-        """Build executive summary subsection of retrospective."""
-        def build_content():
-            return [retro.executive_summary, ""]
-
-        return MarkdownSectionBuilder.build_subsection(
-            retro.executive_summary,
-            "회고 요약",
-            build_content,
-            emoji="📋"
-        )
-
-    def _build_key_wins_subsection(self, retro) -> List[str]:
-        """Build key wins subsection of retrospective."""
-        def build_content():
-            rows = [[str(i), win] for i, win in enumerate(retro.key_wins, 1)]
-            return MarkdownSectionBuilder.build_table(["#", "성과"], rows)
-
-        return MarkdownSectionBuilder.build_subsection(
-            retro.key_wins,
-            "주요 성과",
-            build_content,
-            emoji="🎉",
-            description="이번 기간 동안 달성한 핵심 성과들입니다"
-        )
+    # Removed _build_executive_summary_subsection - already covered in main Executive Summary
+    # Removed _build_key_wins_subsection - already covered in Growth Highlights
 
     def _build_time_comparisons_subsection(self, retro) -> List[str]:
         """Build time comparisons subsection of retrospective using helper."""
@@ -1240,9 +1203,8 @@ class Reporter:
         retro = metrics.retrospective
 
         # Build all subsections using dedicated methods
+        # Note: executive_summary and key_wins removed to avoid duplication with main sections
         subsections = []
-        subsections.extend(self._build_executive_summary_subsection(retro))
-        subsections.extend(self._build_key_wins_subsection(retro))
         subsections.extend(self._build_time_comparisons_subsection(retro))
         subsections.extend(self._build_behavior_patterns_subsection(retro))
         subsections.extend(self._build_learning_insights_subsection(retro))
@@ -1306,8 +1268,7 @@ class Reporter:
             self._build_spotlight_section(metrics),
             # 8. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
-            # 9. Evidence Links - Verification
-            self._build_evidence_section_improved(metrics),
+            # Evidence Links section removed - links already embedded in relevant sections
         ]
 
         # Combine all sections
@@ -1354,8 +1315,7 @@ class Reporter:
             self._build_spotlight_section(metrics),
             # 8. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
-            # 9. Evidence Links - Verification
-            self._build_evidence_section_improved(metrics),
+            # Evidence Links section removed - links already embedded in relevant sections
         ]
 
         # Combine all sections
