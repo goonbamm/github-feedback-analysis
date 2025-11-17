@@ -31,6 +31,10 @@ from .models import (
     TechStackAnalysis,
     CollaborationNetwork,
     YearEndReview,
+    PersonalDevelopmentAnalysis,
+    StrengthPoint,
+    ImprovementArea,
+    GrowthIndicator,
 )
 from .retrospective import RetrospectiveAnalyzer
 
@@ -512,12 +516,68 @@ class Analyzer:
             examples_poor=analysis.get("examples_poor", []),
         )
 
+    def _build_personal_development_analysis(self, analysis: Dict) -> PersonalDevelopmentAnalysis:
+        """Build personal development analysis from LLM response."""
+        # Parse strengths
+        strengths = []
+        for strength_data in analysis.get("strengths", []):
+            if not isinstance(strength_data, dict):
+                continue
+            strengths.append(
+                StrengthPoint(
+                    category=strength_data.get("category", ""),
+                    description=strength_data.get("description", ""),
+                    evidence=strength_data.get("evidence", []),
+                    impact=strength_data.get("impact", "medium"),
+                )
+            )
+
+        # Parse improvement areas
+        improvement_areas = []
+        for improvement_data in analysis.get("improvement_areas", []):
+            if not isinstance(improvement_data, dict):
+                continue
+            improvement_areas.append(
+                ImprovementArea(
+                    category=improvement_data.get("category", ""),
+                    description=improvement_data.get("description", ""),
+                    evidence=improvement_data.get("evidence", []),
+                    suggestions=improvement_data.get("suggestions", []),
+                    priority=improvement_data.get("priority", "medium"),
+                )
+            )
+
+        # Parse growth indicators
+        growth_indicators = []
+        for growth_data in analysis.get("growth_indicators", []):
+            if not isinstance(growth_data, dict):
+                continue
+            growth_indicators.append(
+                GrowthIndicator(
+                    aspect=growth_data.get("aspect", ""),
+                    description=growth_data.get("description", ""),
+                    before_examples=growth_data.get("before_examples", []),
+                    after_examples=growth_data.get("after_examples", []),
+                    progress_summary=growth_data.get("progress_summary", ""),
+                )
+            )
+
+        return PersonalDevelopmentAnalysis(
+            strengths=strengths,
+            improvement_areas=improvement_areas,
+            growth_indicators=growth_indicators,
+            overall_assessment=analysis.get("overall_assessment", ""),
+            key_achievements=analysis.get("key_achievements", []),
+            next_focus_areas=analysis.get("next_focus_areas", []),
+        )
+
     def build_detailed_feedback(
         self,
         commit_analysis: Optional[Dict] = None,
         pr_title_analysis: Optional[Dict] = None,
         review_tone_analysis: Optional[Dict] = None,
         issue_analysis: Optional[Dict] = None,
+        personal_development_analysis: Optional[Dict] = None,
     ) -> DetailedFeedbackSnapshot:
         """Build detailed feedback snapshot from LLM analysis results."""
 
@@ -526,6 +586,7 @@ class Analyzer:
             pr_title_feedback=self._build_pr_title_feedback(pr_title_analysis) if pr_title_analysis else None,
             review_tone_feedback=self._build_review_tone_feedback(review_tone_analysis) if review_tone_analysis else None,
             issue_feedback=self._build_issue_feedback(issue_analysis) if issue_analysis else None,
+            personal_development=self._build_personal_development_analysis(personal_development_analysis) if personal_development_analysis else None,
         )
 
     def _build_monthly_trends(

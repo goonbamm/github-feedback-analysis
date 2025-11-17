@@ -939,6 +939,99 @@ class LLMClient:
             "examples_poor": result.get("examples_poor", []),
         }
 
+    def analyze_personal_development(
+        self,
+        pr_titles: list[dict[str, str]],
+        review_comments: list[dict[str, str]],
+        repo: str = "",
+    ) -> dict[str, Any]:
+        """Analyze personal development from PR titles and review comments.
+
+        Args:
+            pr_titles: List of PR title dictionaries
+            review_comments: List of review comment dictionaries
+            repo: Repository name
+
+        Returns:
+            Dictionary with personal development analysis
+        """
+        from .prompts import (
+            get_personal_development_system_prompt,
+            get_personal_development_user_prompt,
+        )
+
+        if not pr_titles and not review_comments:
+            return {
+                "strengths": [],
+                "improvement_areas": [],
+                "growth_indicators": [],
+                "overall_assessment": "분석할 데이터가 없습니다.",
+                "key_achievements": [],
+                "next_focus_areas": [],
+            }
+
+        # Build context from PR titles and review comments
+        context_lines = []
+        context_lines.append(f"Repository: {repo}")
+        context_lines.append(f"총 PR 수: {len(pr_titles)}")
+        context_lines.append("")
+
+        # Add PR titles
+        if pr_titles:
+            context_lines.append("Pull Request 제목:")
+            for pr in pr_titles[:50]:  # Limit to 50 PRs
+                context_lines.append(
+                    f"- PR #{pr.get('number', 0)}: {pr.get('title', '')} (작성자: {pr.get('author', '')})"
+                )
+            context_lines.append("")
+
+        # Add review comments
+        if review_comments:
+            context_lines.append(f"리뷰 코멘트 ({len(review_comments)}개):")
+            for idx, comment in enumerate(review_comments[:30], 1):  # Limit to 30 comments
+                pr_num = comment.get("pr_number", "")
+                author = comment.get("author", "")
+                body = comment.get("body", "")[:200]  # Truncate long comments
+                context_lines.append(f"{idx}. PR #{pr_num} ({author}): {body}")
+            context_lines.append("")
+
+        context = "\n".join(context_lines)
+
+        # Calculate early and recent review counts
+        midpoint = len(pr_titles) // 2
+        early_count = midpoint if midpoint > 0 else 0
+        recent_count = len(pr_titles) - midpoint if midpoint > 0 else len(pr_titles)
+
+        messages = [
+            {
+                "role": "system",
+                "content": get_personal_development_system_prompt(),
+            },
+            {
+                "role": "user",
+                "content": get_personal_development_user_prompt(
+                    context, early_count, recent_count
+                ),
+            },
+        ]
+
+        try:
+            import json as json_module
+
+            content = self.complete(messages, temperature=0.4)
+            result = json_module.loads(content)
+            return result
+        except Exception as exc:
+            console.log(f"Personal development analysis failed: {exc}")
+            return {
+                "strengths": [],
+                "improvement_areas": [],
+                "growth_indicators": [],
+                "overall_assessment": f"분석 중 오류가 발생했습니다: {str(exc)}",
+                "key_achievements": [],
+                "next_focus_areas": [],
+            }
+
     def generate_award_summary_quote(
         self,
         awards: list[str],
