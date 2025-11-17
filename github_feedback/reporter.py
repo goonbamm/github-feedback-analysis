@@ -93,6 +93,30 @@ def _format_metric_value(value: object) -> str:
     return str(value)
 
 
+def _escape_table_cell(text: str) -> str:
+    """Escape special characters in markdown table cells to prevent table breakage.
+
+    Args:
+        text: Text to escape
+
+    Returns:
+        Escaped text safe for use in markdown tables
+    """
+    if not text:
+        return text
+
+    # Replace pipe characters that would break table structure
+    text = text.replace("|", "\\|")
+
+    # Replace newlines with HTML breaks for multi-line content
+    text = text.replace("\n", "<br>")
+
+    # Trim excessive whitespace
+    text = " ".join(text.split())
+
+    return text
+
+
 @dataclass(slots=True)
 class Reporter:
     """Create human-readable artefacts from metrics."""
@@ -541,7 +565,8 @@ class Reporter:
                     link = link_formatter(example)
                     lines.append(f"| {category} | {evidence} | {link} |")
                 else:
-                    lines.append(f"| **장점**: {fallback_good_msg} | {example} | - |")
+                    example_escaped = _escape_table_cell(str(example))
+                    lines.append(f"| **장점**: {fallback_good_msg} | {example_escaped} | - |")
 
         # Add poor examples as improvement areas (개선점)
         if hasattr(feedback_data, 'examples_poor') and feedback_data.examples_poor:
@@ -552,7 +577,8 @@ class Reporter:
                     link = link_formatter(example)
                     lines.append(f"| {category} | {evidence} | {link} |")
                 else:
-                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example} | - |")
+                    example_escaped = _escape_table_cell(str(example))
+                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example_escaped} | - |")
 
         # Handle improve examples (for review tone feedback)
         if hasattr(feedback_data, 'examples_improve') and feedback_data.examples_improve:
@@ -563,12 +589,14 @@ class Reporter:
                     link = link_formatter(example)
                     lines.append(f"| {category} | {evidence} | {link} |")
                 else:
-                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example} | - |")
+                    example_escaped = _escape_table_cell(str(example))
+                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example_escaped} | - |")
 
         # Add suggestions as additional improvement areas
         if hasattr(feedback_data, 'suggestions') and feedback_data.suggestions:
             for suggestion in feedback_data.suggestions[:3]:  # Limit to 3 suggestions
-                lines.append(f"| **보완점**: {suggestion} | 전반적인 패턴 분석 결과 | - |")
+                suggestion_escaped = _escape_table_cell(suggestion)
+                lines.append(f"| **보완점**: {suggestion_escaped} | 전반적인 패턴 분석 결과 | - |")
 
         lines.append("")
         return lines
@@ -580,19 +608,25 @@ class Reporter:
             reason = example.get('reason', '')
             suggestion = example.get('suggestion', '')
 
+            # Escape special characters to prevent table breakage
+            message_escaped = _escape_table_cell(message)
+            reason_escaped = _escape_table_cell(reason)
+            suggestion_escaped = _escape_table_cell(suggestion)
+
             # Build detailed evidence with message, reason, and suggestion
-            parts = [f"**메시지**: `{message}`"]
-            if reason:
-                parts.append(f"<br>**근거**: {reason}")
-            if suggestion:
-                parts.append(f"<br>**개선방안**: {suggestion}")
+            parts = [f"**메시지**: `{message_escaped}`"]
+            if reason_escaped:
+                parts.append(f"<br>**근거**: {reason_escaped}")
+            if suggestion_escaped:
+                parts.append(f"<br>**개선방안**: {suggestion_escaped}")
 
             return "<br>".join(parts)
 
         def format_commit_link(example):
             if example.get('url'):
                 sha_short = example.get('sha', '')[:7]
-                return f"[{sha_short}]({example.get('url', '')})"
+                url = _escape_table_cell(example.get('url', ''))
+                return f"[{sha_short}]({url})"
             return example.get('sha', '')[:7]
 
         return self._build_feedback_table(
@@ -628,10 +662,15 @@ class Reporter:
         """Build review tone feedback subsection with new table format."""
         def format_review_evidence(example):
             body = example.get('body', '')
-            return f"{body[:100]}..." if len(body) > 100 else body
+            # Truncate and escape
+            truncated = f"{body[:100]}..." if len(body) > 100 else body
+            return _escape_table_cell(truncated)
 
         def format_review_link(example):
-            return f"[리뷰 보기]({example.get('url', '')})" if example.get('url') else "-"
+            if example.get('url'):
+                url = _escape_table_cell(example.get('url', ''))
+                return f"[리뷰 보기]({url})"
+            return "-"
 
         return self._build_feedback_table(
             title="### 👀 리뷰 톤 분석",
@@ -647,10 +686,14 @@ class Reporter:
     def _build_issue_feedback(self, issue_feedback) -> List[str]:
         """Build issue feedback subsection with new table format."""
         def format_issue_evidence(example):
-            return f"#{example.get('number', '')}: `{example.get('title', '')}`"
+            title = _escape_table_cell(example.get('title', ''))
+            return f"#{example.get('number', '')}: `{title}`"
 
         def format_issue_link(example):
-            return f"[이슈 보기]({example.get('url', '')})" if example.get('url') else "-"
+            if example.get('url'):
+                url = _escape_table_cell(example.get('url', ''))
+                return f"[이슈 보기]({url})"
+            return "-"
 
         return self._build_feedback_table(
             title="### 🐛 이슈 품질",
