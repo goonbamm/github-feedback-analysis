@@ -2127,6 +2127,22 @@ def suggest_repos(
     )
 
 
+@app.command(name="clear-cache")
+def clear_cache() -> None:
+    """Clear the API response cache.
+
+    This can help resolve issues with stale or corrupted cached data
+    that may cause JSON parsing errors or other unexpected behavior.
+
+    Examples:
+        gfa clear-cache
+    """
+    from .api_client import GitHubApiClient
+
+    console.print("[info]Clearing API cache...[/]")
+    GitHubApiClient.clear_cache()
+
+
 # Keep show-config as a deprecated alias for backward compatibility
 @app.command(name="show-config", hidden=True, deprecated=True)
 def show_config_deprecated() -> None:

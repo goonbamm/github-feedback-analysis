@@ -82,11 +82,13 @@ class GitHubApiClient:
                 cache_path = cache_dir / "api_cache"
 
                 # Create cached session
+                # Note: 304 (Not Modified) is excluded from allowable_codes because
+                # it has an empty body and can cause JSON parsing errors
                 self.session = requests_cache.CachedSession(
                     cache_name=str(cache_path),
                     backend="sqlite",
                     expire_after=self.cache_expire_after,
-                    allowable_codes=[200, 301, 302, 304],
+                    allowable_codes=[200, 301, 302],
                     # Don't cache POST/PUT/DELETE/PATCH requests
                     allowable_methods=["GET", "HEAD"],
                 )
@@ -248,16 +250,54 @@ class GitHubApiClient:
 
                 response.raise_for_status()
 
+                # Check if response came from cache
+                is_cached = getattr(response, 'from_cache', False)
+                if is_cached:
+                    logger.debug(f"Response from cache for {path}")
+
                 # Check for empty response before attempting JSON decode
                 if not response.content or not response.content.strip():
+                    # Log detailed information about the empty response
                     logger.error(
                         f"Empty response from {path}. "
                         f"Status: {response.status_code}, "
-                        f"Content-Type: {response.headers.get('content-type', 'unknown')}"
+                        f"Content-Type: {response.headers.get('content-type', 'unknown')}, "
+                        f"Content-Length: {response.headers.get('content-length', '0')}, "
+                        f"From cache: {is_cached}, "
+                        f"URL: {response.url}"
                     )
-                    raise ApiError(
-                        f"Empty response from {path}"
-                    )
+
+                    # If this is a cached response with empty content, clear cache and retry
+                    if is_cached and attempt == 0:
+                        logger.warning(f"Clearing cache due to empty cached response for {path}")
+                        session = self._get_session()
+                        if hasattr(session, 'cache'):
+                            try:
+                                # Clear this specific URL from cache
+                                session.cache.delete_url(response.url)
+                                logger.info(f"Cleared cache for {response.url}, will retry")
+                                # Force retry without incrementing attempt counter
+                                continue
+                            except Exception as cache_exc:
+                                logger.warning(f"Failed to clear cache: {cache_exc}")
+
+                    # Provide user-friendly error message based on status code
+                    if response.status_code == 204:
+                        raise ApiError(
+                            f"GitHub API returned no content (204) for {path}. "
+                            "This endpoint may not have any data available."
+                        )
+                    elif response.status_code == 304:
+                        raise ApiError(
+                            f"GitHub API returned 304 Not Modified for {path} with empty content. "
+                            "Try clearing the cache: rm -rf ~/.cache/github_feedback/"
+                        )
+                    else:
+                        raise ApiError(
+                            f"Empty response from GitHub API {path} (status: {response.status_code}). "
+                            "This may indicate an API issue or network problem. "
+                            "Try clearing the cache: rm -rf ~/.cache/github_feedback/"
+                        )
 
                 try:
                     payload = response.json()
@@ -440,3 +480,27 @@ class GitHubApiClient:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Context manager exit - close session."""
         self.close()
+
+    @staticmethod
+    def clear_cache() -> bool:
+        """Clear the API response cache.
+
+        Returns:
+            True if cache was cleared successfully, False otherwise
+        """
+        cache_dir = Path.home() / ".cache" / "github_feedback"
+        cache_path = cache_dir / "api_cache.sqlite"
+
+        try:
+            if cache_path.exists():
+                cache_path.unlink()
+                logger.info(f"Cleared API cache: {cache_path}")
+                console.print(f"[success]Cleared API cache successfully[/]")
+                return True
+            else:
+                console.print(f"[info]No cache found to clear[/]")
+                return False
+        except Exception as exc:
+            logger.error(f"Failed to clear cache: {exc}")
+            console.print(f"[warning]Failed to clear cache: {exc}[/]")
+            return False
