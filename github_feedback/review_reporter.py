@@ -80,8 +80,15 @@ class ReviewReporter:
                 continue
 
             try:
-                summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
-                artefact_data = json.loads(artefact_path.read_text(encoding="utf-8"))
+                summary_text = summary_path.read_text(encoding="utf-8").strip()
+                artefact_text = artefact_path.read_text(encoding="utf-8").strip()
+
+                if not summary_text or not artefact_text:
+                    console.log("Skipping empty review artefact", str(pr_dir))
+                    continue
+
+                summary_data = json.loads(summary_text)
+                artefact_data = json.loads(artefact_text)
             except json.JSONDecodeError:
                 console.log("Skipping invalid review artefact", str(pr_dir))
                 continue

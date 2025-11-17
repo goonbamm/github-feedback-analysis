@@ -248,6 +248,17 @@ class GitHubApiClient:
 
                 response.raise_for_status()
 
+                # Check for empty response before attempting JSON decode
+                if not response.content or not response.content.strip():
+                    logger.error(
+                        f"Empty response from {path}. "
+                        f"Status: {response.status_code}, "
+                        f"Content-Type: {response.headers.get('content-type', 'unknown')}"
+                    )
+                    raise ApiError(
+                        f"Empty response from {path}"
+                    )
+
                 try:
                     payload = response.json()
                 except json.JSONDecodeError as json_exc:
@@ -256,7 +267,8 @@ class GitHubApiClient:
                         f"Failed to decode JSON from {path}. "
                         f"Status: {response.status_code}, "
                         f"Content-Type: {response.headers.get('content-type', 'unknown')}, "
-                        f"Content length: {len(response.content)}"
+                        f"Content length: {len(response.content)}, "
+                        f"Content preview: {response.text[:200]}"
                     )
                     raise ApiError(
                         f"Invalid JSON response from {path}: {json_exc}"
