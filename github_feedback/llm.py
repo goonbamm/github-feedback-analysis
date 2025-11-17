@@ -303,6 +303,7 @@ class LLMClient:
     enable_cache: bool = True
     cache_expire_days: int = DEFAULT_CACHE_EXPIRE_DAYS
     rate_limit_delay: float = 0.0  # Delay between requests in seconds (0 = no limit)
+    web_url: str = "https://github.com"  # GitHub web URL for generating links
 
     def _build_messages(self, bundle: PullRequestReviewBundle) -> list[dict[str, str]]:
         """Create the prompt messages describing the pull request."""
@@ -849,7 +850,7 @@ class LLMClient:
                 "   - 어떤 규칙을 잘 따랐는지/위반했는지 명시\n"
                 "   - 구체적인 개선점이나 장점을 설명\n"
                 "   - 예: '첫 줄이 50자를 초과하여 가독성이 떨어집니다. 또한 명령형 동사로 시작하지 않아 일관성이 부족합니다.'\n"
-                f"2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: https://github.com/{repo}/commit/{{sha}}\n"
+                f"2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: {self.web_url}/{repo}/commit/{{sha}}\n"
                 "3. 예시 개수는 적어도 되지만(각 1-3개), **품질과 구체성**이 가장 중요합니다\n\n"
                 "응답 형식:\n"
                 "{\n"
@@ -862,7 +863,7 @@ class LLMClient:
                 "    {\n"
                 '      "sha": "전체 커밋 해시",\n'
                 '      "message": "커밋 메시지",\n'
-                f'      "url": "https://github.com/{repo}/commit/{{sha}}",\n'
+                f'      "url": "{self.web_url}/{repo}/commit/{{sha}}",\n'
                 '      "reason": "왜 좋은지 **구체적이고 상세하게** 설명 (2-3개 문장)"\n'
                 "    }\n"
                 "  ],\n"
@@ -870,7 +871,7 @@ class LLMClient:
                 "    {\n"
                 '      "sha": "전체 커밋 해시",\n'
                 '      "message": "커밋 메시지",\n'
-                f'      "url": "https://github.com/{repo}/commit/{{sha}}",\n'
+                f'      "url": "{self.web_url}/{repo}/commit/{{sha}}",\n'
                 '      "reason": "왜 개선이 필요한지 **구체적이고 상세하게** 설명 (2-3개 문장)",\n'
                 '      "suggestion": "개선 방법을 구체적으로 제시"\n'
                 "    }\n"
@@ -900,10 +901,10 @@ class LLMClient:
         if repo:
             for example in result.get("examples_good", []):
                 if "url" not in example and "sha" in example:
-                    example["url"] = f"https://github.com/{repo}/commit/{example['sha']}"
+                    example["url"] = f"{self.web_url}/{repo}/commit/{example['sha']}"
             for example in result.get("examples_poor", []):
                 if "url" not in example and "sha" in example:
-                    example["url"] = f"https://github.com/{repo}/commit/{example['sha']}"
+                    example["url"] = f"{self.web_url}/{repo}/commit/{example['sha']}"
 
         # Map result keys to expected output format
         return {
