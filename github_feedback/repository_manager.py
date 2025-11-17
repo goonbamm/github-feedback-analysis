@@ -16,6 +16,8 @@ class RepositoryManager:
             api_client: GitHub API client instance
         """
         self.api_client = api_client
+        self._current_user: Optional[Dict[str, Any]] = None
+        self._user_contributions_cache: Dict[str, int] = {}
 
     def get_user_repositories(
         self,
@@ -95,6 +97,54 @@ class RepositoryManager:
         items = result.get("items", [])
         return items[:limit]
 
+    def _get_current_user(self) -> Dict[str, Any]:
+        """Get current authenticated user info (cached).
+
+        Returns:
+            User information dictionary
+        """
+        if self._current_user is None:
+            self._current_user = self.api_client.get_authenticated_user()
+        return self._current_user
+
+    def _get_user_contribution_count(self, repo: Dict[str, Any]) -> int:
+        """Get the number of commits by the current user in a repository.
+
+        Args:
+            repo: Repository dictionary
+
+        Returns:
+            Number of commits by the user (0 if none or error)
+        """
+        full_name = repo.get("full_name", "")
+        if not full_name:
+            return 0
+
+        # Check cache first
+        if full_name in self._user_contributions_cache:
+            return self._user_contributions_cache[full_name]
+
+        try:
+            owner, repo_name = full_name.split("/", 1)
+            username = self._get_current_user().get("login", "")
+            if not username:
+                return 0
+
+            # Fetch only first page (100 commits) for performance
+            commits = self.api_client.get_user_commits_in_repo(
+                owner, repo_name, username, max_pages=1
+            )
+            commit_count = len(commits)
+
+            # Cache the result
+            self._user_contributions_cache[full_name] = commit_count
+            return commit_count
+
+        except Exception:
+            # If there's any error (e.g., no access, API error), return 0
+            self._user_contributions_cache[full_name] = 0
+            return 0
+
     def suggest_repositories(
         self,
         limit: int = 10,
@@ -136,22 +186,36 @@ class RepositoryManager:
                     # If parsing fails, skip this repo
                     continue
 
-        # Sort by requested criteria
+        # Enrich all active repos with contribution data BEFORE sorting
+        for repo in active_repos:
+            repo["_user_commits"] = self._get_user_contribution_count(repo)
+
+        # Sort by requested criteria (now including user contributions)
         if sort_by == "stars":
             active_repos.sort(
                 key=lambda r: r.get("stargazers_count", 0), reverse=True
             )
         elif sort_by == "activity":
-            # Sort by a combination of factors: recent updates, stars, forks
+            # Sort by a combination of factors: recent updates, stars, forks, AND user contributions
             active_repos.sort(
                 key=lambda r: (
                     r.get("stargazers_count", 0) * 0.3
                     + r.get("forks_count", 0) * 0.3
+                    + r.get("_user_commits", 0) * 10  # Heavy weight for user contributions
                     + (1 if not r.get("archived", False) else 0) * 100
                 ),
                 reverse=True,
             )
-        # Default is already sorted by 'updated'
+        else:
+            # For "updated" sort (default), also consider user contributions
+            # Repositories with user commits should be prioritized
+            active_repos.sort(
+                key=lambda r: (
+                    r.get("_user_commits", 0) * 1000,  # Primary: user has contributed
+                    datetime.fromisoformat(r.get("updated_at", "1970-01-01T00:00:00Z").replace("Z", "+00:00")).replace(tzinfo=None)
+                ),
+                reverse=True,
+            )
 
         # Return top N suggestions
         suggestions = active_repos[:limit]
@@ -173,11 +237,21 @@ class RepositoryManager:
         """
         score = 0.0
 
-        # Factor in stars
-        score += repo.get("stargazers_count", 0) * 0.1
+        # MAJOR BOOST: User has contributed to this repository
+        user_commits = repo.get("_user_commits", 0)
+        if user_commits > 0:
+            # Base contribution bonus
+            score += 100
+            # Additional points based on number of commits (capped at 100 commits)
+            score += min(user_commits, 100) * 5
 
-        # Factor in forks
-        score += repo.get("forks_count", 0) * 0.15
+        # Factor in stars (less weight if user hasn't contributed)
+        star_weight = 0.1 if user_commits > 0 else 0.05
+        score += repo.get("stargazers_count", 0) * star_weight
+
+        # Factor in forks (less weight if user hasn't contributed)
+        fork_weight = 0.15 if user_commits > 0 else 0.08
+        score += repo.get("forks_count", 0) * fork_weight
 
         # Factor in open issues (indicates activity)
         score += repo.get("open_issues_count", 0) * 0.05
@@ -186,8 +260,8 @@ class RepositoryManager:
         if repo.get("archived", False):
             score *= 0.1
 
-        # Bonus for non-fork repos (original work)
-        if not repo.get("fork", False):
+        # Bonus for non-fork repos (original work) - only if user contributed
+        if not repo.get("fork", False) and user_commits > 0:
             score *= 1.2
 
         # Recency bonus (updated in last 30 days)
