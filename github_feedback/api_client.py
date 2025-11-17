@@ -481,6 +481,40 @@ class GitHubApiClient:
         """Context manager exit - close session."""
         self.close()
 
+    def get_authenticated_user(self) -> Dict[str, Any]:
+        """Get information about the authenticated user.
+
+        Returns:
+            User information dictionary
+
+        Raises:
+            AuthenticationError: If authentication fails
+            ApiError: If request fails
+        """
+        return self.request_json("/user")
+
+    def get_user_commits_in_repo(
+        self, owner: str, repo: str, author: str, max_pages: int = 1
+    ) -> List[Dict[str, Any]]:
+        """Get commits by a specific author in a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            author: GitHub username of the commit author
+            max_pages: Maximum number of pages to fetch (default: 1 for quick check)
+
+        Returns:
+            List of commit objects
+
+        Raises:
+            ApiError: If request fails
+        """
+        params = {"author": author, "per_page": 100}
+        return self.request_all(
+            f"/repos/{owner}/{repo}/commits", params=params, max_pages=max_pages
+        )
+
     @staticmethod
     def clear_cache() -> bool:
         """Clear the API response cache.

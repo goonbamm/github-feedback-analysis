@@ -344,6 +344,7 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
         table.add_column("#", justify="right", style=TABLE_CONFIG['index_style'], width=TABLE_CONFIG['index_width'])
         table.add_column("Repository", style="cyan", no_wrap=True)
         table.add_column("Description", style="dim")
+        table.add_column("Your Commits", justify="right", style="bold green")
         table.add_column("Activity", justify="right", style=TABLE_CONFIG['activity_style'])
 
         for i, repo in enumerate(suggestions, 1):
@@ -355,9 +356,13 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
 
             stars = repo.get("stargazers_count", 0)
             forks = repo.get("forks_count", 0)
+            user_commits = repo.get("_user_commits", 0)
+
+            # Highlight repos with user contributions
+            commits_display = f"✓ {user_commits}" if user_commits > 0 else "-"
             activity = f"⭐{stars} 🍴{forks}"
 
-            table.add_row(str(i), full_name, description, activity)
+            table.add_row(str(i), full_name, description, commits_display, activity)
 
         console.print(table)
     else:
@@ -367,7 +372,9 @@ def _select_repository_interactive(collector: Collector) -> Optional[str]:
             full_name = repo.get("full_name", "unknown/repo")
             description = repo.get("description") or "No description"
             stars = repo.get("stargazers_count", 0)
-            console.print(f"{i}. {full_name} - {description} (⭐ {stars})")
+            user_commits = repo.get("_user_commits", 0)
+            commit_info = f" [YOUR COMMITS: {user_commits}]" if user_commits > 0 else ""
+            console.print(f"{i}. {full_name} - {description} (⭐ {stars}){commit_info}")
     console.print()
     console.print("[info]Select a repository by number (1-{}) or enter owner/repo format[/]".format(len(suggestions)))
     console.print("[info]Press Ctrl+C or enter 'q' to quit[/]")
