@@ -216,7 +216,6 @@ class Reporter:
             ("🎯 Spotlight Examples", "주요 기여 사례"),
             ("💻 Tech Stack", "기술 스택 분석"),
             ("🤝 Collaboration", "협업 네트워크"),
-            ("🤔 Reflection", "회고 질문"),
             ("📊 Detailed Metrics", "상세 메트릭"),
             ("🔗 Evidence", "증거 링크"),
         ])
