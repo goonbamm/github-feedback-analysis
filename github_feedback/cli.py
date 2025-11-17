@@ -896,7 +896,7 @@ def _collect_detailed_feedback(
         console.print("[accent]Analyzing feedback in parallel...", style="accent")
 
         analysis_tasks = {
-            "commit_messages": (lambda: llm_client.analyze_commit_messages(commits_data), (), "commits"),
+            "commit_messages": (lambda: llm_client.analyze_commit_messages(commits_data, repo), (), "commits"),
             "pr_titles": (lambda: llm_client.analyze_pr_titles(pr_titles_data), (), "PR titles"),
             "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data), (), "review tone"),
             "issue_quality": (lambda: llm_client.analyze_issue_quality(issues_data), (), "issues"),

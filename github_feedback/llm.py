@@ -820,9 +820,14 @@ class LLMClient:
         raise last_exception  # type: ignore
 
     def analyze_commit_messages(
-        self, commits: list[dict[str, str]]
+        self, commits: list[dict[str, str]], repo: str = ""
     ) -> dict[str, Any]:
-        """Analyze commit message quality using LLM with fallback to heuristics."""
+        """Analyze commit message quality using LLM with fallback to heuristics.
+
+        Args:
+            commits: List of commit dictionaries with 'sha' and 'message' keys
+            repo: Repository name in format 'owner/repo' (e.g., 'goonbamm/github-feedback-analysis')
+        """
         config = AnalysisConfig(
             analysis_type="commit messages",
             sample_size=LLM_DEFAULTS["sample_size_commits"],
@@ -839,26 +844,35 @@ class LLMClient:
                 '- "fix", "update", "wip", "tmp" 같은 단어만 사용\n'
                 "- 변경 내용 나열만 하고 이유 없음\n"
                 "- 너무 길거나 (100자+) 짧음 (10자-)\n\n"
+                "**중요: 응답 작성 시 주의사항**\n"
+                "1. 각 예시의 'reason'은 **구체적이고 상세하게** 작성하세요 (최소 2-3개 문장)\n"
+                "   - 어떤 규칙을 잘 따랐는지/위반했는지 명시\n"
+                "   - 구체적인 개선점이나 장점을 설명\n"
+                "   - 예: '첫 줄이 50자를 초과하여 가독성이 떨어집니다. 또한 명령형 동사로 시작하지 않아 일관성이 부족합니다.'\n"
+                f"2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: https://github.com/{repo}/commit/{{sha}}\n"
+                "3. 예시 개수는 적어도 되지만(각 1-3개), **품질과 구체성**이 가장 중요합니다\n\n"
                 "응답 형식:\n"
                 "{\n"
                 '  "good_count": 숫자,\n'
                 '  "poor_count": 숫자,\n'
                 '  "suggestions": [\n'
-                '    "구체적이고 실행 가능한 개선 제안"\n'
+                '    "구체적이고 실행 가능한 개선 제안 (1-5개)"\n'
                 "  ],\n"
                 '  "examples_good": [\n'
                 "    {\n"
-                '      "sha": "커밋 해시",\n'
+                '      "sha": "전체 커밋 해시",\n'
                 '      "message": "커밋 메시지",\n'
-                '      "reason": "왜 좋은지 설명"\n'
+                f'      "url": "https://github.com/{repo}/commit/{{sha}}",\n'
+                '      "reason": "왜 좋은지 **구체적이고 상세하게** 설명 (2-3개 문장)"\n'
                 "    }\n"
                 "  ],\n"
                 '  "examples_poor": [\n'
                 "    {\n"
-                '      "sha": "커밋 해시",\n'
+                '      "sha": "전체 커밋 해시",\n'
                 '      "message": "커밋 메시지",\n'
-                '      "reason": "왜 개선이 필요한지",\n'
-                '      "suggestion": "개선 방법"\n'
+                f'      "url": "https://github.com/{repo}/commit/{{sha}}",\n'
+                '      "reason": "왜 개선이 필요한지 **구체적이고 상세하게** 설명 (2-3개 문장)",\n'
+                '      "suggestion": "개선 방법을 구체적으로 제시"\n'
                 "    }\n"
                 "  ],\n"
                 '  "trends": {\n'
@@ -881,6 +895,15 @@ class LLMClient:
         )
 
         result = self._analyze_with_config(commits, config, "commits")
+
+        # Add URLs to examples if not present (for fallback or LLM responses without URLs)
+        if repo:
+            for example in result.get("examples_good", []):
+                if "url" not in example and "sha" in example:
+                    example["url"] = f"https://github.com/{repo}/commit/{example['sha']}"
+            for example in result.get("examples_poor", []):
+                if "url" not in example and "sha" in example:
+                    example["url"] = f"https://github.com/{repo}/commit/{example['sha']}"
 
         # Map result keys to expected output format
         return {
@@ -1173,19 +1196,54 @@ class LLMClient:
         # Define example formatters
         def good_example_fn(commit, metadata):
             first_line, _ = metadata
+            # Build detailed reason
+            reasons = []
+            reasons.append(f"적절한 길이({len(first_line)}자)로 가독성이 좋습니다.")
+            if re.match(r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)', first_line, re.IGNORECASE):
+                reasons.append("Conventional Commits 형식을 따라 타입이 명확합니다.")
+            if re.match(r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize)', first_line):
+                reasons.append("명령형 동사로 시작하여 일관된 스타일을 유지합니다.")
+            if '#' in first_line or 'issue' in first_line.lower() or 'pr' in first_line.lower():
+                reasons.append("Issue/PR 참조를 포함하여 맥락을 제공합니다.")
+
+            reason = " ".join(reasons) if reasons else "적절한 형식의 커밋 메시지입니다."
+
             return {
                 "message": first_line,
-                "sha": commit["sha"][:7],
-                "reason": "적절한 길이와 형식을 갖추었습니다"
+                "sha": commit["sha"],
+                "reason": reason
             }
 
         def poor_example_fn(commit, metadata):
             first_line, issues = metadata
+            # Build detailed reason with specific issues
+            reason_parts = []
+            if "너무 짧습니다" in ", ".join(issues):
+                reason_parts.append(f"메시지가 너무 짧아({len(first_line)}자) 변경 내용을 충분히 설명하지 못합니다.")
+            if "너무 깁니다" in ", ".join(issues):
+                reason_parts.append(f"첫 줄이 너무 길어({len(first_line)}자) 가독성이 떨어집니다. 50-72자 이내로 작성하는 것이 좋습니다.")
+            if "모호하거나 임시 메시지입니다" in ", ".join(issues):
+                reason_parts.append("'wip', 'fix', 'tmp' 같은 모호한 단어만 사용하여 변경 의도를 알 수 없습니다.")
+
+            if not reason_parts and issues:
+                reason_parts.append(", ".join(issues))
+
+            reason = " ".join(reason_parts) if reason_parts else "커밋 메시지 작성 규칙을 따르지 않아 개선이 필요합니다."
+
+            # Build detailed suggestion
+            suggestions = []
+            if len(first_line) < min_len:
+                suggestions.append(f"메시지를 더 구체적으로 작성하세요 (예: 'feat: 사용자 인증 기능 추가')")
+            elif len(first_line) > max_len:
+                suggestions.append("첫 줄을 간결하게 요약하고, 자세한 내용은 본문에 작성하세요")
+            else:
+                suggestions.append("Conventional Commits 형식을 사용하세요 (예: feat(auth): 로그인 기능 구현)")
+
             return {
                 "message": first_line,
-                "sha": commit["sha"][:7],
-                "reason": ", ".join(issues) if issues else "개선이 필요합니다",
-                "suggestion": "Conventional Commits 형식을 사용해보세요 (예: feat: 새 기능 추가)"
+                "sha": commit["sha"],
+                "reason": reason,
+                "suggestion": " ".join(suggestions)
             }
 
         # Use generic analyzer
