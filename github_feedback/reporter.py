@@ -870,11 +870,11 @@ class Reporter:
         return lines
 
     def _build_collaboration_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build collaboration section."""
+        """Build PR activity summary section."""
         if not metrics.collaboration:
             return []
 
-        lines = ["## 🤝 Collaboration Network", ""]
+        lines = ["## 🤝 PR 활동 요약", ""]
         lines.append("> 함께 성장한 동료들과의 협업")
         lines.append("")
 

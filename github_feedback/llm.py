@@ -912,12 +912,26 @@ class LLMClient:
             "examples_improve": result.get("examples_improve", []),
         }
 
-    def analyze_issue_quality(self, issues: list[dict[str, str]]) -> dict[str, Any]:
-        """Analyze issue quality and clarity using LLM with fallback to heuristics."""
+    def analyze_issue_quality(
+        self,
+        issues: list[dict[str, str]],
+        web_url: str = "https://github.com",
+        repo: str = "",
+    ) -> dict[str, Any]:
+        """Analyze issue quality and clarity using LLM with fallback to heuristics.
+
+        Args:
+            issues: List of issue dictionaries
+            web_url: GitHub web URL for generating issue links
+            repo: Repository name in format 'owner/repo'
+
+        Returns:
+            Dictionary with issue quality analysis
+        """
         config = AnalysisConfig(
             analysis_type="issue quality",
             sample_size=LLM_DEFAULTS["sample_size_issues"],
-            system_prompt=get_issue_quality_analysis_system_prompt(),
+            system_prompt=get_issue_quality_analysis_system_prompt(web_url=web_url, repo=repo),
             user_prompt_template=get_issue_quality_analysis_user_prompt(),
             empty_result={
                 "well_described": 0,
@@ -945,7 +959,12 @@ class LLMClient:
         review_comments: list[dict[str, str]],
         repo: str = "",
     ) -> dict[str, Any]:
-        """Analyze personal development from PR titles and review comments.
+        """Analyze personal development from PR titles and review comments using split prompts.
+
+        This method uses three separate LLM calls to reduce hallucination:
+        1. Communication quality analysis
+        2. Code quality analysis
+        3. Growth indicators and overall assessment
 
         Args:
             pr_titles: List of PR title dictionaries
@@ -956,8 +975,9 @@ class LLMClient:
             Dictionary with personal development analysis
         """
         from .prompts import (
-            get_personal_development_system_prompt,
-            get_personal_development_user_prompt,
+            get_communication_analysis_prompt,
+            get_code_quality_analysis_prompt,
+            get_growth_assessment_prompt,
         )
 
         if not pr_titles and not review_comments:
@@ -976,12 +996,16 @@ class LLMClient:
         context_lines.append(f"총 PR 수: {len(pr_titles)}")
         context_lines.append("")
 
-        # Add PR titles
+        # Add PR titles with code change information
         if pr_titles:
-            context_lines.append("Pull Request 제목:")
+            context_lines.append("Pull Request 제목 및 코드 변화:")
             for pr in pr_titles[:50]:  # Limit to 50 PRs
+                additions = pr.get('additions', 0)
+                deletions = pr.get('deletions', 0)
+                total_changes = additions + deletions
                 context_lines.append(
-                    f"- PR #{pr.get('number', 0)}: {pr.get('title', '')} (작성자: {pr.get('author', '')})"
+                    f"- PR #{pr.get('number', 0)}: {pr.get('title', '')} "
+                    f"(작성자: {pr.get('author', '')}, 코드 변화: +{additions}/-{deletions}, 총 {total_changes}줄)"
                 )
             context_lines.append("")
 
@@ -1002,25 +1026,52 @@ class LLMClient:
         early_count = midpoint if midpoint > 0 else 0
         recent_count = len(pr_titles) - midpoint if midpoint > 0 else len(pr_titles)
 
-        messages = [
-            {
-                "role": "system",
-                "content": get_personal_development_system_prompt(),
-            },
-            {
-                "role": "user",
-                "content": get_personal_development_user_prompt(
-                    context, early_count, recent_count
-                ),
-            },
-        ]
-
         try:
             import json as json_module
 
-            content = self.complete(messages, temperature=0.4)
-            result = json_module.loads(content)
-            return result
+            # Step 1: Analyze communication quality
+            console.log("Analyzing communication quality...")
+            comm_messages = [
+                {"role": "system", "content": get_communication_analysis_prompt()},
+                {"role": "user", "content": f"다음 PR 데이터를 분석해주세요:\n\n{context}"},
+            ]
+            comm_content = self.complete(comm_messages, temperature=0.4)
+            comm_result = json_module.loads(comm_content)
+
+            # Step 2: Analyze code quality
+            console.log("Analyzing code quality and design...")
+            code_messages = [
+                {"role": "system", "content": get_code_quality_analysis_prompt()},
+                {"role": "user", "content": f"다음 PR 데이터를 분석해주세요:\n\n{context}"},
+            ]
+            code_content = self.complete(code_messages, temperature=0.4)
+            code_result = json_module.loads(code_content)
+
+            # Step 3: Analyze growth and overall assessment
+            console.log("Analyzing growth indicators and overall assessment...")
+            # Provide previous analysis results as context
+            previous_analysis = f"커뮤니케이션 분석: {len(comm_result.get('strengths', []))}개 강점, {len(comm_result.get('improvement_areas', []))}개 개선점\n"
+            previous_analysis += f"코드 품질 분석: {len(code_result.get('strengths', []))}개 강점, {len(code_result.get('improvement_areas', []))}개 개선점\n\n"
+            previous_analysis += f"초기 PR 수: {early_count}개\n최근 PR 수: {recent_count}개"
+
+            growth_messages = [
+                {"role": "system", "content": get_growth_assessment_prompt()},
+                {"role": "user", "content": f"다음 PR 데이터와 이전 분석 결과를 바탕으로 평가해주세요:\n\n{context}\n\n{previous_analysis}"},
+            ]
+            growth_content = self.complete(growth_messages, temperature=0.4)
+            growth_result = json_module.loads(growth_content)
+
+            # Merge results
+            combined_result = {
+                "strengths": comm_result.get("strengths", []) + code_result.get("strengths", []),
+                "improvement_areas": comm_result.get("improvement_areas", []) + code_result.get("improvement_areas", []),
+                "growth_indicators": growth_result.get("growth_indicators", []),
+                "overall_assessment": growth_result.get("overall_assessment", ""),
+                "key_achievements": growth_result.get("key_achievements", []),
+                "next_focus_areas": growth_result.get("next_focus_areas", []),
+            }
+
+            return combined_result
         except Exception as exc:
             console.log(f"Personal development analysis failed: {exc}")
             return {
