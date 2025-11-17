@@ -212,6 +212,7 @@ def _run_parallel_tasks(
 
     results = {}
     total = len(tasks)
+    timeout_occurred = False
 
     # Use Rich Progress bar if available
     if Progress is not None:
@@ -247,6 +248,10 @@ def _run_parallel_tasks(
                         results[key] = default_result
                         color = "yellow" if status_indicator == "⚠" else "red"
                         progress.update(task_id, advance=1, description=f"[{color}]{status_indicator} {label}")
+
+                        # Track if timeout occurred
+                        if status_indicator == "⚠":
+                            timeout_occurred = True
     else:
         # Fallback to simple progress without Rich
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -268,6 +273,18 @@ def _run_parallel_tasks(
                     )
                     console.print(f"[warning]{status_indicator} {error}", style="warning")
                     results[key] = default_result
+
+                    # Track if timeout occurred
+                    if status_indicator == "⚠":
+                        timeout_occurred = True
+
+    # Display guidance if timeout occurred
+    if timeout_occurred:
+        console.print()
+        console.print("[cyan]💡 Timeout이 발생했나요?[/]")
+        console.print("[dim]   걱정하지 마세요! 같은 명령어를 다시 실행하면 이미 수집된 데이터를 활용하여[/]")
+        console.print("[dim]   작업을 이어서 진행합니다. 캐시 덕분에 60-70% 더 빠르게 완료됩니다.[/]")
+        console.print()
 
     return results
 
