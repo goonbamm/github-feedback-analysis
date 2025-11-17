@@ -18,56 +18,74 @@ from .constants import (
 )
 
 
-# Award tier configurations
+# Award tier configurations with priority levels
+# Format: (threshold, award_text, priority)
+# Priority: 1 (Legendary) > 2 (Epic) > 3 (Rare) > 4 (Uncommon) > 5 (Common)
 AWARD_TIERS = {
     "commits": [
-        (1000, "💎 코드 전설 상 (다이아몬드) — 1000회 이상의 커밋으로 저장소의 살아있는 역사를 썼습니다."),
-        (500, "🏆 코드 마스터 상 (플래티넘) — 500회 이상의 커밋으로 코드베이스의 중추를 완성했습니다."),
-        (200, "🥇 코드 대장장이 상 (골드) — 200회 이상의 커밋으로 저장소의 핵심을 단단하게 다졌습니다."),
-        (100, "🥈 코드 장인 상 (실버) — 100회 이상의 커밋으로 꾸준한 개선을 이어갔습니다."),
-        (50, "🥉 코드 견습생 상 (브론즈) — 50회 이상의 커밋으로 성장의 발판을 마련했습니다."),
+        (1000, "💎 코드 전설 상 (다이아몬드) — 1000회 이상의 커밋으로 저장소의 살아있는 역사를 썼습니다.", 1),
+        (500, "🏆 코드 마스터 상 (플래티넘) — 500회 이상의 커밋으로 코드베이스의 중추를 완성했습니다.", 2),
+        (200, "🥇 코드 대장장이 상 (골드) — 200회 이상의 커밋으로 저장소의 핵심을 단단하게 다졌습니다.", 3),
+        (100, "🥈 코드 장인 상 (실버) — 100회 이상의 커밋으로 꾸준한 개선을 이어갔습니다.", 4),
+        (50, "🥉 코드 견습생 상 (브론즈) — 50회 이상의 커밋으로 성장의 발판을 마련했습니다.", 5),
     ],
     "pull_requests": [
-        (200, "💎 릴리스 전설 상 (다이아몬드) — 200건 이상의 Pull Request로 배포의 새 역사를 열었습니다."),
-        (100, "🏆 배포 제독 상 (플래티넘) — 100건 이상의 Pull Request로 릴리스 함대를 지휘했습니다."),
-        (50, "🥇 릴리스 선장 상 (골드) — 50건 이상의 Pull Request로 출시 흐름을 이끌었습니다."),
-        (25, "🥈 릴리스 항해사 상 (실버) — 25건 이상의 Pull Request로 협업 릴리스를 주도했습니다."),
-        (10, "🥉 배포 선원 상 (브론즈) — 10건 이상의 Pull Request로 팀 배포에 기여했습니다."),
+        (200, "💎 릴리스 전설 상 (다이아몬드) — 200건 이상의 Pull Request로 배포의 새 역사를 열었습니다.", 1),
+        (100, "🏆 배포 제독 상 (플래티넘) — 100건 이상의 Pull Request로 릴리스 함대를 지휘했습니다.", 2),
+        (50, "🥇 릴리스 선장 상 (골드) — 50건 이상의 Pull Request로 출시 흐름을 이끌었습니다.", 3),
+        (25, "🥈 릴리스 항해사 상 (실버) — 25건 이상의 Pull Request로 협업 릴리스를 주도했습니다.", 4),
+        (10, "🥉 배포 선원 상 (브론즈) — 10건 이상의 Pull Request로 팀 배포에 기여했습니다.", 5),
     ],
     "reviews": [
-        (200, "💎 지식 전파자 상 (다이아몬드) — 200회 이상의 리뷰로 팀 전체의 성장을 이끌었습니다."),
-        (100, "🏆 멘토링 대가 상 (플래티넘) — 100회 이상의 리뷰로 지식 공유 문화를 정착시켰습니다."),
-        (50, "🥇 리뷰 전문가 상 (골드) — 50회 이상의 리뷰로 코드 품질을 한 단계 끌어올렸습니다."),
-        (20, "🥈 성장 멘토 상 (실버) — 20회 이상의 리뷰로 팀의 성장을 뒷받침했습니다."),
-        (10, "🥉 코드 지원자 상 (브론즈) — 10회 이상의 리뷰로 동료를 도왔습니다."),
+        (200, "💎 지식 전파자 상 (다이아몬드) — 200회 이상의 리뷰로 팀 전체의 성장을 이끌었습니다.", 1),
+        (100, "🏆 멘토링 대가 상 (플래티넘) — 100회 이상의 리뷰로 지식 공유 문화를 정착시켰습니다.", 2),
+        (50, "🥇 리뷰 전문가 상 (골드) — 50회 이상의 리뷰로 코드 품질을 한 단계 끌어올렸습니다.", 3),
+        (20, "🥈 성장 멘토 상 (실버) — 20회 이상의 리뷰로 팀의 성장을 뒷받침했습니다.", 4),
+        (10, "🥉 코드 지원자 상 (브론즈) — 10회 이상의 리뷰로 동료를 도왔습니다.", 5),
     ],
     "issues": [
-        (50, "🔧 문제 해결사 상 — 50건 이상의 이슈를 다루며 저장소 품질을 개선했습니다."),
-        (20, "🛠️ 버그 헌터 상 — 20건 이상의 이슈를 처리하며 안정성 확보에 기여했습니다."),
+        (100, "💎 이슈 정복자 상 (다이아몬드) — 100건 이상의 이슈를 해결하며 프로젝트 안정성의 기둥이 되었습니다.", 2),
+        (50, "🔧 문제 해결사 상 (골드) — 50건 이상의 이슈를 다루며 저장소 품질을 개선했습니다.", 3),
+        (20, "🛠️ 버그 헌터 상 (실버) — 20건 이상의 이슈를 처리하며 안정성 확보에 기여했습니다.", 4),
     ],
     "velocity": [
-        (50, "⚡ 번개 개발자 상 — 월 평균 50회 이상의 커밋으로 놀라운 속도를 보여줬습니다."),
-        (20, "🚀 속도왕 상 — 월 평균 20회 이상의 커밋으로 빠른 개발 템포를 유지했습니다."),
-        (10, "🏃 스프린터 상 — 월 평균 10회 이상의 커밋으로 꾸준한 진전을 이뤘습니다."),
+        (100, "⚡ 광속 개발자 상 (전설) — 월 평균 100회 이상의 커밋으로 인간의 한계를 뛰어넘었습니다.", 1),
+        (50, "🌟 번개 개발자 상 (에픽) — 월 평균 50회 이상의 커밋으로 놀라운 속도를 보여줬습니다.", 2),
+        (20, "🚀 속도왕 상 (레어) — 월 평균 20회 이상의 커밋으로 빠른 개발 템포를 유지했습니다.", 3),
+        (10, "🏃 스프린터 상 — 월 평균 10회 이상의 커밋으로 꾸준한 진전을 이뤘습니다.", 4),
     ],
     "collaboration": [
-        (20, "🤝 협업 마스터 상 — 월 평균 20회 이상의 PR과 리뷰로 팀워크의 중심이 되었습니다."),
-        (10, "👥 협업 전문가 상 — 월 평균 10회 이상의 PR과 리뷰로 팀 시너지를 강화했습니다."),
-        (5, "🤗 팀 플레이어 상 — 월 평균 5회 이상의 PR과 리뷰로 협업 문화에 기여했습니다."),
+        (30, "🌐 협업 리더 상 (전설) — 월 평균 30회 이상의 PR과 리뷰로 팀의 구심점이 되었습니다.", 2),
+        (20, "🤝 협업 마스터 상 (에픽) — 월 평균 20회 이상의 PR과 리뷰로 팀워크의 중심이 되었습니다.", 3),
+        (10, "👥 협업 전문가 상 (레어) — 월 평균 10회 이상의 PR과 리뷰로 팀 시너지를 강화했습니다.", 4),
+        (5, "🤗 팀 플레이어 상 — 월 평균 5회 이상의 PR과 리뷰로 협업 문화에 기여했습니다.", 5),
     ],
     "activity_consistency": [
-        ((30, 6), "📅 꾸준함의 달인 상 — 6개월 이상 월 평균 30회 이상의 활동으로 일관성을 입증했습니다."),
-        ((15, 3), "🔄 지속성 상 — 꾸준한 월별 활동으로 성실함을 보여줬습니다."),
+        ((50, 12), "👑 불멸의 전설 상 — 12개월 이상 월 평균 50회 이상의 활동으로 전설을 만들었습니다.", 1),
+        ((30, 6), "📅 꾸준함의 달인 상 (에픽) — 6개월 이상 월 평균 30회 이상의 활동으로 일관성을 입증했습니다.", 2),
+        ((15, 3), "🔄 지속성 상 (레어) — 꾸준한 월별 활동으로 성실함을 보여줬습니다.", 3),
     ],
     "change_scale": [
-        (10000, "🌋 코드 화산 상 — 10000줄 이상의 폭발적인 변경으로 새로운 시대를 열었습니다."),
-        (5000, "🏗️ 대규모 아키텍트 상 — 5000줄 이상의 변경으로 대담한 리팩터링을 완수했습니다."),
-        (2000, "🔨 대형 빌더 상 — 2000줄 이상의 변경으로 큰 규모의 개선을 이뤄냈습니다."),
-        (1000, "🏠 중형 건축가 상 — 1000줄 이상의 변경으로 의미있는 개선을 완료했습니다."),
+        (10000, "🌋 코드 화산 상 (전설) — 10000줄 이상의 폭발적인 변경으로 새로운 시대를 열었습니다.", 1),
+        (5000, "🏗️ 대규모 아키텍트 상 (에픽) — 5000줄 이상의 변경으로 대담한 리팩터링을 완수했습니다.", 2),
+        (2000, "🔨 대형 빌더 상 (레어) — 2000줄 이상의 변경으로 큰 규모의 개선을 이뤄냈습니다.", 3),
+        (1000, "🏠 중형 건축가 상 — 1000줄 이상의 변경으로 의미있는 개선을 완료했습니다.", 4),
     ],
     "review_dedication": [
-        (3.0, "🔍 리뷰 매니아 상 — 자신의 PR보다 3배 이상 많은 리뷰로 팀 성장에 헌신했습니다."),
-        (2.0, "👁️ 코드 감시자 상 — 자신의 PR보다 2배 이상 많은 리뷰로 품질 관리에 기여했습니다."),
+        (5.0, "🔍 리뷰 광신도 상 (전설) — 자신의 PR보다 5배 이상 많은 리뷰로 팀 성장에 인생을 바쳤습니다.", 1),
+        (3.0, "🎓 리뷰 매니아 상 (에픽) — 자신의 PR보다 3배 이상 많은 리뷰로 팀 성장에 헌신했습니다.", 2),
+        (2.0, "👁️ 코드 감시자 상 (레어) — 자신의 PR보다 2배 이상 많은 리뷰로 품질 관리에 기여했습니다.", 3),
+    ],
+    "productivity": [
+        (1000, "🏭 생산성 괴물 상 (전설) — 1000건 이상의 총 활동으로 압도적인 생산성을 증명했습니다.", 1),
+        (500, "💪 생산성 왕 상 (에픽) — 500건 이상의 총 활동으로 팀의 생산성을 이끌었습니다.", 2),
+        (200, "⚙️ 생산성 달인 상 (레어) — 200건 이상의 총 활동으로 꾸준한 산출물을 만들어냈습니다.", 3),
+    ],
+    "early_bird": [
+        (0.3, "🌅 얼리버드 상 (레어) — 활동의 30% 이상을 오전에 수행하며 아침형 인간의 힘을 보여줬습니다.", 3),
+    ],
+    "night_owl": [
+        (0.3, "🦉 나이트 아울 상 (레어) — 활동의 30% 이상을 심야에 수행하며 밤의 코더로 활약했습니다.", 3),
     ],
 }
 
@@ -76,14 +94,14 @@ class AwardStrategy(ABC):
     """Base class for award calculation strategies."""
 
     @abstractmethod
-    def calculate(self, collection: CollectionResult) -> List[str]:
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
         """Calculate awards based on collection metrics.
 
         Args:
             collection: Collection of repository data
 
         Returns:
-            List of award strings
+            List of (award_text, priority) tuples where priority 1 = highest
         """
         pass
 
@@ -91,8 +109,8 @@ class AwardStrategy(ABC):
 class TierBasedAwardStrategy(AwardStrategy):
     """Strategy for tier-based awards (commits, PRs, reviews, etc.)."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate tier-based awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate tier-based awards with priorities."""
         awards = []
         month_span = max(collection.months, 1)
 
@@ -110,6 +128,10 @@ class TierBasedAwardStrategy(AwardStrategy):
         collaboration_score = (collection.pull_requests + collection.reviews) / month_span
         self._add_tier_award(awards, "collaboration", collaboration_score)
 
+        # Productivity awards
+        total_activity = collection.commits + collection.pull_requests + collection.reviews
+        self._add_tier_award(awards, "productivity", total_activity)
+
         # Large-scale change awards
         if collection.pull_request_examples:
             max_change = max(
@@ -126,38 +148,46 @@ class TierBasedAwardStrategy(AwardStrategy):
         return awards
 
     @staticmethod
-    def _add_tier_award(awards: List[str], category: str, value: float) -> None:
-        """Add tier-based award if value meets threshold."""
+    def _add_tier_award(awards: List[Tuple[str, int]], category: str, value: float) -> None:
+        """Add tier-based award with priority if value meets threshold."""
         if category not in AWARD_TIERS:
             return
 
-        for threshold, award_text in AWARD_TIERS[category]:
+        for tier_data in AWARD_TIERS[category]:
+            threshold = tier_data[0]
+            award_text = tier_data[1]
+            priority = tier_data[2]
+
             if value >= threshold:
-                awards.append(award_text)
+                awards.append((award_text, priority))
                 break
 
 
 class ActivityConsistencyAwardStrategy(AwardStrategy):
     """Strategy for activity consistency awards."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate activity consistency awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate activity consistency awards with priorities."""
         awards = []
         month_span = max(collection.months, 1)
         total_activity = collection.commits + collection.pull_requests + collection.reviews
         activity_per_month = total_activity / month_span
 
         # Activity consistency awards
-        for (threshold_activity, threshold_months), award_text in AWARD_TIERS["activity_consistency"]:
+        for tier_data in AWARD_TIERS["activity_consistency"]:
+            (threshold_activity, threshold_months) = tier_data[0]
+            award_text = tier_data[1]
+            priority = tier_data[2]
+
             if activity_per_month >= threshold_activity and collection.months >= threshold_months:
-                awards.append(award_text)
+                awards.append((award_text, priority))
                 break
 
         # Consistency king (매우 꾸준한 활동)
         if (collection.months >= AWARD_CONSISTENCY_THRESHOLDS['consistent_months'] and
             activity_per_month >= AWARD_CONSISTENCY_THRESHOLDS['consistent_activity_per_month']):
             awards.append(
-                "👑 일관성의 왕 상 — 6개월 이상 월 20회 이상의 꾸준한 활동을 유지했습니다."
+                ("👑 일관성의 왕 상 (에픽) — 6개월 이상 월 20회 이상의 꾸준한 활동을 유지했습니다.", 2)
             )
 
         # Sprint finisher (최근 활동이 많은 경우)
@@ -165,7 +195,7 @@ class ActivityConsistencyAwardStrategy(AwardStrategy):
             velocity_score = collection.commits / month_span
             if velocity_score >= AWARD_CONSISTENCY_THRESHOLDS['sprint_velocity']:
                 awards.append(
-                    "🏁 스프린트 피니셔 상 — 높은 월평균 속도로 프로젝트를 빠르게 전진시켰습니다."
+                    ("🏁 스프린트 피니셔 상 (레어) — 높은 월평균 속도로 프로젝트를 빠르게 전진시켰습니다.", 3)
                 )
 
         return awards
@@ -174,8 +204,8 @@ class ActivityConsistencyAwardStrategy(AwardStrategy):
 class BalancedContributorAwardStrategy(AwardStrategy):
     """Strategy for balanced contributor awards."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate balanced contributor awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate balanced contributor awards with priorities."""
         awards = []
         total_activity = collection.commits + collection.pull_requests + collection.reviews
 
@@ -184,7 +214,7 @@ class BalancedContributorAwardStrategy(AwardStrategy):
             collection.pull_requests >= AWARD_BALANCED_THRESHOLDS['allrounder_prs'] and
             collection.reviews >= AWARD_BALANCED_THRESHOLDS['allrounder_reviews']):
             awards.append(
-                "🌟 다재다능 상 — 커밋, PR, 리뷰 전 영역에서 균형잡힌 기여를 보여줬습니다."
+                ("🌟 다재다능 상 (레어) — 커밋, PR, 리뷰 전 영역에서 균형잡힌 기여를 보여줬습니다.", 3)
             )
 
         # Balanced contributor award
@@ -199,7 +229,7 @@ class BalancedContributorAwardStrategy(AwardStrategy):
             max_ratio = AWARD_BALANCED_THRESHOLDS['balanced_max_ratio']
             if all(min_ratio <= ratio <= max_ratio for ratio in [commit_ratio, pr_ratio, review_ratio]):
                 awards.append(
-                    "⚖️ 균형잡힌 기여자 상 — 커밋, PR, 리뷰를 완벽하게 균형있게 수행했습니다."
+                    ("⚖️ 균형잡힌 기여자 상 (레어) — 커밋, PR, 리뷰를 완벽하게 균형있게 수행했습니다.", 3)
                 )
 
         # Renaissance developer (모든 지표가 높음)
@@ -208,7 +238,7 @@ class BalancedContributorAwardStrategy(AwardStrategy):
             collection.reviews >= AWARD_BALANCED_THRESHOLDS['renaissance_reviews'] and
             collection.issues >= AWARD_BALANCED_THRESHOLDS['renaissance_issues']):
             awards.append(
-                "🎭 르네상스 개발자 상 — 모든 영역에서 뛰어난 활약을 펼친 완벽한 올라운더입니다."
+                ("🎭 르네상스 개발자 상 (전설) — 모든 영역에서 뛰어난 활약을 펼친 완벽한 올라운더입니다.", 1)
             )
 
         return awards
@@ -217,8 +247,8 @@ class BalancedContributorAwardStrategy(AwardStrategy):
 class PRCharacteristicAwardStrategy(AwardStrategy):
     """Strategy for PR characteristic-based awards."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate PR characteristic awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate PR characteristic awards with priorities."""
         awards = []
 
         if not collection.pull_request_examples:
@@ -229,7 +259,7 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
                       if (pr.additions + pr.deletions) < AWARD_PR_THRESHOLDS['micro_pr_size'])
         if small_prs >= AWARD_PR_THRESHOLDS['micro_pr_count']:
             awards.append(
-                "🎨 미세 조율 장인 상 — 10개 이상의 작은 PR로 점진적 개선의 미학을 보여줬습니다."
+                ("🎨 미세 조율 장인 상 (레어) — 10개 이상의 작은 PR로 점진적 개선의 미학을 보여줬습니다.", 3)
             )
 
         # Big bang award (큰 PR)
@@ -237,7 +267,7 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
                      if (pr.additions + pr.deletions) > 1000)
         if huge_prs >= 3:
             awards.append(
-                "💥 빅뱅 상 — 3개 이상의 대규모 PR로 혁신적인 변화를 주도했습니다."
+                ("💥 빅뱅 상 (에픽) — 3개 이상의 대규모 PR로 혁신적인 변화를 주도했습니다.", 2)
             )
 
         # Quick merger award (빠른 병합)
@@ -246,7 +276,7 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
                          (pr.merged_at - pr.created_at).total_seconds() < 3600)
         if quick_merges >= 5:
             awards.append(
-                "⚡ 스피드 머저 상 — 5개 이상의 PR을 1시간 내 병합하는 민첩함을 보여줬습니다."
+                ("⚡ 스피드 머저 상 (레어) — 5개 이상의 PR을 1시간 내 병합하는 민첩함을 보여줬습니다.", 3)
             )
 
         # High PR merge rate
@@ -255,7 +285,7 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
             merge_rate = merged_count / len(collection.pull_request_examples)
             if merge_rate >= 0.9:
                 awards.append(
-                    "✅ 머지 마스터 상 — 90% 이상의 높은 PR 병합률로 탁월한 코드 품질을 입증했습니다."
+                    ("✅ 머지 마스터 상 (에픽) — 90% 이상의 높은 PR 병합률로 탁월한 코드 품질을 입증했습니다.", 2)
                 )
 
         return awards
@@ -264,8 +294,8 @@ class PRCharacteristicAwardStrategy(AwardStrategy):
 class RoleBasedAwardStrategy(AwardStrategy):
     """Strategy for role-based awards (champion, machine, etc.)."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate role-based awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate role-based awards with priorities."""
         awards = []
 
         # Review champion (리뷰가 가장 많은 경우)
@@ -273,7 +303,7 @@ class RoleBasedAwardStrategy(AwardStrategy):
             collection.reviews > collection.pull_requests and
             collection.reviews >= 30):
             awards.append(
-                "👨‍🏫 리뷰 챔피언 상 — 다른 활동보다 리뷰에 집중하며 팀 성장의 멘토가 되었습니다."
+                ("👨‍🏫 리뷰 챔피언 상 (에픽) — 다른 활동보다 리뷰에 집중하며 팀 성장의 멘토가 되었습니다.", 2)
             )
 
         # Commit machine (커밋이 압도적으로 많은 경우)
@@ -281,13 +311,13 @@ class RoleBasedAwardStrategy(AwardStrategy):
             collection.commits > collection.reviews * 3 and
             collection.commits >= 100):
             awards.append(
-                "🔥 커밋 머신 상 — 압도적인 커밋 수로 코드베이스의 핵심 동력이 되었습니다."
+                ("🔥 커밋 머신 상 (에픽) — 압도적인 커밋 수로 코드베이스의 핵심 동력이 되었습니다.", 2)
             )
 
         # Issue warrior award
         if collection.issues > collection.commits and collection.issues >= 30:
             awards.append(
-                "🛠️ 이슈 전사 상 — 커밋보다 많은 이슈 처리로 프로젝트 안정성에 집중했습니다."
+                ("🛠️ 이슈 전사 상 (레어) — 커밋보다 많은 이슈 처리로 프로젝트 안정성에 집중했습니다.", 3)
             )
 
         return awards
@@ -296,14 +326,14 @@ class RoleBasedAwardStrategy(AwardStrategy):
 class QualityAwardStrategy(AwardStrategy):
     """Strategy for quality-based awards."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate quality-based awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate quality-based awards with priorities."""
         awards = []
 
         # Stability award
         if collection.issues and collection.issues <= max(collection.commits // 6, 1):
             awards.append(
-                "🛡️ 안정 지킴이 상 — 활동 대비 적은 이슈로 안정성을 지켰습니다."
+                ("🛡️ 안정 지킴이 상 (레어) — 활동 대비 적은 이슈로 안정성을 지켰습니다.", 3)
             )
 
         # Quality guardian (이슈 대비 높은 리뷰)
@@ -311,7 +341,7 @@ class QualityAwardStrategy(AwardStrategy):
             review_issue_ratio = collection.reviews / collection.issues
             if review_issue_ratio >= 3:
                 awards.append(
-                    "🎯 품질 수호자 상 — 이슈 대비 3배 이상의 리뷰로 사전 품질 관리에 힘썼습니다."
+                    ("🎯 품질 수호자 상 (에픽) — 이슈 대비 3배 이상의 리뷰로 사전 품질 관리에 힘썼습니다.", 2)
                 )
 
         return awards
@@ -320,8 +350,8 @@ class QualityAwardStrategy(AwardStrategy):
 class ThemeBasedAwardStrategy(AwardStrategy):
     """Strategy for theme-based awards (docs, tests, refactor, etc.)."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Calculate theme-based awards."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate theme-based awards with priorities."""
         awards = []
 
         if not collection.pull_request_examples:
@@ -333,7 +363,7 @@ class ThemeBasedAwardStrategy(AwardStrategy):
                            for keyword in ['doc', 'readme', 'documentation', '문서']))
         if doc_prs >= 5:
             awards.append(
-                "📚 문서화 영웅 상 — 5개 이상의 문서 PR로 지식 공유에 기여했습니다."
+                ("📚 문서화 영웅 상 (레어) — 5개 이상의 문서 PR로 지식 공유에 기여했습니다.", 3)
             )
 
         # Test advocate
@@ -342,7 +372,7 @@ class ThemeBasedAwardStrategy(AwardStrategy):
                             for keyword in ['test', 'testing', '테스트', 'spec']))
         if test_prs >= 5:
             awards.append(
-                "🧪 테스트 옹호자 상 — 5개 이상의 테스트 PR로 코드 안정성을 강화했습니다."
+                ("🧪 테스트 옹호자 상 (레어) — 5개 이상의 테스트 PR로 코드 안정성을 강화했습니다.", 3)
             )
 
         # Refactoring master
@@ -351,7 +381,7 @@ class ThemeBasedAwardStrategy(AwardStrategy):
                                 for keyword in ['refactor', 'refactoring', '리팩터링', 'cleanup', 'clean']))
         if refactor_prs >= 5:
             awards.append(
-                "♻️ 리팩터링 마스터 상 — 5개 이상의 리팩터링 PR로 코드 품질을 향상시켰습니다."
+                ("♻️ 리팩터링 마스터 상 (레어) — 5개 이상의 리팩터링 PR로 코드 품질을 향상시켰습니다.", 3)
             )
 
         # Bug squasher
@@ -360,7 +390,7 @@ class ThemeBasedAwardStrategy(AwardStrategy):
                            for keyword in ['fix', 'bug', 'hotfix', '버그', '수정']))
         if bug_prs >= 10:
             awards.append(
-                "🐛 버그 스쿼셔 상 — 10개 이상의 버그 수정 PR로 안정성을 높였습니다."
+                ("🐛 버그 스쿼셔 상 (레어) — 10개 이상의 버그 수정 PR로 안정성을 높였습니다.", 3)
             )
 
         # Feature factory
@@ -369,7 +399,7 @@ class ThemeBasedAwardStrategy(AwardStrategy):
                                for keyword in ['feature', 'feat', 'add', 'new', '추가', '기능']))
         if feature_prs >= 10:
             awards.append(
-                "🏭 기능 공장 상 — 10개 이상의 기능 추가 PR로 제품을 풍부하게 만들었습니다."
+                ("🏭 기능 공장 상 (에픽) — 10개 이상의 기능 추가 PR로 제품을 풍부하게 만들었습니다.", 2)
             )
 
         return awards
@@ -378,10 +408,10 @@ class ThemeBasedAwardStrategy(AwardStrategy):
 class DefaultAwardStrategy(AwardStrategy):
     """Strategy for default award when no other awards are given."""
 
-    def calculate(self, collection: CollectionResult) -> List[str]:
-        """Return default award."""
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Return default award with priority."""
         return [
-            "🌱 성장 씨앗 상 — 작은 발걸음들이 모여 내일의 큰 성장을 준비하고 있습니다."
+            ("🌱 성장 씨앗 상 — 작은 발걸음들이 모여 내일의 큰 성장을 준비하고 있습니다.", 5)
         ]
 
 
@@ -390,9 +420,14 @@ class AwardCalculator:
     """Orchestrates multiple award strategies to determine all awards."""
 
     strategies: List[AwardStrategy]
+    max_awards: int = 5
 
-    def __init__(self):
-        """Initialize with all award strategies."""
+    def __init__(self, max_awards: int = 5):
+        """Initialize with all award strategies.
+
+        Args:
+            max_awards: Maximum number of awards to return (default: 5)
+        """
         self.strategies = [
             TierBasedAwardStrategy(),
             ActivityConsistencyAwardStrategy(),
@@ -402,26 +437,36 @@ class AwardCalculator:
             QualityAwardStrategy(),
             ThemeBasedAwardStrategy(),
         ]
+        self.max_awards = max_awards
 
     def determine_awards(self, collection: CollectionResult) -> List[str]:
-        """Determine all awards by running all strategies.
+        """Determine top awards by running all strategies and selecting best ones.
 
         Args:
             collection: Collection of repository data
 
         Returns:
-            List of award strings. If no awards are found, returns default award.
+            List of award strings (max 5). If no awards are found, returns default award.
+            Awards are sorted by priority (1=Legendary, 2=Epic, 3=Rare, 4=Uncommon, 5=Common)
         """
-        awards = []
+        awards_with_priority: List[Tuple[str, int]] = []
 
-        # Run all strategies
+        # Run all strategies and collect awards with priorities
         for strategy in self.strategies:
             strategy_awards = strategy.calculate(collection)
-            awards.extend(strategy_awards)
+            awards_with_priority.extend(strategy_awards)
 
         # If no awards were given, use default
-        if not awards:
+        if not awards_with_priority:
             default_strategy = DefaultAwardStrategy()
-            awards = default_strategy.calculate(collection)
+            awards_with_priority = default_strategy.calculate(collection)
 
-        return awards
+        # Sort by priority (lower number = higher priority) and take top N
+        # Secondary sort by award text to ensure deterministic ordering
+        sorted_awards = sorted(awards_with_priority, key=lambda x: (x[1], x[0]))
+
+        # Take top max_awards awards
+        top_awards = sorted_awards[:self.max_awards]
+
+        # Extract just the award text
+        return [award_text for award_text, _ in top_awards]
