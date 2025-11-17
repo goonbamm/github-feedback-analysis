@@ -428,6 +428,11 @@ class LLMClient:
 
             # Call LLM
             response = self.complete(messages)
+
+            # Check for empty response
+            if not response or not response.strip():
+                raise ValueError("Empty response from LLM")
+
             result = json.loads(response)
 
             return result
@@ -549,6 +554,14 @@ class LLMClient:
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
+
+                # Check for empty response
+                if not response.content or not response.content.strip():
+                    last_error = ValueError("Empty response from LLM endpoint")
+                    if "response_format" in request_payload:
+                        continue
+                    raise last_error
+
                 try:
                     response_payload = response.json()
                 except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
@@ -615,6 +628,10 @@ class LLMClient:
         )
         response.raise_for_status()
 
+        # Check for empty response
+        if not response.content or not response.content.strip():
+            raise ValueError("Empty response from LLM endpoint")
+
         try:
             response_payload = response.json()
         except ValueError as exc:
@@ -663,6 +680,10 @@ class LLMClient:
         Raises:
             ValueError: If response format is invalid or content is missing
         """
+        # Check for empty response
+        if not response.content or not response.content.strip():
+            raise ValueError("Empty response from LLM endpoint")
+
         try:
             response_payload = response.json()
         except ValueError as exc:  # pragma: no cover - upstream bug/HTML error page
