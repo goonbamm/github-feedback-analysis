@@ -1301,6 +1301,89 @@ def _run_feedback_analysis(
     return report_path, results
 
 
+def _generate_final_summary_table(personal_dev_path: Path) -> str:
+    """Generate final summary table with strengths, improvements, and growth.
+
+    Args:
+        personal_dev_path: Path to personal_development.json file
+
+    Returns:
+        Markdown formatted final summary section with tables
+    """
+    import json
+
+    # Try to load personal development data
+    try:
+        with open(personal_dev_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        # If file doesn't exist or can't be read, return empty summary
+        return "## 📋 종합 피드백\n\n개인 성장 분석 데이터를 찾을 수 없습니다."
+
+    # Extract top 3 strengths, top 2 improvements, top 3 growth indicators
+    strengths = data.get("strengths", [])[:3]
+    improvements = data.get("improvement_areas", [])[:2]
+    growth = data.get("growth_indicators", [])[:3]
+
+    # Build summary section
+    lines = ["## 📋 종합 피드백", ""]
+
+    # Strengths table
+    if strengths:
+        lines.append("### ✨ 주요 장점")
+        lines.append("")
+        lines.append("| 장점 | 근거 |")
+        lines.append("|------|------|")
+        for strength in strengths:
+            category = strength.get("category", "기타")
+            description = strength.get("description", "")
+            evidence = strength.get("evidence", [])
+            evidence_text = "<br>".join([f"• {e}" for e in evidence]) if evidence else "근거 없음"
+            lines.append(f"| **{category}**: {description} | {evidence_text} |")
+        lines.append("")
+
+    # Improvements table
+    if improvements:
+        lines.append("### 💡 보완점")
+        lines.append("")
+        lines.append("| 보완점 | 근거 |")
+        lines.append("|--------|------|")
+        for improvement in improvements:
+            category = improvement.get("category", "기타")
+            description = improvement.get("description", "")
+            evidence = improvement.get("evidence", [])
+            evidence_text = "<br>".join([f"• {e}" for e in evidence]) if evidence else "근거 없음"
+            lines.append(f"| **{category}**: {description} | {evidence_text} |")
+        lines.append("")
+
+    # Growth indicators table
+    if growth:
+        lines.append("### 🌱 올해 성장한 점")
+        lines.append("")
+        lines.append("| 성장 영역 | 근거 |")
+        lines.append("|-----------|------|")
+        for indicator in growth:
+            aspect = indicator.get("aspect", "기타")
+            description = indicator.get("description", "")
+            progress_summary = indicator.get("progress_summary", "")
+            before = indicator.get("before_examples", [])
+            after = indicator.get("after_examples", [])
+
+            evidence_parts = []
+            if progress_summary:
+                evidence_parts.append(f"**진전 사항:** {progress_summary}")
+            if before:
+                evidence_parts.append(f"**초기:** {', '.join(before[:2])}")
+            if after:
+                evidence_parts.append(f"**현재:** {', '.join(after[:2])}")
+
+            evidence_text = "<br>".join(evidence_parts) if evidence_parts else "근거 없음"
+            lines.append(f"| **{aspect}**: {description} | {evidence_text} |")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _generate_integrated_full_report(
     output_dir: Path,
     repo_name: str,
@@ -1335,6 +1418,10 @@ def _generate_integrated_full_report(
         console.print(f"[warning]Error reading feedback report: {exc}[/]")
         raise RuntimeError(f"Failed to read feedback report: {exc}") from exc
 
+    # Load personal development analysis for final summary
+    personal_dev_path = feedback_report_path.parent / "personal_development.json"
+    final_summary_section = _generate_final_summary_table(personal_dev_path)
+
     # Generate integrated report
     integrated_content = f"""# {repo_name} 전체 분석 및 PR 리뷰 보고서
 
@@ -1344,7 +1431,6 @@ def _generate_integrated_full_report(
 
 1. [레포지토리 개요 (Repository Brief)](#1-레포지토리-개요-repository-brief)
 2. [PR 리뷰 분석 (PR Feedback)](#2-pr-리뷰-분석-pr-feedback)
-3. [종합 요약](#3-종합-요약)
 
 ---
 
@@ -1360,20 +1446,7 @@ def _generate_integrated_full_report(
 
 ---
 
-## 3. 종합 요약
-
-이 보고서는 **{repo_name}** 레포지토리에 대한 전체 분석과 PR 리뷰를 통합하여 제공합니다.
-
-### 주요 내용
-
-- **레포지토리 분석**: 커밋, PR, 리뷰, 이슈 등 전체 활동 지표와 인사이트
-- **PR 리뷰 분석**: 인증된 사용자의 PR들에 대한 AI 기반 상세 리뷰
-
-### 활용 방법
-
-1. **레포지토리 개요**: 프로젝트의 전체적인 건강도와 트렌드를 파악하세요
-2. **PR 리뷰**: 개별 PR의 강점과 개선 사항을 확인하여 코드 품질을 향상시키세요
-3. **지속적 개선**: 정기적으로 분석을 실행하여 팀의 성장을 추적하세요
+{final_summary_section}
 
 ---
 
