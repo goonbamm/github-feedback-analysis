@@ -932,6 +932,7 @@ def _collect_detailed_feedback(
             "pr_titles": (lambda: llm_client.analyze_pr_titles(pr_titles_data), (), "PR titles"),
             "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data), (), "review tone"),
             "issue_quality": (lambda: llm_client.analyze_issue_quality(issues_data), (), "issues"),
+            "personal_development": (lambda: llm_client.analyze_personal_development(pr_titles_data, review_comments_data, repo), (), "personal development"),
         }
 
         results = _run_parallel_tasks(
@@ -945,6 +946,7 @@ def _collect_detailed_feedback(
         pr_title_analysis = results.get("pr_titles")
         review_tone_analysis = results.get("review_tone")
         issue_analysis = results.get("issue_quality")
+        personal_development_analysis = results.get("personal_development")
 
         # Build detailed feedback snapshot
         detailed_feedback_snapshot = analyzer.build_detailed_feedback(
@@ -952,6 +954,7 @@ def _collect_detailed_feedback(
             pr_title_analysis=pr_title_analysis,
             review_tone_analysis=review_tone_analysis,
             issue_analysis=issue_analysis,
+            personal_development_analysis=personal_development_analysis,
         )
 
         elapsed_time = time.time() - start_time

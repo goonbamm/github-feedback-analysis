@@ -302,12 +302,13 @@ class IssueFeedback:
 
 @dataclass(slots=True)
 class DetailedFeedbackSnapshot:
-    """Comprehensive feedback including commit messages, PR titles, review tone, and issues."""
+    """Comprehensive feedback including commit messages, PR titles, review tone, issues, and personal development."""
 
     commit_feedback: Optional[CommitMessageFeedback] = None
     pr_title_feedback: Optional[PRTitleFeedback] = None
     review_tone_feedback: Optional[ReviewToneFeedback] = None
     issue_feedback: Optional[IssueFeedback] = None
+    personal_development: Optional[PersonalDevelopmentAnalysis] = None
 
     def to_dict(self) -> Dict[str, object]:
         """Serialise detailed feedback."""
@@ -320,6 +321,8 @@ class DetailedFeedbackSnapshot:
             result["review_tone_feedback"] = self.review_tone_feedback.to_dict()
         if self.issue_feedback:
             result["issue_feedback"] = self.issue_feedback.to_dict()
+        if self.personal_development:
+            result["personal_development"] = self.personal_development.to_dict()
         return result
 
 
