@@ -237,12 +237,12 @@ COLLECTION_LIMITS = {
 
 # Display limits for reporting
 DISPLAY_LIMITS = {
-    'feedback_examples': 3,  # Number of examples to show in feedback sections
-    'medium_priority_insights': 3,  # Number of medium priority insights to show
+    'feedback_examples': 2,  # Number of examples to show in feedback sections (reduced for brevity)
+    'medium_priority_insights': 2,  # Number of medium priority insights to show (reduced for brevity)
     'top_languages': 5,  # Number of top languages to display
     'top_reviewers': 5,  # Number of top reviewers to display
     'max_goals': 5,  # Maximum number of goals to return
-    'growth_indicators': 3,  # Number of growth indicators to show per learning insight
+    'growth_indicators': 2,  # Number of growth indicators to show per learning insight (reduced for brevity)
 }
 
 # Parallel processing configuration
