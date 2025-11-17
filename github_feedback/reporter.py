@@ -576,7 +576,18 @@ class Reporter:
     def _build_commit_feedback(self, commit_feedback) -> List[str]:
         """Build commit feedback subsection with new table format."""
         def format_commit_evidence(example):
-            return f"`{example.get('message', '')}`"
+            message = example.get('message', '')
+            reason = example.get('reason', '')
+            suggestion = example.get('suggestion', '')
+
+            # Build detailed evidence with message, reason, and suggestion
+            parts = [f"**메시지**: `{message}`"]
+            if reason:
+                parts.append(f"<br>**근거**: {reason}")
+            if suggestion:
+                parts.append(f"<br>**개선방안**: {suggestion}")
+
+            return "<br>".join(parts)
 
         def format_commit_link(example):
             if example.get('url'):
