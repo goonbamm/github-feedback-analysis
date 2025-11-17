@@ -453,6 +453,44 @@ gfa suggest-repos --sort activity
 
 설정은 `~/.config/github_feedback/config.toml`에 저장되며, `gfa init` 실행 시 자동으로 생성됩니다.
 
+### Enterprise 호스트 설정 (`hosts.config.json`)
+
+프로젝트 루트의 `hosts.config.json` 파일을 편집하여 회사별 GitHub Enterprise 호스트를 커스터마이즈할 수 있습니다.
+
+```json
+{
+  "description": "Default GitHub Enterprise host examples shown in the host selection menu",
+  "default_hosts": [
+    "github.com (Default)",
+    "github.company.com",
+    "github.enterprise.local",
+    "ghe.example.com"
+  ]
+}
+```
+
+**커스터마이징 방법:**
+1. `hosts.config.json` 파일을 열어서 편집
+2. `default_hosts` 배열에 회사의 GitHub Enterprise 호스트를 추가하거나 수정
+3. 첫 번째 항목은 "github.com (Default)"로 유지하는 것을 권장
+4. 저장 후 `gfa init` 실행 시 수정된 호스트 목록이 표시됩니다
+
+**예시 (회사별 커스터마이즈):**
+
+```json
+{
+  "description": "Company-specific GitHub Enterprise hosts",
+  "default_hosts": [
+    "github.com (Default)",
+    "github.mycompany.com",
+    "ghe.internal.corp",
+    "github.dev.mycompany.net"
+  ]
+}
+```
+
+> 파일이 없거나 형식이 잘못된 경우 자동으로 기본값이 사용됩니다.
+
 ### 설정 파일 예시
 
 ```toml

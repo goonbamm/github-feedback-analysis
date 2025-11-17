@@ -1,0 +1,9 @@
+{
+  "description": "Default GitHub Enterprise host examples shown in the host selection menu",
+  "default_hosts": [
+    "github.com (Default)",
+    "github.company.com",
+    "github.enterprise.local",
+    "ghe.example.com"
+  ]
+}
