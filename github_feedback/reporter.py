@@ -715,8 +715,14 @@ class Reporter:
             return "<br>".join(parts)
 
         def format_pr_link(example):
+            url = example.get('url', '')
             number = example.get('number', '')
-            if number:
+
+            if url:
+                url_escaped = _escape_table_cell(url)
+                return f"[#{number}]({url_escaped})" if number else f"[PR]({url_escaped})"
+            elif number:
+                # Fallback: construct URL if not provided
                 return f"[#{number}]({self.web_url}/{self._get_repo_from_context()}/pull/{number})"
             return "-"
 
