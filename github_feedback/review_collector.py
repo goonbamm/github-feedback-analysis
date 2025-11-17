@@ -193,6 +193,7 @@ class ReviewCollector(BaseCollector):
                             "body": body,
                             "state": review.get("state", ""),
                             "submitted_at": review.get("submitted_at", ""),
+                            "url": review.get("html_url", ""),
                         }
                     )
             except (requests.HTTPError, ValueError) as exc:

@@ -376,15 +376,17 @@ class Reporter:
         lines.append("")
 
         categories = self._categorize_awards(metrics.awards)
+
+        # Build a single table with all awards
+        lines.append("| 카테고리 | 어워드 |")
+        lines.append("|----------|--------|")
+
         for category_name, category_awards in categories.items():
             if category_awards:
-                lines.append(f"### {category_name}")
-                lines.append("")
-                lines.append("| 어워드 |")
-                lines.append("|--------|")
                 for award in category_awards:
-                    lines.append(f"| {award} |")
-                lines.append("")
+                    lines.append(f"| {category_name} | {award} |")
+
+        lines.append("")
         lines.append("---")
         lines.append("")
         return lines
@@ -1176,31 +1178,29 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Table of Contents
-            self._build_table_of_contents(metrics),
-            # 3. Executive Summary - Quick overview
+            # 2. Executive Summary - Quick overview
             self._build_executive_summary(metrics),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 3. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 5. Growth Highlights - Show the story
+            # 4. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 6. Monthly Trends - Show patterns
+            # 5. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 7. Detailed Feedback - Actionable insights
+            # 6. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 8. Deep Retrospective - Comprehensive analysis NEW!
+            # 7. Deep Retrospective - Comprehensive analysis NEW!
             self._build_retrospective_section(metrics),
-            # 9. Spotlight Examples - Concrete evidence
+            # 8. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 10. Tech Stack - Technical breadth
+            # 9. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
-            # 11. Collaboration - Teamwork
+            # 10. Collaboration - Teamwork
             self._build_collaboration_section(metrics),
-            # 12. Year in Review - Complete story (merged with year-end review)
+            # 11. Year in Review - Complete story (merged with year-end review)
             self._build_year_in_review_section(metrics),
-            # 13. Detailed Metrics - For those who want numbers
+            # 12. Detailed Metrics - For those who want numbers
             self._build_metrics_section(metrics),
-            # 15. Evidence Links - Verification
+            # 13. Evidence Links - Verification
             self._build_evidence_section_improved(metrics),
         ]
 
@@ -1231,31 +1231,29 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Table of Contents
-            self._build_table_of_contents(metrics),
-            # 3. Executive Summary - Quick overview
+            # 2. Executive Summary - Quick overview
             self._build_executive_summary(metrics),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 3. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 5. Growth Highlights - Show the story
+            # 4. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 6. Monthly Trends - Show patterns
+            # 5. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 7. Detailed Feedback - Actionable insights
+            # 6. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 8. Deep Retrospective - Comprehensive analysis NEW!
+            # 7. Deep Retrospective - Comprehensive analysis NEW!
             self._build_retrospective_section(metrics),
-            # 9. Spotlight Examples - Concrete evidence
+            # 8. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 10. Tech Stack - Technical breadth
+            # 9. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
-            # 11. Collaboration - Teamwork
+            # 10. Collaboration - Teamwork
             self._build_collaboration_section(metrics),
-            # 12. Year in Review - Complete story (merged with year-end review)
+            # 11. Year in Review - Complete story (merged with year-end review)
             self._build_year_in_review_section(metrics),
-            # 13. Detailed Metrics - For those who want numbers
+            # 12. Detailed Metrics - For those who want numbers
             self._build_metrics_section(metrics),
-            # 15. Evidence Links - Verification
+            # 13. Evidence Links - Verification
             self._build_evidence_section_improved(metrics),
         ]
 

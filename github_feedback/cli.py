@@ -890,6 +890,7 @@ def _collect_detailed_feedback(
             timeout=config.llm.timeout,
             max_files_in_prompt=config.llm.max_files_in_prompt,
             max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
+            web_url=config.server.web_url,
         )
 
         # Parallelize LLM analysis calls
@@ -1188,6 +1189,7 @@ def _run_feedback_analysis(
         timeout=config.llm.timeout,
         max_files_in_prompt=config.llm.max_files_in_prompt,
         max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
+        web_url=config.server.web_url,
     )
 
     reviews_dir = output_dir / "reviews"
