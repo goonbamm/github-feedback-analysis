@@ -1018,20 +1018,28 @@ class LLMClient:
                 "- 직접적 표현도 맥락에 따라 건설적일 수 있음\n"
                 "- 높임말 사용 여부보다 내용의 구체성이 중요\n"
                 "- 이모지 사용은 긍정적 신호일 수 있음\n\n"
+                "**중요: 응답 작성 시 주의사항**\n"
+                "1. 각 예시에 **구체적이고 상세한** strengths 또는 issues를 작성하세요 (2-3개 항목)\n"
+                "   - 어떤 점이 좋은지/문제가 되는지 명확히 설명\n"
+                "   - 구체적인 개선점이나 장점을 나열\n"
+                "   - 예: strengths: ['구체적인 해결책을 제시함', '존중하는 톤 사용', '코드 예시 포함']\n"
+                "2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요\n"
+                "3. examples_improve에는 반드시 improved_version을 포함하여 어떻게 개선할 수 있는지 보여주세요\n\n"
                 "응답 형식:\n"
                 "{\n"
                 '  "constructive_count": 숫자,\n'
                 '  "harsh_count": 숫자,\n'
                 '  "neutral_count": 숫자,\n'
                 '  "suggestions": [\n'
-                '    "팀 전체 커뮤니케이션 개선 제안"\n'
+                '    "팀 전체 커뮤니케이션 개선 제안 (1-5개)"\n'
                 "  ],\n"
                 '  "examples_good": [\n'
                 "    {\n"
                 '      "pr_number": PR 번호,\n'
                 '      "author": "작성자",\n'
                 '      "comment": "코멘트 내용",\n'
-                '      "strengths": ["좋은 점들"]\n'
+                '      "url": "https://github.com/owner/repo/pull/123#pullrequestreview-...",\n'
+                '      "strengths": ["구체적인 장점 1 (2-3개 문장)", "구체적인 장점 2"]\n'
                 "    }\n"
                 "  ],\n"
                 '  "examples_improve": [\n'
@@ -1039,8 +1047,9 @@ class LLMClient:
                 '      "pr_number": PR 번호,\n'
                 '      "author": "작성자",\n'
                 '      "comment": "원본 코멘트",\n'
-                '      "issues": ["문제점들"],\n'
-                '      "improved_version": "개선된 표현 예시"\n'
+                '      "url": "https://github.com/owner/repo/pull/123#pullrequestreview-...",\n'
+                '      "issues": ["구체적인 문제점 1 (2-3개 문장)", "구체적인 문제점 2"],\n'
+                '      "improved_version": "개선된 표현 예시 (구체적으로)"\n'
                 "    }\n"
                 "  ],\n"
                 '  "team_culture_insights": {\n'
@@ -1399,22 +1408,131 @@ class LLMClient:
     def _fallback_review_tone_analysis(
         self, reviews: list[dict[str, str]]
     ) -> dict[str, Any]:
-        """Simple heuristic-based review tone analysis."""
-        constructive_count = len(reviews)
+        """Enhanced heuristic-based review tone analysis using helper class."""
+        # Patterns for classification
+        constructive_patterns = [
+            r'어떨까요|고려해|제안|추천|생각해보',  # 제안형 표현
+            r'같아요|것 같|보입니다',  # 부드러운 표현
+            r'해보면|시도해|시험해',  # 시도 제안
+            r'\?',  # 질문형
+            r'좋을 것|나을 것|더 좋',  # 긍정적 제안
+            r'예시|예를 들어|이렇게|다음과 같이',  # 구체적 설명
+            r'👍|✅|💯|🎉|😊|👏',  # 긍정 이모지
+        ]
+
+        harsh_patterns = [
+            r'잘못|틀렸|오류|에러(?!:)|문제(?!를 해결)',  # 부정적 직접 지적
+            r'다시|반드시|꼭|절대|필수',  # 명령형
+            r'왜|이유(?! 없)',  # 추궁형
+            r'(?<!더 )나쁨|형편없|최악',  # 부정적 평가
+            r'이해(?! 가능|할 수)',  # 이해 부족 지적
+        ]
+
+        positive_indicators = [
+            r'좋|훌륭|멋|잘|감사|고마|수고',  # 긍정적 단어
+            r'명확|깔끔|간결|효율|효과',  # 긍정적 평가
+            r'LGTM|looks good|nice|great|excellent',  # 영어 긍정
+        ]
+
+        constructive_count = 0
         harsh_count = 0
         neutral_count = 0
+        examples_good = []
+        examples_improve = []
+
+        for review in reviews:
+            body = review.get("body", "").strip()
+            if not body:
+                continue
+
+            # Score the review
+            score = 0
+            strengths = []
+            issues = []
+
+            # Check for constructive patterns
+            constructive_matches = sum(1 for p in constructive_patterns if re.search(p, body, re.IGNORECASE))
+            if constructive_matches > 0:
+                score += constructive_matches
+                if re.search(r'어떨까요|고려해|제안|추천', body, re.IGNORECASE):
+                    strengths.append("제안형 표현을 사용하여 존중하는 톤을 유지합니다")
+                if re.search(r'예시|예를 들어|이렇게|다음과 같이', body, re.IGNORECASE):
+                    strengths.append("구체적인 예시를 제공하여 이해를 돕습니다")
+                if re.search(r'👍|✅|💯|🎉|😊|👏', body):
+                    strengths.append("이모지를 활용하여 긍정적인 분위기를 조성합니다")
+
+            # Check for harsh patterns
+            harsh_matches = sum(1 for p in harsh_patterns if re.search(p, body, re.IGNORECASE))
+            if harsh_matches > 0:
+                score -= harsh_matches * 2
+                if re.search(r'잘못|틀렸|오류', body, re.IGNORECASE):
+                    issues.append("부정적인 직접 지적으로 상대방의 감정을 상하게 할 수 있습니다")
+                if re.search(r'다시|반드시|꼭|절대|필수', body, re.IGNORECASE):
+                    issues.append("명령형 표현으로 강압적으로 느껴질 수 있습니다")
+
+            # Check for positive indicators
+            positive_matches = sum(1 for p in positive_indicators if re.search(p, body, re.IGNORECASE))
+            if positive_matches > 0:
+                score += positive_matches
+                if re.search(r'좋|훌륭|멋|잘|감사|고마|수고', body, re.IGNORECASE):
+                    strengths.append("긍정적인 피드백을 포함하여 동기를 부여합니다")
+
+            # Classify based on score
+            if score >= 2:
+                constructive_count += 1
+                if len(examples_good) < 3 and strengths:
+                    examples_good.append({
+                        "pr_number": review.get("pr_number", ""),
+                        "author": review.get("author", ""),
+                        "comment": body[:150] + "..." if len(body) > 150 else body,
+                        "url": review.get("url", ""),
+                        "strengths": strengths[:3],
+                    })
+            elif score <= -2:
+                harsh_count += 1
+                if len(examples_improve) < 3:
+                    # Create improved version
+                    improved = body
+                    # Replace harsh words with softer alternatives
+                    improved = re.sub(r'잘못', '개선이 필요한 부분', improved, flags=re.IGNORECASE)
+                    improved = re.sub(r'다시\s+(\w+)', r'\1하면 어떨까요', improved)
+                    improved = re.sub(r'반드시|꼭', '~하면 좋을 것 같습니다', improved)
+
+                    examples_improve.append({
+                        "pr_number": review.get("pr_number", ""),
+                        "author": review.get("author", ""),
+                        "comment": body[:150] + "..." if len(body) > 150 else body,
+                        "url": review.get("url", ""),
+                        "issues": issues[:3] if issues else ["더 부드러운 표현을 사용하면 좋겠습니다"],
+                        "improved_version": improved[:200] + "..." if len(improved) > 200 else improved,
+                    })
+            else:
+                neutral_count += 1
+
+        # Generate suggestions
+        suggestions = []
+        if harsh_count > 0:
+            suggestions.append("명령형 표현 대신 제안형 표현을 사용하세요 (예: '~하세요' → '~하면 어떨까요?')")
+        if constructive_count < len(reviews) * 0.5:
+            suggestions.append("구체적인 개선 방안과 예시를 함께 제공하세요")
+        if len([r for r in reviews if re.search(r'👍|✅|💯|🎉|😊|👏', r.get("body", ""))]) < len(reviews) * 0.3:
+            suggestions.append("긍정적인 피드백과 함께 이모지를 활용하여 친근한 분위기를 만드세요")
+
+        # Default suggestions if none generated
+        if not suggestions:
+            suggestions = [
+                "리뷰 코멘트는 건설적이고 존중하는 톤을 유지하세요.",
+                "구체적인 개선 제안을 포함하세요.",
+                "긍정적인 피드백도 함께 제공하세요.",
+            ]
 
         return {
             "constructive_reviews": constructive_count,
             "harsh_reviews": harsh_count,
             "neutral_reviews": neutral_count,
-            "suggestions": [
-                "리뷰 코멘트는 건설적이고 존중하는 톤을 유지하세요.",
-                "구체적인 개선 제안을 포함하세요.",
-                "긍정적인 피드백도 함께 제공하세요.",
-            ],
-            "examples_good": [],
-            "examples_improve": [],
+            "suggestions": suggestions,
+            "examples_good": examples_good,
+            "examples_improve": examples_improve,
         }
 
     def _fallback_issue_analysis(self, issues: list[dict[str, str]]) -> dict[str, Any]:

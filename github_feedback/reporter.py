@@ -692,15 +692,44 @@ class Reporter:
     def _build_review_tone_feedback(self, review_tone_feedback) -> List[str]:
         """Build review tone feedback subsection with new table format."""
         def format_review_evidence(example):
-            body = example.get('body', '')
-            # Truncate and escape
-            truncated = f"{body[:100]}..." if len(body) > 100 else body
-            return _escape_table_cell(truncated)
+            # Get the comment/body
+            comment = example.get('comment', example.get('body', ''))
+            strengths = example.get('strengths', [])
+            issues = example.get('issues', [])
+            improved_version = example.get('improved_version', '')
+
+            # Escape special characters
+            comment_escaped = _escape_table_cell(comment[:150] + "..." if len(comment) > 150 else comment)
+
+            # Build detailed evidence
+            parts = [f"**리뷰 코멘트**: `{comment_escaped}`"]
+
+            # Add strengths for good examples
+            if strengths:
+                strengths_text = "<br>".join(f"• {_escape_table_cell(s)}" for s in strengths[:3])
+                parts.append(f"<br>**장점**: <br>{strengths_text}")
+
+            # Add issues for examples that need improvement
+            if issues:
+                issues_text = "<br>".join(f"• {_escape_table_cell(i)}" for i in issues[:3])
+                parts.append(f"<br>**문제점**: <br>{issues_text}")
+
+            # Add improved version if available
+            if improved_version:
+                improved_escaped = _escape_table_cell(improved_version[:150] + "..." if len(improved_version) > 150 else improved_version)
+                parts.append(f"<br>**개선 예시**: `{improved_escaped}`")
+
+            return "<br>".join(parts)
 
         def format_review_link(example):
-            if example.get('url'):
-                url = _escape_table_cell(example.get('url', ''))
-                return f"[리뷰 보기]({url})"
+            url = example.get('url', '')
+            pr_number = example.get('pr_number', '')
+
+            if url:
+                url_escaped = _escape_table_cell(url)
+                return f"[PR #{pr_number}]({url_escaped})"
+            elif pr_number:
+                return f"PR #{pr_number}"
             return "-"
 
         return self._build_feedback_table(
