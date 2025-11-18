@@ -2122,6 +2122,17 @@ def _analyze_single_repository_for_year_review(
             improvements = personal_dev.get("improvement_areas", [])
             growth_indicators = personal_dev.get("growth_indicators", [])
 
+        # Collect tech stack data
+        try:
+            tech_stack_snapshot = collector.collect_tech_stack(
+                repo=repo_name,
+                months=None  # Collect all-time tech stack
+            )
+            if tech_stack_snapshot and tech_stack_snapshot.languages:
+                tech_stack = {lang: count for lang, count in tech_stack_snapshot.languages.items()}
+        except Exception as exc:
+            console.print(f"[dim]Could not collect tech stack for {repo_name}: {exc}[/]")
+
         # Get total commit count
         owner, repo = repo_name.split("/", 1)
         all_commits = collector.api_client.get_user_commits_in_repo(
