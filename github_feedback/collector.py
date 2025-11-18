@@ -371,6 +371,24 @@ class Collector:
             limit, min_activity_days, sort_by
         )
 
+    def get_year_in_review_repositories(
+        self,
+        year: Optional[int] = None,
+        min_contributions: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """Get repositories the user actively contributed to in a specific year.
+
+        Args:
+            year: Year to analyze (default: current year)
+            min_contributions: Minimum number of contributions to include repo
+
+        Returns:
+            List of repositories with contribution metadata
+        """
+        return self.repository_manager.get_year_in_review_repositories(
+            year, min_contributions
+        )
+
     def search_repositories(
         self, query: str, sort: str = "stars", limit: int = 10
     ) -> List[Dict[str, Any]]:

@@ -281,6 +281,75 @@ class RepositoryManager:
 
         return score
 
+    def get_year_in_review_repositories(
+        self,
+        year: Optional[int] = None,
+        min_contributions: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """Get repositories the user actively contributed to in a specific year.
+
+        Args:
+            year: Year to analyze (default: current year)
+            min_contributions: Minimum number of contributions to include repo
+
+        Returns:
+            List of repositories with contribution metadata
+        """
+        if year is None:
+            year = datetime.now().year
+
+        # Calculate date range for the year
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year, 12, 31, 23, 59, 59)
+
+        # Fetch all user repositories
+        all_repos = self.get_user_repositories(sort="updated")
+
+        # Get current user
+        username = self._get_current_user().get("login", "")
+        if not username:
+            return []
+
+        active_repos = []
+
+        for repo in all_repos:
+            full_name = repo.get("full_name", "")
+            if not full_name:
+                continue
+
+            try:
+                owner, repo_name = full_name.split("/", 1)
+
+                # Get commits in the specified year
+                params = {
+                    "author": username,
+                    "since": start_date.isoformat() + "Z",
+                    "until": end_date.isoformat() + "Z",
+                    "per_page": 100,
+                }
+
+                commits = self.api_client.request_all(
+                    f"/repos/{owner}/{repo_name}/commits",
+                    params=params,
+                )
+
+                commit_count = len(commits)
+
+                # Include repo if it meets minimum contribution threshold
+                if commit_count >= min_contributions:
+                    repo["_year_commits"] = commit_count
+                    repo["_year"] = year
+                    active_repos.append(repo)
+
+            except Exception:
+                # Skip repos that fail (permissions, deleted, etc.)
+                continue
+
+        # Sort by number of contributions in descending order
+        active_repos.sort(key=lambda r: r.get("_year_commits", 0), reverse=True)
+
+        return active_repos
+
     def format_repository_summary(self, repo: Dict[str, Any]) -> str:
         """Format a repository as a summary string for display.
 

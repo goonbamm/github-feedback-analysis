@@ -1918,6 +1918,246 @@ def _generate_final_report(
     return integrated_report_path
 
 
+def _run_year_in_review_analysis(
+    config: Config,
+    output_dir: Path,
+    year: Optional[int] = None,
+) -> None:
+    """Run year-in-review analysis across all active repositories.
+
+    Args:
+        config: Configuration object
+        output_dir: Output directory for reports
+        year: Specific year to analyze (default: current year)
+    """
+    from datetime import datetime
+    from .year_in_review_reporter import YearInReviewReporter, RepositoryAnalysis
+
+    if year is None:
+        year = datetime.now().year
+
+    console.print()
+    console.print(f"[accent]🎊 Starting Year-in-Review Analysis for {year}[/]")
+    console.rule(f"Year {year} in Review")
+
+    # Initialize collector
+    try:
+        collector = Collector(config)
+    except ValueError as exc:
+        console.print_error(exc)
+        raise typer.Exit(code=1) from exc
+
+    # Get authenticated user
+    author = _get_authenticated_user(collector)
+
+    # Discover repositories
+    console.print()
+    console.rule("Phase 1: Repository Discovery")
+    with console.status(
+        f"[accent]Finding repositories you contributed to in {year}...", spinner="dots"
+    ):
+        repositories = collector.get_year_in_review_repositories(year=year, min_contributions=3)
+
+    if not repositories:
+        console.print(f"[warning]No repositories found with contributions in {year}.[/]")
+        console.print("[info]Suggestions:[/]")
+        console.print("  • Try a different year with [accent]--year[/]")
+        console.print("  • Check if your PAT has access to your repositories")
+        raise typer.Exit(code=1)
+
+    console.print(f"[success]✓ Found {len(repositories)} repositories with your contributions[/]")
+    console.print()
+
+    # Display repositories
+    console.print("[info]Repositories to analyze:[/]")
+    for idx, repo in enumerate(repositories, 1):
+        full_name = repo.get("full_name", "")
+        year_commits = repo.get("_year_commits", 0)
+        console.print(f"  {idx}. {full_name} ({year_commits} commits)")
+    console.print()
+
+    # Analyze each repository in parallel
+    console.print()
+    console.rule("Phase 2: Repository Analysis")
+    console.print(f"[accent]Analyzing {len(repositories)} repositories in parallel...[/]")
+
+    output_dir_resolved = _resolve_output_dir(output_dir)
+
+    # Create analysis tasks
+    analysis_tasks = {}
+    for repo_data in repositories:
+        full_name = repo_data.get("full_name", "")
+        if not full_name:
+            continue
+
+        key = f"repo_{full_name.replace('/', '__')}"
+        analysis_tasks[key] = (
+            _analyze_single_repository_for_year_review,
+            (config, full_name, year, output_dir_resolved),
+            f"Repository: {full_name}",
+        )
+
+    # Run analyses in parallel
+    analysis_results = _run_parallel_tasks(
+        analysis_tasks,
+        max_workers=3,  # Limit concurrency to avoid rate limits
+        timeout=600,  # 10 minutes per repository
+        task_type=TaskType.ANALYSIS,
+    )
+
+    # Collect successful analyses
+    repository_analyses = []
+    for repo_data in repositories:
+        full_name = repo_data.get("full_name", "")
+        key = f"repo_{full_name.replace('/', '__')}"
+
+        if key in analysis_results and analysis_results[key] is not None:
+            repo_analysis = analysis_results[key]
+            if repo_analysis:
+                repository_analyses.append(repo_analysis)
+        else:
+            console.print(f"[warning]⚠ Skipped {full_name} due to analysis failure[/]")
+
+    if not repository_analyses:
+        console.print("[danger]All repository analyses failed.[/]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[success]✓ Successfully analyzed {len(repository_analyses)} repositories[/]")
+
+    # Generate year-in-review report
+    console.print()
+    console.rule("Phase 3: Generating Year-in-Review Report")
+
+    year_reporter = YearInReviewReporter(output_dir=output_dir_resolved / "year-in-review")
+    report_path = year_reporter.create_year_in_review_report(
+        year=year,
+        username=author,
+        repository_analyses=repository_analyses,
+    )
+
+    # Display summary
+    console.print()
+    console.rule("Summary")
+    console.print(f"[success]✓ Year-in-review analysis complete for {year}[/]")
+    console.print(f"[success]✓ Analyzed {len(repository_analyses)} repositories[/]")
+    console.print()
+    console.print("[info]📊 Final Report:[/]")
+    console.print(f"  • [accent]{report_path}[/]")
+    console.print()
+    console.print("[info]💡 Next steps:[/]")
+    console.print(f"  • View the report: [accent]cat {report_path}[/]")
+    console.print("  • Review individual repository reports in: [accent]reports/reviews/[/]")
+
+
+def _analyze_single_repository_for_year_review(
+    config: Config,
+    repo_name: str,
+    year: int,
+    output_dir: Path,
+) -> Optional[RepositoryAnalysis]:
+    """Analyze a single repository for year-in-review.
+
+    Args:
+        config: Configuration object
+        repo_name: Repository name (owner/repo)
+        year: Year being analyzed
+        output_dir: Output directory
+
+    Returns:
+        RepositoryAnalysis object or None if analysis fails
+    """
+    from datetime import datetime, timedelta
+    from .year_in_review_reporter import RepositoryAnalysis
+
+    try:
+        # Get authenticated user
+        collector = Collector(config)
+        author = collector.get_authenticated_user()
+
+        # Calculate year date range
+        since = datetime(year, 1, 1)
+        until = datetime(year, 12, 31, 23, 59, 59)
+
+        # Get PR count for the year
+        filters = AnalysisFilters(
+            include_branches=[],
+            exclude_branches=[],
+            include_paths=[],
+            exclude_paths=[],
+            include_languages=[],
+            exclude_bots=True,
+        )
+
+        # Collect PRs authored in the year
+        pr_numbers = collector.list_authored_pull_requests(
+            repo=repo_name,
+            author=author,
+            state="all",
+        )
+
+        # Run feedback analysis (generates integrated_report.md and personal_development.json)
+        feedback_report_path, pr_results = _run_feedback_analysis(
+            config=config,
+            repo_input=repo_name,
+            output_dir=output_dir,
+        )
+
+        # Load personal development data
+        safe_repo = repo_name.replace("/", "__")
+        reviews_dir = output_dir / "reviews" / safe_repo
+        personal_dev_path = reviews_dir / "personal_development.json"
+
+        strengths = []
+        improvements = []
+        growth_indicators = []
+        tech_stack = {}
+
+        if personal_dev_path.exists():
+            import json
+
+            with open(personal_dev_path, "r", encoding="utf-8") as f:
+                personal_dev = json.load(f)
+
+            strengths = personal_dev.get("strengths", [])
+            improvements = personal_dev.get("improvement_areas", [])
+            growth_indicators = personal_dev.get("growth_indicators", [])
+
+        # Get total commit count
+        owner, repo = repo_name.split("/", 1)
+        all_commits = collector.api_client.get_user_commits_in_repo(
+            owner, repo, author, max_pages=10
+        )
+        total_commits = len(all_commits)
+
+        # Get commits in the year
+        year_commits_params = {
+            "author": author,
+            "since": since.isoformat() + "Z",
+            "until": until.isoformat() + "Z",
+        }
+        year_commits = collector.api_client.request_all(
+            f"/repos/{owner}/{repo}/commits",
+            params=year_commits_params,
+        )
+
+        return RepositoryAnalysis(
+            full_name=repo_name,
+            pr_count=len(pr_results),
+            commit_count=total_commits,
+            year_commits=len(year_commits),
+            integrated_report_path=feedback_report_path,
+            personal_dev_path=personal_dev_path if personal_dev_path.exists() else None,
+            strengths=strengths,
+            improvements=improvements,
+            growth_indicators=growth_indicators,
+            tech_stack=tech_stack,
+        )
+
+    except Exception as exc:
+        console.print(f"[warning]Failed to analyze {repo_name}: {exc}[/]")
+        return None
+
+
 def _display_final_summary(
     author: str,
     repo_input: str,
@@ -1976,6 +2216,17 @@ def feedback(
         "-i",
         help="Interactively select repository from suggestions",
     ),
+    year_in_review: bool = typer.Option(
+        False,
+        "--year-in-review",
+        "-y",
+        help="Analyze all repositories you contributed to this year and generate a comprehensive annual report",
+    ),
+    year: Optional[int] = typer.Option(
+        None,
+        "--year",
+        help="Specific year for year-in-review (default: current year)",
+    ),
 ) -> None:
     """Analyze repository activity and generate detailed reports with PR feedback.
 
@@ -1983,15 +2234,26 @@ def feedback(
     repository, analyzes all PRs authored by you, then generates comprehensive
     reports with insights and recommendations.
 
+    With --year-in-review, analyzes all repositories you contributed to during
+    the specified year and generates a comprehensive annual summary report.
+
     Examples:
         gfa feedback --repo torvalds/linux
         gfa feedback --repo myorg/myrepo --output custom_reports/
         gfa feedback --interactive
+        gfa feedback --year-in-review
+        gfa feedback --year-in-review --year 2024
     """
     from datetime import datetime, timedelta, timezone
 
     # Initialize configuration and components
     config = _load_config()
+
+    # Handle year-in-review mode
+    if year_in_review:
+        _run_year_in_review_analysis(config, output_dir, year)
+        return
+
     months = config.defaults.months
     filters = AnalysisFilters(
         include_branches=[],
