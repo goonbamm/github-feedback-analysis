@@ -16,6 +16,40 @@ class GameRenderer:
     """게임 스타일 시각화 렌더러."""
 
     @staticmethod
+    def _wrap_text(text: str, max_width: int) -> List[str]:
+        """텍스트를 최대 너비로 나누어 여러 줄로 반환.
+
+        Args:
+            text: 나눌 텍스트
+            max_width: 한 줄의 최대 디스플레이 너비
+
+        Returns:
+            나누어진 텍스트 줄 리스트
+        """
+        from .utils import display_width
+
+        if display_width(text) <= max_width:
+            return [text]
+
+        lines = []
+        current_line = ""
+        words = text.split()
+
+        for word in words:
+            test_line = f"{current_line} {word}".strip()
+            if display_width(test_line) <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+
+        if current_line:
+            lines.append(current_line)
+
+        return lines if lines else [text[:max_width]]
+
+    @staticmethod
     def render_skill_card(
         skill_name: str,
         skill_type: str,
@@ -60,27 +94,49 @@ class GameRenderer:
 
         lines.append("```")
         lines.append("╔═══════════════════════════════════════════════════════════╗")
-        # 스킬명 40 디스플레이 컬럼, 별 표시 5컬럼으로 패딩
-        padded_skill_name = pad_to_width(skill_name, 40, align='left')
+
+        # 스킬명 - 여러 줄 지원 (40자 제한)
+        skill_name_lines = GameRenderer._wrap_text(skill_name, 40)
+        padded_skill_name = pad_to_width(skill_name_lines[0], 40, align='left')
         padded_star = pad_to_width(star_display, 5, align='left')
         lines.append(f"║ {skill_emoji} {padded_skill_name} [Lv.{level}] {padded_star} ║")
+
+        # 추가 스킬명 줄 (있을 경우)
+        for extra_line in skill_name_lines[1:]:
+            padded_extra = pad_to_width(extra_line, 56, align='left')
+            lines.append(f"║    {padded_extra} ║")
+
         lines.append("╠═══════════════════════════════════════════════════════════╣")
-        # 스킬 타입 49 디스플레이 컬럼으로 패딩
+
+        # 스킬 타입
         padded_skill_type = pad_to_width(skill_type, 49, align='left')
         lines.append(f"║ 타입: {type_emoji} {padded_skill_type} ║")
-        # 효과 설명 51 디스플레이 컬럼으로 패딩
-        padded_effect = pad_to_width(effect_description, 51, align='left')
-        lines.append(f"║ 효과: {padded_effect} ║")
+
+        # 효과 설명 - 여러 줄 지원 (51자 제한)
+        effect_lines = GameRenderer._wrap_text(effect_description, 51)
+        for i, effect_line in enumerate(effect_lines):
+            if i == 0:
+                padded_effect = pad_to_width(effect_line, 51, align='left')
+                lines.append(f"║ 효과: {padded_effect} ║")
+            else:
+                padded_effect = pad_to_width(effect_line, 56, align='left')
+                lines.append(f"║       {padded_effect} ║")
+
         lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
 
         if evidence:
             lines.append("╠═══════════════════════════════════════════════════════════╣")
             lines.append("║ 습득 경로:                                                ║")
-            for idx, ev in enumerate(evidence[:3], 1):  # 최대 3개
-                ev_short = ev[:53] if len(ev) <= 53 else ev[:50] + "..."
-                # 증거를 54 디스플레이 컬럼으로 패딩
-                padded_evidence = pad_to_width(ev_short, 54, align='left')
-                lines.append(f"║   {idx}. {padded_evidence} ║")
+            for idx, ev in enumerate(evidence[:5], 1):  # 최대 5개로 증가
+                # 증거도 여러 줄 지원
+                ev_lines = GameRenderer._wrap_text(ev, 54)
+                for j, ev_line in enumerate(ev_lines):
+                    if j == 0:
+                        padded_evidence = pad_to_width(ev_line, 54, align='left')
+                        lines.append(f"║   {idx}. {padded_evidence} ║")
+                    else:
+                        padded_evidence = pad_to_width(ev_line, 56, align='left')
+                        lines.append(f"║      {padded_evidence} ║")
 
         lines.append("╚═══════════════════════════════════════════════════════════╝")
         lines.append("```")

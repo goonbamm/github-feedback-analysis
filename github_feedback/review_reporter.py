@@ -538,11 +538,11 @@ class ReviewReporter:
                 skill_emoji = next((emoji for key, emoji in category_emojis.items() if key in strength.category), "💎")
 
                 lines.extend(GameRenderer.render_skill_card(
-                    skill_name=strength.category[:40],
+                    skill_name=strength.category,
                     skill_type=skill_type,
                     mastery_level=mastery,
-                    effect_description=strength.description[:51],
-                    evidence=strength.evidence[:3],
+                    effect_description=strength.description,
+                    evidence=strength.evidence[:5],
                     skill_emoji=skill_emoji
                 ))
 
@@ -552,12 +552,21 @@ class ReviewReporter:
             lines.append("")
 
             for growth in analysis.growth_indicators[:3]:  # Top 3 growth areas
+                # 성장 증거 준비
+                growth_evidence = []
+                if growth.progress_summary:
+                    growth_evidence.append(growth.progress_summary)
+                if growth.before_examples:
+                    growth_evidence.append(f"Before: {growth.before_examples[0]}")
+                if growth.after_examples:
+                    growth_evidence.append(f"After: {growth.after_examples[0]}")
+
                 lines.extend(GameRenderer.render_skill_card(
-                    skill_name=growth.aspect[:40],
+                    skill_name=growth.aspect,
                     skill_type="성장중",
                     mastery_level=65,  # Growing skills are around 65%
-                    effect_description=growth.description[:51],
-                    evidence=[growth.progress_summary[:53]],
+                    effect_description=growth.description,
+                    evidence=growth_evidence[:5],
                     skill_emoji="🌱"
                 ))
 
@@ -587,12 +596,19 @@ class ReviewReporter:
                 }
                 skill_emoji = next((emoji for key, emoji in category_emojis.items() if key in area.category), "🎯")
 
+                # 개선 제안 또는 증거 준비
+                improvement_evidence = []
+                if area.suggestions:
+                    improvement_evidence.extend(area.suggestions[:5])
+                elif area.evidence:
+                    improvement_evidence.extend(area.evidence[:5])
+
                 lines.extend(GameRenderer.render_skill_card(
-                    skill_name=area.category[:40],
+                    skill_name=area.category,
                     skill_type="미습득",
                     mastery_level=mastery,
-                    effect_description=area.description[:51],
-                    evidence=area.suggestions[:3] if area.suggestions else area.evidence[:3],
+                    effect_description=area.description,
+                    evidence=improvement_evidence,
                     skill_emoji=skill_emoji
                 ))
 
@@ -615,24 +631,8 @@ class ReviewReporter:
 
         pr_map = {review.number: review for review in reviews}
 
-        # 2. Skill Tree (NEW! 스킬 트리)
+        # 2. Skill Tree (스킬 트리로 모든 정보 통합)
         lines.extend(self._render_skill_tree_section(analysis, pr_map))
-
-        # 3. Strengths (잘하고 있는 것) - 펼쳐진 상태
-        lines.extend(self._render_new_strengths_section(analysis, pr_map))
-        lines.append("---")
-        lines.append("")
-
-        # 4. Improvements (보완하면 좋을 것) - 펼쳐진 상태
-        lines.extend(self._render_new_improvements_section(analysis, pr_map))
-        lines.append("---")
-        lines.append("")
-
-        # 5. Growth (성장한 점) - 펼쳐진 상태
-        if analysis.growth_indicators:
-            lines.extend(self._render_new_growth_section(analysis, pr_map))
-            lines.append("---")
-            lines.append("")
 
         return lines
 
