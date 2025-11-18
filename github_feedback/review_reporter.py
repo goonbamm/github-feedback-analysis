@@ -497,6 +497,202 @@ class ReviewReporter:
         lines.append("")
         return lines
 
+    def _calculate_character_stats(self, reviews: List[StoredReview]) -> dict:
+        """Calculate RPG-style character stats from PR reviews."""
+        if not reviews:
+            return {
+                "code_quality": 0,
+                "collaboration": 0,
+                "problem_solving": 0,
+                "productivity": 0,
+                "growth": 0,
+            }
+
+        total_prs = len(reviews)
+        total_additions = sum(r.additions for r in reviews)
+        total_deletions = sum(r.deletions for r in reviews)
+        total_files = sum(r.changed_files for r in reviews)
+        total_strengths = sum(len(r.strengths) for r in reviews)
+        total_improvements = sum(len(r.improvements) for r in reviews)
+
+        # Code Quality (0-100): Based on strength ratio and file organization
+        avg_files_per_pr = total_files / total_prs if total_prs > 0 else 0
+        strength_ratio = total_strengths / max(total_strengths + total_improvements, 1)
+        code_quality = min(100, int(
+            (strength_ratio * 50) +  # Strength contribution (0-50)
+            (min(avg_files_per_pr / 10, 1) * 25) +  # File organization (0-25)
+            (25 if total_prs >= 10 else (total_prs / 10) * 25)  # Experience bonus (0-25)
+        ))
+
+        # Collaboration (0-100): Based on review engagement
+        has_reviews = sum(1 for r in reviews if r.review_bodies or r.review_comments)
+        collaboration_rate = has_reviews / total_prs if total_prs > 0 else 0
+        avg_feedback = (total_strengths + total_improvements) / total_prs if total_prs > 0 else 0
+        collaboration = min(100, int(
+            (collaboration_rate * 50) +  # Review engagement (0-50)
+            (min(avg_feedback / 5, 1) * 30) +  # Feedback quality (0-30)
+            (20 if total_prs >= 5 else (total_prs / 5) * 20)  # Participation bonus (0-20)
+        ))
+
+        # Problem Solving (0-100): Based on PR complexity and scope
+        avg_changes = (total_additions + total_deletions) / total_prs if total_prs > 0 else 0
+        problem_solving = min(100, int(
+            (min(avg_changes / 500, 1) * 40) +  # Change complexity (0-40)
+            (min(avg_files_per_pr / 15, 1) * 30) +  # Scope breadth (0-30)
+            (30 if total_prs >= 8 else (total_prs / 8) * 30)  # Problem count (0-30)
+        ))
+
+        # Productivity (0-100): Based on output volume
+        productivity = min(100, int(
+            (min(total_prs / 20, 1) * 40) +  # PR count (0-40)
+            (min(total_additions / 5000, 1) * 35) +  # Code output (0-35)
+            (min(total_files / 100, 1) * 25)  # File coverage (0-25)
+        ))
+
+        # Growth (0-100): Based on consistent improvement
+        # Calculate trend from first half vs second half
+        if total_prs >= 4:
+            mid_point = total_prs // 2
+            first_half = reviews[:mid_point]
+            second_half = reviews[mid_point:]
+
+            first_avg_strengths = sum(len(r.strengths) for r in first_half) / len(first_half)
+            second_avg_strengths = sum(len(r.strengths) for r in second_half) / len(second_half)
+
+            improvement_rate = (second_avg_strengths - first_avg_strengths) / max(first_avg_strengths, 1)
+            growth = min(100, max(0, int(
+                50 +  # Base growth
+                (improvement_rate * 30) +  # Improvement trend (±30)
+                (20 if total_prs >= 15 else (total_prs / 15) * 20)  # Consistency bonus (0-20)
+            )))
+        else:
+            growth = min(100, int((total_prs / 4) * 60 + 40))  # Base growth for new developers
+
+        return {
+            "code_quality": code_quality,
+            "collaboration": collaboration,
+            "problem_solving": problem_solving,
+            "productivity": productivity,
+            "growth": growth,
+        }
+
+    def _render_character_stats(self, reviews: List[StoredReview]) -> List[str]:
+        """Render RPG-style character stats visualization."""
+        lines: List[str] = []
+
+        stats = self._calculate_character_stats(reviews)
+        total_power = sum(stats.values())
+        avg_stat = total_power / 5 if stats else 0
+
+        # Determine level based on average stat
+        if avg_stat >= 90:
+            level = 6
+            title = "그랜드마스터"
+            rank_emoji = "👑"
+        elif avg_stat >= 75:
+            level = 5
+            title = "마스터"
+            rank_emoji = "🏆"
+        elif avg_stat >= 60:
+            level = 4
+            title = "전문가"
+            rank_emoji = "⭐"
+        elif avg_stat >= 40:
+            level = 3
+            title = "숙련자"
+            rank_emoji = "💎"
+        elif avg_stat >= 20:
+            level = 2
+            title = "견습생"
+            rank_emoji = "🎓"
+        else:
+            level = 1
+            title = "초보자"
+            rank_emoji = "🌱"
+
+        # Determine specialties based on highest stats
+        stat_names_kr = {
+            "code_quality": "코드 품질",
+            "collaboration": "협업력",
+            "problem_solving": "문제 해결력",
+            "productivity": "생산성",
+            "growth": "성장성",
+        }
+        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        primary_specialty = stat_names_kr[sorted_stats[0][0]]
+
+        # Assign title based on specialty
+        specialty_titles = {
+            "코드 품질": "코드 아키텍트",
+            "협업력": "팀 플레이어",
+            "문제 해결력": "문제 해결사",
+            "생산성": "스피드 러너",
+            "성장성": "라이징 스타",
+        }
+        specialty_title = specialty_titles.get(primary_specialty, "개발자")
+
+        lines.append("## 🎮 개발자 캐릭터 스탯")
+        lines.append("")
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append(f"║  {rank_emoji} Level {level}: {title:<20} 파워 레벨: {int(avg_stat):>3}/100  ║")
+        lines.append(f"║  🏅 특성: {specialty_title:<43} ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append("║                      능력치 현황                          ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+
+        # Render each stat with visual bar
+        stat_emojis = {
+            "code_quality": "💻",
+            "collaboration": "🤝",
+            "problem_solving": "🧩",
+            "productivity": "⚡",
+            "growth": "📈",
+        }
+
+        for stat_key, stat_value in stats.items():
+            stat_name = stat_names_kr[stat_key]
+            emoji = stat_emojis[stat_key]
+
+            # Create visual bar (20 blocks for 100%)
+            filled = stat_value // 5
+            empty = 20 - filled
+            bar = "▓" * filled + "░" * empty
+
+            # Format line with proper spacing
+            lines.append(f"║ {emoji} {stat_name:<12} [{bar}] {stat_value:>3}/100 ║")
+
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        # Add achievements/badges
+        badges = []
+        if stats["code_quality"] >= 80:
+            badges.append("🏅 코드 마스터")
+        if stats["collaboration"] >= 80:
+            badges.append("🤝 협업 챔피언")
+        if stats["problem_solving"] >= 80:
+            badges.append("🧠 문제 해결 전문가")
+        if stats["productivity"] >= 80:
+            badges.append("⚡ 생산성 괴물")
+        if stats["growth"] >= 80:
+            badges.append("🚀 급성장 개발자")
+        if total_prs := len(reviews):
+            if total_prs >= 50:
+                badges.append("💯 PR 마라토너")
+            elif total_prs >= 20:
+                badges.append("📝 활발한 기여자")
+
+        if badges:
+            lines.append("**🎖️ 획득한 뱃지:**")
+            lines.append("")
+            for badge in badges:
+                lines.append(f"- {badge}")
+            lines.append("")
+
+        return lines
+
     def _render_personal_development(
         self, analysis: PersonalDevelopmentAnalysis, reviews: List[StoredReview]
     ) -> List[str]:
@@ -939,6 +1135,9 @@ class ReviewReporter:
         # Add statistics dashboard
         lines.extend(self._render_statistics_dashboard(reviews))
 
+        # Add character stats (RPG-style)
+        lines.extend(self._render_character_stats(reviews))
+
         # Add PR activity timeline
         lines.extend(self._render_pr_activity_timeline(reviews))
 
@@ -948,12 +1147,13 @@ class ReviewReporter:
         # Table of contents
         lines.append("## 📑 목차")
         lines.append("")
-        lines.append("1. **👤 개인 성장 분석** - 장점, 보완점, 성장한 점")
-        lines.append("2. **✨ 장점** - 뛰어났던 점들")
-        lines.append("3. **💡 보완점** - 개선할 수 있는 부분")
-        lines.append("4. **🌱 올해 성장한 점** - 성장 여정")
-        lines.append("5. **🎊 전체 총평** - 종합 평가")
-        lines.append("6. **📝 개별 PR 하이라이트** - 주요 PR 목록")
+        lines.append("1. **🎮 개발자 캐릭터 스탯** - 게임 스타일 능력치 시각화")
+        lines.append("2. **👤 개인 성장 분석** - 장점, 보완점, 성장한 점")
+        lines.append("3. **✨ 장점** - 뛰어났던 점들")
+        lines.append("4. **💡 보완점** - 개선할 수 있는 부분")
+        lines.append("5. **🌱 올해 성장한 점** - 성장 여정")
+        lines.append("6. **🎊 전체 총평** - 종합 평가")
+        lines.append("7. **📝 개별 PR 하이라이트** - 주요 PR 목록")
         lines.append("")
         lines.append("---")
         lines.append("")
