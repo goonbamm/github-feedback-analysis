@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .console import Console
+from .game_elements import GameRenderer, LevelCalculator
 from .utils import pad_to_width
 
 console = Console()
@@ -394,7 +395,7 @@ class YearInReviewReporter:
         self, year: int, total_repos: int, total_prs: int, total_commits: int,
         repository_analyses: List[RepositoryAnalysis]
     ) -> List[str]:
-        """게임 캐릭터 스탯 생성."""
+        """게임 캐릭터 스탯 생성 (99레벨 시스템 사용)."""
         lines = [
             "## 🎮 개발자 캐릭터 스탯",
             "",
@@ -405,37 +406,8 @@ class YearInReviewReporter:
         # Calculate overall stats based on activity
         total_activity = total_prs + total_commits
 
-        # Calculate level based on total activity
-        if total_activity >= 500:
-            level = 99
-            title = "전설의 코드마스터"
-            rank_emoji = "👑"
-        elif total_activity >= 300:
-            level = 80 + (total_activity - 300) // 20
-            title = "그랜드마스터"
-            rank_emoji = "💎"
-        elif total_activity >= 150:
-            level = 60 + (total_activity - 150) // 10
-            title = "마스터"
-            rank_emoji = "🏆"
-        elif total_activity >= 75:
-            level = 40 + (total_activity - 75) // 5
-            title = "전문가"
-            rank_emoji = "⭐"
-        elif total_activity >= 30:
-            level = 20 + (total_activity - 30) // 3
-            title = "숙련자"
-            rank_emoji = "💫"
-        elif total_activity >= 10:
-            level = 10 + (total_activity - 10) // 2
-            title = "초보자"
-            rank_emoji = "🌱"
-        else:
-            level = max(1, total_activity)
-            title = "견습생"
-            rank_emoji = "✨"
-
-        level = min(99, level)  # Cap at level 99
+        # 99레벨 시스템으로 레벨 계산
+        level, title, rank_emoji = LevelCalculator.calculate_level_99(total_activity)
 
         # Calculate stats (0-100 scale)
         # 1. Code Quality - based on PR count and diversity
@@ -471,21 +443,58 @@ class YearInReviewReporter:
             (min(repos_with_growth / len(repository_analyses) if repository_analyses else 0, 1) * 50)
         ))
 
-        # Average stat for power level
-        avg_stat = (code_quality + productivity + collaboration + consistency + growth) / 5
+        # 스탯 딕셔너리 구성
+        stats = {
+            "code_quality": code_quality,
+            "productivity": productivity,
+            "collaboration": collaboration,
+            "consistency": consistency,  # Note: 종합 보고서는 "꾸준함" 사용
+            "growth": growth,
+        }
 
+        # 특성 타이틀 결정
+        specialty_title = LevelCalculator.get_specialty_title(stats)
+
+        # 경험치 데이터 준비
+        experience_data = {
+            "🏰 탐험한 던전": f"{total_repos:>4}개",
+            "⚔️  완료한 퀘스트": f"{total_prs:>4}개",
+            "💫 발동한 스킬": f"{total_commits:>4}회",
+            "🎯 총 경험치": f"{total_activity:>4} EXP",
+        }
+
+        # 뱃지 생성
+        badges = LevelCalculator.get_badges_from_stats(
+            stats,
+            total_commits=total_commits,
+            total_prs=total_prs,
+            total_repos=total_repos
+        )
+
+        # consistency를 꾸준함 뱃지로 교체 (종합 보고서 전용)
+        if stats.get("consistency", 0) >= 80:
+            badges = [b for b in badges if "협업 챔피언" not in b or b == "🤝 협업 챔피언"]
+            badges.append("📅 꾸준함의 화신")
+
+        # GameRenderer로 캐릭터 스탯 렌더링 (경험치 데이터 포함)
+        # 하지만 종합 보고서는 커스텀 경험치 섹션이 필요하므로 직접 렌더링
         lines.append("```")
         lines.append("╔═══════════════════════════════════════════════════════════╗")
 
         # Title and level with proper padding
         title_padded = pad_to_width(title, 24, align='left')
+        avg_stat = sum(stats.values()) / len(stats)
         lines.append(f"║  {rank_emoji} Lv.{level:>2} {title_padded} 파워: {int(avg_stat):>3}/100  ║")
+
+        # 특성 표시
+        specialty_padded = pad_to_width(specialty_title, 43, align='left')
+        lines.append(f"║  🏅 특성: {specialty_padded} ║")
         lines.append("╠═══════════════════════════════════════════════════════════╣")
         lines.append("║                      능력치 현황                          ║")
         lines.append("╠═══════════════════════════════════════════════════════════╣")
 
-        # Render each stat
-        stats = [
+        # Render each stat (종합 보고서용 순서: 코드품질, 생산성, 협업력, 꾸준함, 성장성)
+        stat_order = [
             ("💻", "코드 품질", code_quality),
             ("⚡", "생산성", productivity),
             ("🤝", "협업력", collaboration),
@@ -493,7 +502,7 @@ class YearInReviewReporter:
             ("📈", "성장성", growth),
         ]
 
-        for emoji, name, value in stats:
+        for emoji, name, value in stat_order:
             # Create visual bar (20 blocks for 100%)
             filled = value // 5
             empty = 20 - filled
@@ -514,35 +523,7 @@ class YearInReviewReporter:
         lines.append("```")
         lines.append("")
 
-        # Add badges based on stats
-        badges = []
-        if code_quality >= 80:
-            badges.append("🏅 코드 마스터")
-        if productivity >= 80:
-            badges.append("⚡ 생산성 괴물")
-        if collaboration >= 80:
-            badges.append("🤝 협업 챔피언")
-        if consistency >= 80:
-            badges.append("📅 꾸준함의 화신")
-        if growth >= 80:
-            badges.append("🚀 급성장 개발자")
-
-        # Activity-based badges
-        if total_commits >= 200:
-            badges.append("💯 커밋 마라토너")
-        elif total_commits >= 100:
-            badges.append("📝 활발한 커미터")
-
-        if total_prs >= 50:
-            badges.append("🔀 PR 마스터")
-        elif total_prs >= 20:
-            badges.append("🔄 PR 컨트리뷰터")
-
-        if total_repos >= 10:
-            badges.append("🌐 멀티버스 탐험가")
-        elif total_repos >= 5:
-            badges.append("🗺️ 던전 크롤러")
-
+        # 뱃지 표시
         if badges:
             lines.append("**🎖️ 획득한 업적 뱃지:**")
             lines.append("")

@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tupl
 
 from .console import Console
 from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS, COLLECTION_LIMITS, DISPLAY_LIMITS
+from .game_elements import GameRenderer, LevelCalculator
 from .models import (
     CommitMessageFeedback,
     IssueFeedback,
@@ -404,78 +405,6 @@ class Reporter:
         lines.append("")
         return lines
 
-    def _render_skill_card(
-        self,
-        skill_name: str,
-        skill_type: str,
-        mastery_level: int,
-        effect_description: str,
-        evidence: List[str],
-        skill_emoji: str = "💎"
-    ) -> List[str]:
-        """Render a single skill card in game-style format.
-
-        Args:
-            skill_name: Name of the skill
-            skill_type: Type (패시브/액티브/성장중/미습득)
-            mastery_level: Mastery percentage (0-100)
-            effect_description: What this skill does
-            evidence: List of evidence/acquisition paths
-            skill_emoji: Emoji for the skill
-
-        Returns:
-            List of markdown lines for the skill card
-        """
-        lines = []
-
-        # Calculate level from mastery (0-5 stars)
-        stars = min(5, mastery_level // 20)
-        star_display = "★" * stars + "☆" * (5 - stars)
-        level = min(5, (mastery_level // 20) + 1)
-
-        # Type emoji mapping
-        type_emojis = {
-            "패시브": "🟢",
-            "액티브": "🔵",
-            "성장중": "🟡",
-            "미습득": "🔴"
-        }
-        type_emoji = type_emojis.get(skill_type, "⚪")
-
-        # Mastery bar (20 blocks for 100%)
-        filled = mastery_level // 5
-        empty = 20 - filled
-        mastery_bar = "█" * filled + "░" * empty
-
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
-        # Pad skill_name to 40 display columns, star_display to 5
-        padded_skill_name = pad_to_width(skill_name, 40, align='left')
-        padded_star = pad_to_width(star_display, 5, align='left')
-        lines.append(f"║ {skill_emoji} {padded_skill_name} [Lv.{level}] {padded_star} ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        # Pad skill_type to 49 display columns
-        padded_skill_type = pad_to_width(skill_type, 49, align='left')
-        lines.append(f"║ 타입: {type_emoji} {padded_skill_type} ║")
-        # Pad effect_description to 51 display columns
-        padded_effect = pad_to_width(effect_description, 51, align='left')
-        lines.append(f"║ 효과: {padded_effect} ║")
-        lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
-
-        if evidence:
-            lines.append("╠═══════════════════════════════════════════════════════════╣")
-            lines.append("║ 습득 경로:                                                ║")
-            for idx, ev in enumerate(evidence[:3], 1):  # Max 3 evidence
-                ev_short = ev[:53] if len(ev) <= 53 else ev[:50] + "..."
-                # Pad evidence to 54 display columns
-                padded_evidence = pad_to_width(ev_short, 54, align='left')
-                lines.append(f"║   {idx}. {padded_evidence} ║")
-
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
-        lines.append("")
-
-        return lines
 
     def _build_skill_tree_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build skill tree section showing acquired and available skills."""
@@ -557,7 +486,7 @@ class Reporter:
             lines.append("### 💎 획득한 스킬 (Acquired Skills)")
             lines.append("")
             for skill in acquired_skills:
-                lines.extend(self._render_skill_card(
+                lines.extend(GameRenderer.render_skill_card(
                     skill["name"],
                     skill["type"],
                     skill["mastery"],
@@ -571,7 +500,7 @@ class Reporter:
             lines.append("### 🌱 성장 중인 스킬 (Growing Skills)")
             lines.append("")
             for skill in growing_skills:
-                lines.extend(self._render_skill_card(
+                lines.extend(GameRenderer.render_skill_card(
                     skill["name"],
                     skill["type"],
                     skill["mastery"],
@@ -585,7 +514,7 @@ class Reporter:
             lines.append("### 🎯 습득 가능한 스킬 (Available Skills)")
             lines.append("")
             for skill in available_skills[:3]:  # Limit to top 3
-                lines.extend(self._render_skill_card(
+                lines.extend(GameRenderer.render_skill_card(
                     skill["name"],
                     skill["type"],
                     skill["mastery"],
@@ -804,133 +733,53 @@ class Reporter:
         }
 
     def _render_repo_character_stats(self, metrics: MetricSnapshot) -> List[str]:
-        """Render RPG-style character stats visualization for repository."""
+        """Render RPG-style character stats visualization for repository (티어 시스템 사용)."""
         lines: List[str] = []
 
         stats = self._calculate_repo_character_stats(metrics)
-        total_power = sum(stats.values())
-        avg_stat = total_power / 5 if stats else 0
+        avg_stat = sum(stats.values()) / len(stats) if stats else 0
 
-        # Determine level based on average stat
-        if avg_stat >= 90:
-            level = 6
-            title = "그랜드마스터"
-            rank_emoji = "👑"
-        elif avg_stat >= 75:
-            level = 5
-            title = "마스터"
-            rank_emoji = "🏆"
-        elif avg_stat >= 60:
-            level = 4
-            title = "전문가"
-            rank_emoji = "⭐"
-        elif avg_stat >= 40:
-            level = 3
-            title = "숙련자"
-            rank_emoji = "💎"
-        elif avg_stat >= 20:
-            level = 2
-            title = "견습생"
-            rank_emoji = "🎓"
-        else:
-            level = 1
-            title = "초보자"
-            rank_emoji = "🌱"
+        # 티어 시스템으로 등급 계산
+        tier, title, rank_emoji = LevelCalculator.calculate_tier(avg_stat)
 
-        # Determine specialties based on highest stats
-        stat_names_kr = {
-            "code_quality": "코드 품질",
-            "collaboration": "협업력",
-            "problem_solving": "문제 해결력",
-            "productivity": "생산성",
-            "growth": "성장성",
-        }
-        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
-        primary_specialty = stat_names_kr[sorted_stats[0][0]]
+        # 특성 타이틀 결정
+        specialty_title = LevelCalculator.get_specialty_title(stats)
 
-        # Assign title based on specialty
-        specialty_titles = {
-            "코드 품질": "코드 아키텍트",
-            "협업력": "팀 플레이어",
-            "문제 해결력": "문제 해결사",
-            "생산성": "스피드 러너",
-            "성장성": "라이징 스타",
-        }
-        specialty_title = specialty_titles.get(primary_specialty, "개발자")
+        # 활동량 데이터
+        total_commits = metrics.stats.get("commits", {}).get("total", 0)
+        total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
 
+        # 뱃지 생성
+        badges = LevelCalculator.get_badges_from_stats(
+            stats,
+            total_commits=total_commits,
+            total_prs=total_prs,
+            total_repos=0  # 일반 보고서는 단일 저장소
+        )
+
+        # 저장소 특화 뱃지 추가
+        if stats.get("growth", 0) >= 80:
+            # "🚀 급성장 개발자"를 "🚀 급성장 저장소"로 교체
+            badges = [b.replace("급성장 개발자", "급성장 저장소") for b in badges]
+
+        # GameRenderer로 캐릭터 스탯 렌더링
         lines.append("## 🎮 저장소 캐릭터 스탯")
         lines.append("")
         lines.append("> 저장소의 활동을 RPG 캐릭터 스탯으로 시각화")
         lines.append("")
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
-        lines.append(f"║  {rank_emoji} Level {level}: {title:<20} 파워 레벨: {int(avg_stat):>3}/100  ║")
-        lines.append(f"║  🏅 특성: {specialty_title:<43} ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append("║                      능력치 현황                          ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
 
-        # Render each stat with visual bar
-        stat_emojis = {
-            "code_quality": "💻",
-            "collaboration": "🤝",
-            "problem_solving": "🧩",
-            "productivity": "⚡",
-            "growth": "📈",
-        }
+        character_lines = GameRenderer.render_character_stats(
+            level=tier,
+            title=title,
+            rank_emoji=rank_emoji,
+            specialty_title=specialty_title,
+            stats=stats,
+            experience_data={},  # 경험치 데이터 없음
+            badges=badges,
+            use_tier_system=True  # 티어 시스템 사용
+        )
 
-        for stat_key, stat_value in stats.items():
-            stat_name = stat_names_kr[stat_key]
-            emoji = stat_emojis[stat_key]
-
-            # Create visual bar (20 blocks for 100%)
-            filled = stat_value // 5
-            empty = 20 - filled
-            bar = "▓" * filled + "░" * empty
-
-            # Format line with proper spacing (accounting for Korean character width)
-            # Target width: 12 display columns for stat_name
-            padded_name = pad_to_width(stat_name, 12, align='left')
-            lines.append(f"║ {emoji} {padded_name} [{bar}] {stat_value:>3}/100 ║")
-
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
-        lines.append("")
-
-        # Add achievements/badges
-        badges = []
-        if stats["code_quality"] >= 80:
-            badges.append("🏅 코드 마스터")
-        if stats["collaboration"] >= 80:
-            badges.append("🤝 협업 챔피언")
-        if stats["problem_solving"] >= 80:
-            badges.append("🧠 문제 해결 전문가")
-        if stats["productivity"] >= 80:
-            badges.append("⚡ 생산성 괴물")
-        if stats["growth"] >= 80:
-            badges.append("🚀 급성장 저장소")
-
-        # Add activity-based badges
-        total_commits = metrics.stats.get("commits", {}).get("total", 0)
-        total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
-
-        if total_commits >= 100:
-            badges.append("💯 커밋 마라토너")
-        elif total_commits >= 50:
-            badges.append("📝 활발한 커미터")
-
-        if total_prs >= 30:
-            badges.append("🔀 PR 마스터")
-        elif total_prs >= 10:
-            badges.append("🔄 PR 컨트리뷰터")
-
-        if badges:
-            lines.append("**🎖️ 획득한 뱃지:**")
-            lines.append("")
-            for badge in badges:
-                lines.append(f"- {badge}")
-            lines.append("")
-
+        lines.extend(character_lines)
         lines.append("---")
         lines.append("")
         return lines
