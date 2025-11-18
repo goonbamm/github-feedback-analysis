@@ -8,7 +8,69 @@ from urllib.parse import urlparse
 
 T = TypeVar('T')
 
-__all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months", "safe_truncate_str"]
+__all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months", "safe_truncate_str", "display_width", "pad_to_width"]
+
+
+def display_width(text: str) -> int:
+    """Calculate the display width of a string, accounting for wide characters.
+
+    Korean, Chinese, Japanese characters and some emojis take up 2 display columns,
+    while ASCII characters take up 1 column.
+
+    Args:
+        text: String to measure
+
+    Returns:
+        Display width in columns
+    """
+    width = 0
+    for char in text:
+        # Check if character is wide (CJK, fullwidth, emoji, etc.)
+        if ord(char) > 0x1100:  # Rough heuristic: chars above this are often wide
+            # More precise check for common wide character ranges
+            code = ord(char)
+            # Hangul, CJK, Fullwidth forms, Emoji, etc.
+            if (0x1100 <= code <= 0x11FF or  # Hangul Jamo
+                0x2E80 <= code <= 0x9FFF or  # CJK
+                0xAC00 <= code <= 0xD7AF or  # Hangul Syllables
+                0xF900 <= code <= 0xFAFF or  # CJK Compatibility
+                0xFE30 <= code <= 0xFE6F or  # CJK Compatibility Forms
+                0xFF00 <= code <= 0xFF60 or  # Fullwidth Forms
+                0xFFE0 <= code <= 0xFFE6 or  # Fullwidth symbols
+                0x1F000 <= code <= 0x1F9FF):  # Emoji and symbols
+                width += 2
+            else:
+                width += 1
+        else:
+            width += 1
+    return width
+
+
+def pad_to_width(text: str, target_width: int, align: str = 'left') -> str:
+    """Pad a string to a target display width, accounting for wide characters.
+
+    Args:
+        text: String to pad
+        target_width: Target display width in columns
+        align: Alignment ('left', 'right', or 'center')
+
+    Returns:
+        Padded string
+    """
+    current_width = display_width(text)
+    padding_needed = target_width - current_width
+
+    if padding_needed <= 0:
+        return text
+
+    if align == 'right':
+        return ' ' * padding_needed + text
+    elif align == 'center':
+        left_pad = padding_needed // 2
+        right_pad = padding_needed - left_pad
+        return ' ' * left_pad + text + ' ' * right_pad
+    else:  # left (default)
+        return text + ' ' * padding_needed
 
 
 def safe_truncate_str(text: str, max_length: int) -> str:

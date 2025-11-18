@@ -15,6 +15,7 @@ from .models import (
     PRTitleFeedback,
     ReviewToneFeedback,
 )
+from .utils import pad_to_width
 
 console = Console()
 
@@ -448,10 +449,17 @@ class Reporter:
 
         lines.append("```")
         lines.append("╔═══════════════════════════════════════════════════════════╗")
-        lines.append(f"║ {skill_emoji} {skill_name:<40} [Lv.{level}] {star_display:<5} ║")
+        # Pad skill_name to 40 display columns, star_display to 5
+        padded_skill_name = pad_to_width(skill_name, 40, align='left')
+        padded_star = pad_to_width(star_display, 5, align='left')
+        lines.append(f"║ {skill_emoji} {padded_skill_name} [Lv.{level}] {padded_star} ║")
         lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append(f"║ 타입: {type_emoji} {skill_type:<49} ║")
-        lines.append(f"║ 효과: {effect_description:<51} ║")
+        # Pad skill_type to 49 display columns
+        padded_skill_type = pad_to_width(skill_type, 49, align='left')
+        lines.append(f"║ 타입: {type_emoji} {padded_skill_type} ║")
+        # Pad effect_description to 51 display columns
+        padded_effect = pad_to_width(effect_description, 51, align='left')
+        lines.append(f"║ 효과: {padded_effect} ║")
         lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
 
         if evidence:
@@ -459,7 +467,9 @@ class Reporter:
             lines.append("║ 습득 경로:                                                ║")
             for idx, ev in enumerate(evidence[:3], 1):  # Max 3 evidence
                 ev_short = ev[:53] if len(ev) <= 53 else ev[:50] + "..."
-                lines.append(f"║   {idx}. {ev_short:<54} ║")
+                # Pad evidence to 54 display columns
+                padded_evidence = pad_to_width(ev_short, 54, align='left')
+                lines.append(f"║   {idx}. {padded_evidence} ║")
 
         lines.append("╚═══════════════════════════════════════════════════════════╝")
         lines.append("```")
@@ -878,8 +888,10 @@ class Reporter:
             empty = 20 - filled
             bar = "▓" * filled + "░" * empty
 
-            # Format line with proper spacing
-            lines.append(f"║ {emoji} {stat_name:<12} [{bar}] {stat_value:>3}/100 ║")
+            # Format line with proper spacing (accounting for Korean character width)
+            # Target width: 12 display columns for stat_name
+            padded_name = pad_to_width(stat_name, 12, align='left')
+            lines.append(f"║ {emoji} {padded_name} [{bar}] {stat_value:>3}/100 ║")
 
         lines.append("╚═══════════════════════════════════════════════════════════╝")
         lines.append("```")
