@@ -278,7 +278,7 @@ class Reporter:
         return lines
 
     def _build_metrics_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build metrics section."""
+        """Build metrics section (HTML version)."""
         lines = ["## 📊 Detailed Metrics", ""]
         lines.append("> 각 활동 영역별 상세 수치를 확인하세요")
         lines.append("")
@@ -286,16 +286,27 @@ class Reporter:
         for domain, domain_stats in metrics.stats.items():
             lines.append(f"### {domain.title()}")
             lines.append("")
-            lines.append("| 지표 | 값 |")
-            lines.append("|------|-----|")
+
+            # Build table data
+            headers = ["지표", "값"]
+            rows = []
             for stat_name, stat_value in domain_stats.items():
                 formatted_value = (
                     _format_metric_value(stat_value)
                     if isinstance(stat_value, (int, float))
                     else str(stat_value)
                 )
-                lines.append(f"| {stat_name.replace('_', ' ').title()} | {formatted_value} |")
-            lines.append("")
+                rows.append([stat_name.replace('_', ' ').title(), formatted_value])
+
+            # Render as HTML table
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
         return lines
 
     def _build_highlights_section(self, metrics: MetricSnapshot) -> List[str]:
@@ -324,7 +335,7 @@ class Reporter:
         return lines
 
     def _build_spotlight_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build spotlight examples section."""
+        """Build spotlight examples section (HTML version)."""
         if not metrics.spotlight_examples:
             return []
 
@@ -342,14 +353,24 @@ class Reporter:
         lines = ["## 🎯 Spotlight Examples", ""]
         lines.append("> 주목할 만한 기여 사례")
         lines.append("")
+
         for category, entries in non_empty_categories.items():
             lines.append(f"### {category.replace('_', ' ').title()}")
             lines.append("")
-            lines.append("| 사례 |")
-            lines.append("|------|")
-            for entry in entries:
-                lines.append(f"| {entry} |")
-            lines.append("")
+
+            # Build table data
+            headers = ["사례"]
+            rows = [[entry] for entry in entries]
+
+            # Render as HTML table
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
         lines.append("---")
         lines.append("")
         return lines
@@ -1261,7 +1282,7 @@ class Reporter:
         return lines
 
     def _build_tech_stack_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build tech stack section."""
+        """Build tech stack section (HTML version)."""
         if not metrics.tech_stack:
             return []
 
@@ -1274,18 +1295,29 @@ class Reporter:
         lines.append("")
         lines.append(f"**다양성 점수**: {metrics.tech_stack.diversity_score:.2f} (0-1 척도)")
         lines.append("")
-        lines.append("| 순위 | 언어 | 파일 수 |")
-        lines.append("|------|------|---------|")
+
+        # Build table data
+        headers = ["순위", "언어", "파일 수"]
+        rows = []
         for i, lang in enumerate(metrics.tech_stack.top_languages[:DISPLAY_LIMITS['top_languages']], 1):
             count = metrics.tech_stack.languages.get(lang, 0)
-            lines.append(f"| {i} | {lang} | {count:,} |")
-        lines.append("")
+            rows.append([str(i), lang, f"{count:,}"])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
         return lines
 
     def _build_collaboration_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build PR activity summary section."""
+        """Build PR activity summary section (HTML version)."""
         if not metrics.collaboration:
             return []
 
@@ -1293,21 +1325,40 @@ class Reporter:
         lines.append("> 함께 성장한 동료들과의 협업")
         lines.append("")
 
-        lines.append("| 항목 | 값 |")
-        lines.append("|------|-----|")
-        lines.append(f"| 받은 리뷰 수 | {metrics.collaboration.review_received_count:,}건 |")
-        lines.append(f"| 협업한 사람 수 | {metrics.collaboration.unique_collaborators:,}명 |")
-        lines.append("")
+        # Summary table
+        headers = ["항목", "값"]
+        rows = [
+            ["받은 리뷰 수", f"{metrics.collaboration.review_received_count:,}건"],
+            ["협업한 사람 수", f"{metrics.collaboration.unique_collaborators:,}명"]
+        ]
+
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
 
         if metrics.collaboration.top_reviewers:
             lines.append("### 🌟 주요 리뷰어")
             lines.append("")
-            lines.append("| 순위 | 리뷰어 | 리뷰 횟수 |")
-            lines.append("|------|--------|-----------|")
+
+            # Top reviewers table
+            headers = ["순위", "리뷰어", "리뷰 횟수"]
+            rows = []
             for i, reviewer in enumerate(metrics.collaboration.top_reviewers, 1):
                 count = metrics.collaboration.pr_reviewers.get(reviewer, 0)
-                lines.append(f"| {i} | @{reviewer} | {count:,}회 |")
-            lines.append("")
+                rows.append([str(i), f"@{reviewer}", f"{count:,}회"])
+
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
         lines.append("---")
         lines.append("")
         return lines
@@ -1319,216 +1370,334 @@ class Reporter:
     # Removed _build_key_wins_subsection - already covered in Growth Highlights
 
     def _build_time_comparisons_subsection(self, retro) -> List[str]:
-        """Build time comparisons subsection of retrospective using helper."""
-        def build_content():
-            rows = []
-            for tc in retro.time_comparisons:
-                direction_emoji = {"increasing": "📈", "decreasing": "📉"}.get(tc.direction, "➡️")
-                significance_text = {
-                    "major": "큰 변화",
-                    "moderate": "중간 변화",
-                    "minor": "작은 변화"
-                }.get(tc.significance, tc.significance)
+        """Build time comparisons subsection of retrospective (HTML version)."""
+        lines = []
+        if not retro.time_comparisons:
+            return lines
 
-                rows.append([
-                    tc.metric_name,
-                    f"{tc.previous_value:.1f}",
-                    f"{tc.current_value:.1f}",
-                    f"{tc.change_absolute:+.1f}",
-                    f"{tc.change_percentage:+.1f}%",
-                    f"{direction_emoji} {significance_text}"
-                ])
+        lines.append("### 📊 기간 비교 분석")
+        lines.append("")
+        lines.append("> 전반기와 후반기의 변화 추이를 비교합니다")
+        lines.append("")
 
-            return MarkdownSectionBuilder.build_table(
-                ["지표", "전반기", "후반기", "변화량", "변화율", "의미"],
-                rows
-            )
+        # Build table data
+        headers = ["지표", "전반기", "후반기", "변화량", "변화율", "의미"]
+        rows = []
+        for tc in retro.time_comparisons:
+            direction_emoji = {"increasing": "📈", "decreasing": "📉"}.get(tc.direction, "➡️")
+            significance_text = {
+                "major": "큰 변화",
+                "moderate": "중간 변화",
+                "minor": "작은 변화"
+            }.get(tc.significance, tc.significance)
 
-        return MarkdownSectionBuilder.build_subsection(
-            retro.time_comparisons,
-            "기간 비교 분석",
-            build_content,
-            emoji="📊",
-            description="전반기와 후반기의 변화 추이를 비교합니다"
-        )
+            rows.append([
+                tc.metric_name,
+                f"{tc.previous_value:.1f}",
+                f"{tc.current_value:.1f}",
+                f"{tc.change_absolute:+.1f}",
+                f"{tc.change_percentage:+.1f}%",
+                f"{direction_emoji} {significance_text}"
+            ])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
+        return lines
 
     def _build_behavior_patterns_subsection(self, retro) -> List[str]:
-        """Build behavior patterns subsection of retrospective."""
+        """Build behavior patterns subsection of retrospective (HTML version)."""
         lines = []
-        if retro.behavior_patterns:
-            lines.append("### 🧠 행동 패턴 분석")
-            lines.append("")
-            lines.append("> 작업 패턴과 습관에서 발견된 인사이트")
-            lines.append("")
-            lines.append("| 영향 | 패턴 | 제안 |")
-            lines.append("|------|------|------|")
+        if not retro.behavior_patterns:
+            return lines
 
-            # Impact emoji mapping for better readability
-            impact_emojis = {
-                "positive": "✅",
-                "negative": "⚠️",
-            }
+        lines.append("### 🧠 행동 패턴 분석")
+        lines.append("")
+        lines.append("> 작업 패턴과 습관에서 발견된 인사이트")
+        lines.append("")
 
-            for pattern in retro.behavior_patterns:
-                impact_emoji = impact_emojis.get(pattern.impact, "ℹ️")
-                recommendation = pattern.recommendation if pattern.recommendation else "-"
-                lines.append(f"| {impact_emoji} | {pattern.description} | {recommendation} |")
-            lines.append("")
+        # Impact emoji mapping for better readability
+        impact_emojis = {
+            "positive": "✅",
+            "negative": "⚠️",
+        }
+
+        # Build table data
+        headers = ["영향", "패턴", "제안"]
+        rows = []
+        for pattern in retro.behavior_patterns:
+            impact_emoji = impact_emojis.get(pattern.impact, "ℹ️")
+            recommendation = pattern.recommendation if pattern.recommendation else "-"
+            rows.append([impact_emoji, pattern.description, recommendation])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         return lines
 
     def _build_learning_insights_subsection(self, retro) -> List[str]:
-        """Build learning insights subsection of retrospective."""
+        """Build learning insights subsection of retrospective (HTML version)."""
         lines = []
-        if retro.learning_insights:
-            lines.append("### 📚 학습 및 성장 분석")
-            lines.append("")
-            lines.append("> 기술 역량과 학습 궤적을 분석합니다")
-            lines.append("")
-            lines.append("| 분야 | 기술 | 전문성 | 성장 지표 |")
-            lines.append("|------|------|--------|-----------|")
+        if not retro.learning_insights:
+            return lines
 
-            for learning in retro.learning_insights:
-                expertise_emoji = {"expert": "👑", "proficient": "⭐", "developing": "🌱", "exploring": "🔍"}.get(
-                    learning.expertise_level, "📖"
-                )
-                technologies = ', '.join(learning.technologies)
-                growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:DISPLAY_LIMITS['growth_indicators']]) if learning.growth_indicators else "-"
-                lines.append(
-                    f"| {expertise_emoji} {learning.domain} | {technologies} | {learning.expertise_level} | {growth_indicators} |"
-                )
-            lines.append("")
+        lines.append("### 📚 학습 및 성장 분석")
+        lines.append("")
+        lines.append("> 기술 역량과 학습 궤적을 분석합니다")
+        lines.append("")
+
+        # Build table data
+        headers = ["분야", "기술", "전문성", "성장 지표"]
+        rows = []
+
+        for learning in retro.learning_insights:
+            expertise_emoji = {"expert": "👑", "proficient": "⭐", "developing": "🌱", "exploring": "🔍"}.get(
+                learning.expertise_level, "📖"
+            )
+            technologies = ', '.join(learning.technologies)
+            growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:DISPLAY_LIMITS['growth_indicators']]) if learning.growth_indicators else "-"
+
+            rows.append([
+                f"{expertise_emoji} {learning.domain}",
+                technologies,
+                learning.expertise_level,
+                growth_indicators
+            ])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         return lines
 
     def _build_impact_assessments_subsection(self, retro) -> List[str]:
-        """Build impact assessments subsection of retrospective."""
+        """Build impact assessments subsection of retrospective (HTML version)."""
         lines = []
-        if retro.impact_assessments:
-            lines.append("### 💎 영향도 평가")
-            lines.append("")
-            lines.append("> 기여의 비즈니스 및 팀 영향을 평가합니다")
-            lines.append("")
-            lines.append("| 카테고리 | 기여 횟수 | 영향도 | 설명 |")
-            lines.append("|----------|-----------|--------|------|")
+        if not retro.impact_assessments:
+            return lines
 
-            for impact in retro.impact_assessments:
-                impact_emoji = {"high": "🔥", "medium": "✨", "low": "💡"}.get(impact.estimated_impact, "📊")
-                lines.append(
-                    f"| {impact_emoji} {impact.category} | {impact.contribution_count:,}건 | "
-                    f"{impact.estimated_impact} | {impact.impact_description} |"
-                )
-            lines.append("")
+        lines.append("### 💎 영향도 평가")
+        lines.append("")
+        lines.append("> 기여의 비즈니스 및 팀 영향을 평가합니다")
+        lines.append("")
+
+        # Build table data
+        headers = ["카테고리", "기여 횟수", "영향도", "설명"]
+        rows = []
+
+        for impact in retro.impact_assessments:
+            impact_emoji = {"high": "🔥", "medium": "✨", "low": "💡"}.get(impact.estimated_impact, "📊")
+            rows.append([
+                f"{impact_emoji} {impact.category}",
+                f"{impact.contribution_count:,}건",
+                impact.estimated_impact,
+                impact.impact_description
+            ])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         return lines
 
     def _build_collaboration_insights_subsection(self, retro) -> List[str]:
-        """Build collaboration insights subsection of retrospective."""
+        """Build collaboration insights subsection of retrospective (HTML version)."""
         lines = []
-        if retro.collaboration_insights:
-            collab = retro.collaboration_insights
-            lines.append("### 🤝 협업 심층 분석")
-            lines.append("")
-            lines.append(f"**협업 강도:** {collab.collaboration_strength}")
-            lines.append(f"**협업 품질:** {collab.collaboration_quality}")
+        if not retro.collaboration_insights:
+            return lines
+
+        collab = retro.collaboration_insights
+        lines.append("### 🤝 협업 심층 분석")
+        lines.append("")
+        lines.append(f"**협업 강도:** {collab.collaboration_strength}")
+        lines.append(f"**협업 품질:** {collab.collaboration_quality}")
+        lines.append("")
+
+        if collab.key_partnerships:
+            lines.append("**주요 협업 파트너:**")
             lines.append("")
 
-            if collab.key_partnerships:
-                lines.append("**주요 협업 파트너:**")
-                lines.append("")
-                lines.append("| 협업자 | 리뷰 횟수 | 관계 |")
-                lines.append("|--------|-----------|------|")
-                for person, count, rel_type in collab.key_partnerships:
-                    lines.append(f"| @{person} | {count}회 | {rel_type} |")
-                lines.append("")
+            # Build table data
+            headers = ["협업자", "리뷰 횟수", "관계"]
+            rows = []
+            for person, count, rel_type in collab.key_partnerships:
+                rows.append([f"@{person}", f"{count}회", rel_type])
 
-            if collab.mentorship_indicators:
-                lines.append("**멘토링 활동:**")
-                for indicator in collab.mentorship_indicators:
-                    lines.append(f"- {indicator}")
-                lines.append("")
+            # Render as HTML table
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
 
-            if collab.improvement_areas:
-                lines.append("**개선 영역:**")
-                for area in collab.improvement_areas:
-                    lines.append(f"- {area}")
-                lines.append("")
+        if collab.mentorship_indicators:
+            lines.append("**멘토링 활동:**")
+            for indicator in collab.mentorship_indicators:
+                lines.append(f"- {indicator}")
             lines.append("")
+
+        if collab.improvement_areas:
+            lines.append("**개선 영역:**")
+            for area in collab.improvement_areas:
+                lines.append(f"- {area}")
+            lines.append("")
+
         return lines
 
     def _build_balance_metrics_subsection(self, retro) -> List[str]:
-        """Build balance metrics subsection of retrospective."""
+        """Build balance metrics subsection of retrospective (HTML version)."""
         lines = []
-        if retro.balance_metrics:
-            balance = retro.balance_metrics
-            lines.append("### ⚖️ 업무 밸런스 분석")
+        if not retro.balance_metrics:
+            return lines
+
+        balance = retro.balance_metrics
+        lines.append("### ⚖️ 업무 밸런스 분석")
+        lines.append("")
+
+        risk_emoji = {"low": "✅", "moderate": "⚠️", "high": "🚨"}.get(balance.burnout_risk_level, "❓")
+
+        # Main metrics table
+        headers = ["지표", "값"]
+        rows = [
+            ["번아웃 위험도", f"{risk_emoji} {balance.burnout_risk_level}"],
+            ["지속가능성 점수", f"{balance.sustainability_score:.0f}/100"],
+            ["활동 변동성", f"{balance.activity_variance:.2f}"]
+        ]
+
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
+        if balance.positive_patterns:
+            lines.append("**긍정적 패턴:**")
             lines.append("")
 
-            risk_emoji = {"low": "✅", "moderate": "⚠️", "high": "🚨"}.get(balance.burnout_risk_level, "❓")
+            headers = ["패턴"]
+            rows = [[f"✅ {pattern}"] for pattern in balance.positive_patterns]
 
-            lines.append("| 지표 | 값 |")
-            lines.append("|------|-----|")
-            lines.append(f"| 번아웃 위험도 | {risk_emoji} {balance.burnout_risk_level} |")
-            lines.append(f"| 지속가능성 점수 | {balance.sustainability_score:.0f}/100 |")
-            lines.append(f"| 활동 변동성 | {balance.activity_variance:.2f} |")
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
+        if balance.burnout_indicators:
+            lines.append("**주의 사항:**")
             lines.append("")
 
-            if balance.positive_patterns:
-                lines.append("**긍정적 패턴:**")
-                lines.append("")
-                lines.append("| 패턴 |")
-                lines.append("|------|")
-                for pattern in balance.positive_patterns:
-                    lines.append(f"| ✅ {pattern} |")
-                lines.append("")
+            headers = ["지표"]
+            rows = [[f"⚠️ {indicator}"] for indicator in balance.burnout_indicators]
 
-            if balance.burnout_indicators:
-                lines.append("**주의 사항:**")
-                lines.append("")
-                lines.append("| 지표 |")
-                lines.append("|------|")
-                for indicator in balance.burnout_indicators:
-                    lines.append(f"| ⚠️ {indicator} |")
-                lines.append("")
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
 
-            if balance.health_recommendations:
-                lines.append("**권장 사항:**")
-                lines.append("")
-                lines.append("| 권장사항 |")
-                lines.append("|----------|")
-                for rec in balance.health_recommendations:
-                    lines.append(f"| 💡 {rec} |")
-                lines.append("")
+        if balance.health_recommendations:
+            lines.append("**권장 사항:**")
+            lines.append("")
+
+            headers = ["권장사항"]
+            rows = [[f"💡 {rec}"] for rec in balance.health_recommendations]
+
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
         return lines
 
     def _build_code_health_subsection(self, retro) -> List[str]:
-        """Build code health subsection of retrospective."""
+        """Build code health subsection of retrospective (HTML version)."""
         lines = []
-        if retro.code_health:
-            health = retro.code_health
-            lines.append("### 🏥 코드 건강도 분석")
+        if not retro.code_health:
+            return lines
+
+        health = retro.code_health
+        lines.append("### 🏥 코드 건강도 분석")
+        lines.append("")
+
+        # Main metrics table
+        headers = ["지표", "값"]
+        rows = [
+            ["유지보수 부담", health.maintenance_burden],
+            ["테스트 커버리지 추세", health.test_coverage_trend]
+        ]
+
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
+        if health.code_quality_trends:
+            lines.append("**품질 트렌드:**")
             lines.append("")
 
-            lines.append("| 지표 | 값 |")
-            lines.append("|------|-----|")
-            lines.append(f"| 유지보수 부담 | {health.maintenance_burden} |")
-            lines.append(f"| 테스트 커버리지 추세 | {health.test_coverage_trend} |")
+            headers = ["트렌드"]
+            rows = [[trend] for trend in health.code_quality_trends]
+
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
+        if health.quality_improvement_suggestions:
+            lines.append("**개선 제안:**")
             lines.append("")
 
-            if health.code_quality_trends:
-                lines.append("**품질 트렌드:**")
-                lines.append("")
-                lines.append("| 트렌드 |")
-                lines.append("|--------|")
-                for trend in health.code_quality_trends:
-                    lines.append(f"| {trend} |")
-                lines.append("")
+            headers = ["제안"]
+            rows = [[f"💡 {suggestion}"] for suggestion in health.quality_improvement_suggestions]
 
-            if health.quality_improvement_suggestions:
-                lines.append("**개선 제안:**")
-                lines.append("")
-                lines.append("| 제안 |")
-                lines.append("|------|")
-                for suggestion in health.quality_improvement_suggestions:
-                    lines.append(f"| 💡 {suggestion} |")
-                lines.append("")
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+
         return lines
 
     def _build_actionable_insights_subsection(self, retro) -> List[str]:
@@ -1580,18 +1749,29 @@ class Reporter:
         return lines
 
     def _build_areas_for_growth_subsection(self, retro) -> List[str]:
-        """Build areas for growth subsection of retrospective."""
+        """Build areas for growth subsection of retrospective (HTML version)."""
         lines = []
-        if retro.areas_for_growth:
-            lines.append("### 🌱 성장 기회")
-            lines.append("")
-            lines.append("> 다음 단계로 나아가기 위한 영역")
-            lines.append("")
-            lines.append("| # | 성장 기회 |")
-            lines.append("|---|-----------|")
-            for i, area in enumerate(retro.areas_for_growth, 1):
-                lines.append(f"| {i} | {area} |")
-            lines.append("")
+        if not retro.areas_for_growth:
+            return lines
+
+        lines.append("### 🌱 성장 기회")
+        lines.append("")
+        lines.append("> 다음 단계로 나아가기 위한 영역")
+        lines.append("")
+
+        # Build table data
+        headers = ["#", "성장 기회"]
+        rows = [[str(i), area] for i, area in enumerate(retro.areas_for_growth, 1)]
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         return lines
 
     def _build_narrative_subsection(self, retro) -> List[str]:
