@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import wraps
 from itertools import islice
@@ -17,6 +18,9 @@ import requests
 
 from .console import Console
 from .constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
+from .hybrid_analysis import HybridAnalyzer
+from .llm_metrics import LLMCallMetrics, get_global_collector
+from .llm_validation import LLMResponseValidator
 from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .prompts import (
     get_award_summary_quote_system_prompt,
@@ -725,6 +729,7 @@ class LLMClient:
         temperature: float | None = None,
         max_retries: int = 3,
         retry_delay: float = 2.0,
+        operation: str = "unknown",
     ) -> str:
         """Execute a generic chat completion request with retry logic and caching.
 
@@ -733,6 +738,7 @@ class LLMClient:
             temperature: Sampling temperature (default: from HEURISTIC_THRESHOLDS)
             max_retries: Maximum number of retry attempts (default: 3)
             retry_delay: Base delay between retries in seconds (default: 2.0)
+            operation: Name of the operation for metrics tracking
 
         Returns:
             LLM response content
@@ -741,6 +747,10 @@ class LLMClient:
             ValueError: If response is invalid after all retries
             requests.HTTPError: If HTTP error persists after all retries
         """
+        start_time = time.time()
+        retry_count = 0
+        cache_hit = False
+
         # Use default temperature if not specified
         if temperature is None:
             temperature = HEURISTIC_THRESHOLDS['llm_temperature']
@@ -748,6 +758,18 @@ class LLMClient:
         # Check cache first if enabled
         cached_response, cache_key = self._check_cache(messages, temperature)
         if cached_response:
+            cache_hit = True
+            duration = time.time() - start_time
+
+            # Record cache hit metrics
+            metrics = LLMCallMetrics(
+                operation=operation,
+                duration_seconds=duration,
+                cache_hit=True,
+                success=True,
+            )
+            get_global_collector().record(metrics)
+
             return cached_response
 
         # Apply rate limiting if configured
@@ -776,6 +798,35 @@ class LLMClient:
                 # Success! Log if this was a retry
                 if attempt > 0:
                     logger.info(f"LLM request succeeded on attempt {attempt + 1}")
+                    retry_count = attempt
+
+                # Extract token usage if available
+                prompt_tokens = 0
+                completion_tokens = 0
+                total_tokens = 0
+
+                try:
+                    response_data = response.json()
+                    usage = response_data.get("usage", {})
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    total_tokens = usage.get("total_tokens", 0)
+                except (ValueError, KeyError, AttributeError):
+                    pass  # Token info not available
+
+                # Record success metrics
+                duration = time.time() - start_time
+                metrics = LLMCallMetrics(
+                    operation=operation,
+                    duration_seconds=duration,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    cache_hit=False,
+                    success=True,
+                    retry_count=retry_count,
+                )
+                get_global_collector().record(metrics)
 
                 # Save to cache if enabled
                 if self.enable_cache and cache_key:
@@ -785,6 +836,7 @@ class LLMClient:
 
             except (requests.RequestException, ValueError) as exc:
                 last_exception = exc
+                retry_count = attempt
 
                 # Check if we should retry this error
                 self._should_retry_error(exc)
@@ -802,6 +854,19 @@ class LLMClient:
                     logger.error(
                         f"LLM request failed after {max_retries + 1} attempts: {exc}"
                     )
+
+        # Record failure metrics
+        duration = time.time() - start_time
+        error_type = type(last_exception).__name__ if last_exception else "Unknown"
+        metrics = LLMCallMetrics(
+            operation=operation,
+            duration_seconds=duration,
+            cache_hit=False,
+            success=False,
+            error_type=error_type,
+            retry_count=retry_count,
+        )
+        get_global_collector().record(metrics)
 
         # If we get here, all retries failed
         raise last_exception  # type: ignore
@@ -1029,25 +1094,37 @@ class LLMClient:
         try:
             import json as json_module
 
-            # Step 1: Analyze communication quality
-            console.log("Analyzing communication quality...")
+            # Prepare all three analysis tasks
             comm_messages = [
                 {"role": "system", "content": get_communication_analysis_prompt()},
                 {"role": "user", "content": f"다음 PR 데이터를 분석해주세요:\n\n{context}"},
             ]
-            comm_content = self.complete(comm_messages, temperature=0.4)
-            comm_result = json_module.loads(comm_content)
 
-            # Step 2: Analyze code quality
-            console.log("Analyzing code quality and design...")
             code_messages = [
                 {"role": "system", "content": get_code_quality_analysis_prompt()},
                 {"role": "user", "content": f"다음 PR 데이터를 분석해주세요:\n\n{context}"},
             ]
-            code_content = self.complete(code_messages, temperature=0.4)
+
+            # Execute communication and code quality analyses in parallel
+            console.log("Analyzing communication quality and code quality in parallel...")
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                # Submit both tasks with operation names for metrics
+                comm_future = executor.submit(
+                    self.complete, comm_messages, 0.4, 3, 2.0, "personal_dev_communication"
+                )
+                code_future = executor.submit(
+                    self.complete, code_messages, 0.4, 3, 2.0, "personal_dev_code_quality"
+                )
+
+                # Wait for both to complete
+                comm_content = comm_future.result()
+                code_content = code_future.result()
+
+            comm_result = json_module.loads(comm_content)
             code_result = json_module.loads(code_content)
 
-            # Step 3: Analyze growth and overall assessment
+            # Step 3: Analyze growth and overall assessment (depends on previous results)
             console.log("Analyzing growth indicators and overall assessment...")
             # Provide previous analysis results as context
             previous_analysis = f"커뮤니케이션 분석: {len(comm_result.get('strengths', []))}개 강점, {len(comm_result.get('improvement_areas', []))}개 개선점\n"
@@ -1058,7 +1135,9 @@ class LLMClient:
                 {"role": "system", "content": get_growth_assessment_prompt()},
                 {"role": "user", "content": f"다음 PR 데이터와 이전 분석 결과를 바탕으로 평가해주세요:\n\n{context}\n\n{previous_analysis}"},
             ]
-            growth_content = self.complete(growth_messages, temperature=0.4)
+            growth_content = self.complete(
+                growth_messages, temperature=0.4, operation="personal_dev_growth"
+            )
             growth_result = json_module.loads(growth_content)
 
             # Merge results
@@ -1070,6 +1149,38 @@ class LLMClient:
                 "key_achievements": growth_result.get("key_achievements", []),
                 "next_focus_areas": growth_result.get("next_focus_areas", []),
             }
+
+            # Validate response quality
+            validation_result = LLMResponseValidator.validate_personal_development_response(
+                combined_result
+            )
+
+            # Log validation results
+            if validation_result.warnings:
+                console.log(f"⚠️  Response quality warnings ({len(validation_result.warnings)}):")
+                for warning in validation_result.warnings[:5]:  # Show first 5 warnings
+                    console.log(f"  - {warning}")
+
+            if not validation_result.is_valid:
+                console.log(
+                    f"⚠️  Response quality score: {validation_result.score:.2f} "
+                    f"(threshold: 0.6, issues: {len(validation_result.issues)})"
+                )
+                for issue in validation_result.issues[:3]:  # Show first 3 issues
+                    console.log(f"  - {issue}")
+                console.log("Enhancing response with hybrid analysis...")
+
+                # Enhance with hybrid analysis
+                enhanced_result = HybridAnalyzer.validate_and_enhance_personal_development(
+                    combined_result,
+                    validation_result,
+                    pr_titles
+                )
+                return enhanced_result
+            else:
+                console.log(
+                    f"✓ Response validated (quality score: {validation_result.score:.2f})"
+                )
 
             return combined_result
         except Exception as exc:
