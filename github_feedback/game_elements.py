@@ -58,7 +58,7 @@ class GameRenderer:
         evidence: List[str],
         skill_emoji: str = "💎"
     ) -> List[str]:
-        """게임 스타일 스킬 카드 렌더링.
+        """게임 스타일 스킬 카드 렌더링 (HTML 테이블 사용).
 
         Args:
             skill_name: 스킬 이름
@@ -87,59 +87,59 @@ class GameRenderer:
         }
         type_emoji = type_emojis.get(skill_type, "⚪")
 
-        # 마스터리 바 (20 블록 = 100%)
-        filled = mastery_level // 5
-        empty = 20 - filled
-        mastery_bar = "█" * filled + "░" * empty
+        # 마스터리 바 (진행률을 시각적으로 표현)
+        mastery_percentage = mastery_level
+        bar_filled_width = mastery_percentage  # CSS에서 퍼센트로 사용
 
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        # HTML 테이블로 스킬 카드 렌더링
+        lines.append('<div style="border: 2px solid #444; border-radius: 8px; padding: 16px; margin: 16px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">')
 
-        # 스킬명 - 여러 줄 지원 (40자 제한)
-        skill_name_lines = GameRenderer._wrap_text(skill_name, 40)
-        padded_skill_name = pad_to_width(skill_name_lines[0], 40, align='left')
-        padded_star = pad_to_width(star_display, 5, align='left')
-        lines.append(f"║ {skill_emoji} {padded_skill_name} [Lv.{level}] {padded_star} ║")
+        # 스킬명 및 레벨
+        lines.append(f'  <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 8px;">')
+        lines.append(f'    {skill_emoji} {skill_name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">Lv.{level}</span>')
+        lines.append(f'  </div>')
 
-        # 추가 스킬명 줄 (있을 경우)
-        for extra_line in skill_name_lines[1:]:
-            padded_extra = pad_to_width(extra_line, 56, align='left')
-            lines.append(f"║    {padded_extra} ║")
-
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        # 별 표시
+        lines.append(f'  <div style="margin-bottom: 12px; font-size: 1.2em; color: #ffd700;">')
+        lines.append(f'    {star_display}')
+        lines.append(f'  </div>')
 
         # 스킬 타입
-        padded_skill_type = pad_to_width(skill_type, 49, align='left')
-        lines.append(f"║ 타입: {type_emoji} {padded_skill_type} ║")
+        lines.append(f'  <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">')
+        lines.append(f'    <tr>')
+        lines.append(f'      <td style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;"><strong>타입</strong></td>')
+        lines.append(f'      <td style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">{type_emoji} {skill_type}</td>')
+        lines.append(f'    </tr>')
+        lines.append(f'  </table>')
 
-        # 효과 설명 - 여러 줄 지원 (51자 제한)
-        effect_lines = GameRenderer._wrap_text(effect_description, 51)
-        for i, effect_line in enumerate(effect_lines):
-            if i == 0:
-                padded_effect = pad_to_width(effect_line, 51, align='left')
-                lines.append(f"║ 효과: {padded_effect} ║")
-            else:
-                padded_effect = pad_to_width(effect_line, 56, align='left')
-                lines.append(f"║       {padded_effect} ║")
+        # 효과 설명
+        lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px; margin-bottom: 12px;">')
+        lines.append(f'    <div style="font-weight: bold; margin-bottom: 4px;">💫 효과</div>')
+        lines.append(f'    <div style="opacity: 0.95;">{effect_description}</div>')
+        lines.append(f'  </div>')
 
-        lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
+        # 마스터리 바
+        lines.append(f'  <div style="margin-bottom: 12px;">')
+        lines.append(f'    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">')
+        lines.append(f'      <span style="font-weight: bold;">마스터리</span>')
+        lines.append(f'      <span style="font-weight: bold;">{mastery_percentage}%</span>')
+        lines.append(f'    </div>')
+        lines.append(f'    <div style="background: rgba(0,0,0,0.3); border-radius: 10px; height: 20px; overflow: hidden;">')
+        lines.append(f'      <div style="background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%); height: 100%; width: {bar_filled_width}%; transition: width 0.3s ease;"></div>')
+        lines.append(f'    </div>')
+        lines.append(f'  </div>')
 
+        # 습득 경로
         if evidence:
-            lines.append("╠═══════════════════════════════════════════════════════════╣")
-            lines.append("║ 습득 경로:                                                ║")
-            for idx, ev in enumerate(evidence[:5], 1):  # 최대 5개로 증가
-                # 증거도 여러 줄 지원
-                ev_lines = GameRenderer._wrap_text(ev, 54)
-                for j, ev_line in enumerate(ev_lines):
-                    if j == 0:
-                        padded_evidence = pad_to_width(ev_line, 54, align='left')
-                        lines.append(f"║   {idx}. {padded_evidence} ║")
-                    else:
-                        padded_evidence = pad_to_width(ev_line, 56, align='left')
-                        lines.append(f"║      {padded_evidence} ║")
+            lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px;">')
+            lines.append(f'    <div style="font-weight: bold; margin-bottom: 8px;">📚 습득 경로</div>')
+            lines.append(f'    <ol style="margin: 0; padding-left: 20px;">')
+            for ev in evidence[:5]:  # 최대 5개
+                lines.append(f'      <li style="margin-bottom: 4px; opacity: 0.95;">{ev}</li>')
+            lines.append(f'    </ol>')
+            lines.append(f'  </div>')
 
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
+        lines.append('</div>')
         lines.append("")
 
         return lines
@@ -155,7 +155,7 @@ class GameRenderer:
         badges: List[str],
         use_tier_system: bool = False
     ) -> List[str]:
-        """RPG 스타일 캐릭터 스탯 시각화 렌더링.
+        """RPG 스타일 캐릭터 스탯 시각화 렌더링 (HTML 테이블 사용).
 
         Args:
             level: 레벨 (1-99) 또는 티어 (1-6)
@@ -173,22 +173,25 @@ class GameRenderer:
         lines = []
         avg_stat = sum(stats.values()) / len(stats) if stats else 0
 
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        # HTML 캐릭터 스탯 카드
+        lines.append('<div style="border: 3px solid #2d3748; border-radius: 12px; padding: 20px; margin: 20px 0; background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%); color: white; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">')
 
-        # 타이틀과 레벨, 파워 레벨 표시
-        title_padded = pad_to_width(title, 20, align='left')
-        if use_tier_system:
-            lines.append(f"║  {rank_emoji} Tier {level}: {title_padded} 파워: {int(avg_stat):>3}/100  ║")
-        else:
-            lines.append(f"║  {rank_emoji} Lv.{level:>2} {title_padded} 파워: {int(avg_stat):>3}/100  ║")
+        # 헤더: 레벨, 타이틀, 파워
+        level_display = f"Tier {level}" if use_tier_system else f"Lv.{level}"
+        lines.append(f'  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #4a5568;">')
+        lines.append(f'    <div>')
+        lines.append(f'      <div style="font-size: 1.5em; font-weight: bold;">{rank_emoji} {level_display}: {title}</div>')
+        lines.append(f'      <div style="font-size: 1.1em; color: #fbbf24; margin-top: 4px;">🏅 특성: {specialty_title}</div>')
+        lines.append(f'    </div>')
+        lines.append(f'    <div style="text-align: right;">')
+        lines.append(f'      <div style="font-size: 0.9em; color: #cbd5e0;">총 파워</div>')
+        lines.append(f'      <div style="font-size: 2em; font-weight: bold; color: #48bb78;">{int(avg_stat)}<span style="font-size: 0.6em; color: #cbd5e0;">/100</span></div>')
+        lines.append(f'    </div>')
+        lines.append(f'  </div>')
 
-        # 특성 표시
-        specialty_padded = pad_to_width(specialty_title, 43, align='left')
-        lines.append(f"║  🏅 특성: {specialty_padded} ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append("║                      능력치 현황                          ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        # 능력치 현황
+        lines.append(f'  <div style="margin-bottom: 16px;">')
+        lines.append(f'    <h4 style="margin: 0 0 12px 0; color: #e2e8f0; font-size: 1.1em;">⚔️ 능력치 현황</h4>')
 
         # 각 스탯 렌더링
         stat_emojis = {
@@ -207,38 +210,61 @@ class GameRenderer:
             "growth": "성장성",
         }
 
+        # 스탯 색상 정의
+        stat_colors = {
+            "code_quality": "#3b82f6",  # 파란색
+            "collaboration": "#8b5cf6",  # 보라색
+            "problem_solving": "#ec4899",  # 핑크색
+            "productivity": "#f59e0b",  # 주황색
+            "growth": "#10b981",  # 초록색
+        }
+
         for stat_key, stat_value in stats.items():
             stat_name = stat_names_kr.get(stat_key, stat_key)
             emoji = stat_emojis.get(stat_key, "📊")
+            color = stat_colors.get(stat_key, "#6b7280")
 
-            # 시각적 바 생성 (20 블록 = 100%)
-            filled = stat_value // 5
-            empty = 20 - filled
-            bar = "▓" * filled + "░" * empty
+            lines.append(f'    <div style="margin-bottom: 12px;">')
+            lines.append(f'      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">')
+            lines.append(f'        <span style="font-weight: bold;">{emoji} {stat_name}</span>')
+            lines.append(f'        <span style="font-weight: bold; color: {color};">{stat_value}/100</span>')
+            lines.append(f'      </div>')
+            lines.append(f'      <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 16px; overflow: hidden;">')
+            lines.append(f'        <div style="background: {color}; height: 100%; width: {stat_value}%; transition: width 0.3s ease;"></div>')
+            lines.append(f'      </div>')
+            lines.append(f'    </div>')
 
-            # 스탯명 12 디스플레이 컬럼으로 패딩
-            padded_name = pad_to_width(stat_name, 12, align='left')
-            lines.append(f"║ {emoji} {padded_name} [{bar}] {stat_value:>3}/100 ║")
+        lines.append(f'  </div>')
 
-        # 경험치 데이터가 있으면 추가
+        # 경험치 데이터
         if experience_data:
-            lines.append("╠═══════════════════════════════════════════════════════════╣")
-            lines.append("║                      획득 경험치                          ║")
-            lines.append("╠═══════════════════════════════════════════════════════════╣")
+            lines.append(f'  <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 16px;">')
+            lines.append(f'    <h4 style="margin: 0 0 8px 0; color: #e2e8f0;">✨ 획득 경험치</h4>')
+            lines.append(f'    <table style="width: 100%; border-collapse: collapse;">')
 
             for key, value in experience_data.items():
-                lines.append(f"║  {key:<20} │  {value:>4}{' ' * 20}║")
+                lines.append(f'      <tr>')
+                lines.append(f'        <td style="padding: 6px 0; color: #cbd5e0;">{key}</td>')
+                lines.append(f'        <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #fbbf24;">{value:,}</td>')
+                lines.append(f'      </tr>')
 
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
+            lines.append(f'    </table>')
+            lines.append(f'  </div>')
+
+        lines.append('</div>')
         lines.append("")
 
-        # 뱃지 표시
+        # 뱃지 표시 (HTML 뱃지 스타일)
         if badges:
-            lines.append("**🎖️ 획득한 뱃지:**")
-            lines.append("")
+            lines.append('<div style="margin: 16px 0;">')
+            lines.append('  <h4 style="color: #2d3748; margin-bottom: 12px;">🎖️ 획득한 뱃지</h4>')
+            lines.append('  <div style="display: flex; flex-wrap: wrap; gap: 8px;">')
+
             for badge in badges:
-                lines.append(f"- {badge}")
+                lines.append(f'    <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 6px 12px; border-radius: 16px; font-size: 0.9em; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">{badge}</span>')
+
+            lines.append('  </div>')
+            lines.append('</div>')
             lines.append("")
 
         return lines
