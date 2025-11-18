@@ -804,7 +804,7 @@ class ReviewReporter:
         return "<br>".join(links) if links else "-"
 
     def _render_statistics_dashboard(self, reviews: List[StoredReview]) -> List[str]:
-        """Render key metrics dashboard with visual cards."""
+        """Render key metrics dashboard with HTML visual cards."""
         lines: List[str] = []
 
         # Calculate statistics
@@ -820,15 +820,49 @@ class ReviewReporter:
 
         lines.append("## 📊 핵심 지표 대시보드")
         lines.append("")
-        lines.append("| 지표 | 값 | 시각화 |")
-        lines.append("|------|-----|--------|")
-        lines.append(f"| 📝 **총 PR 수** | {total_prs}개 | {'🟦' * min(total_prs, 20)} |")
-        lines.append(f"| 👥 **참여 인원** | {unique_authors}명 | {'👤' * min(unique_authors, 10)} |")
-        lines.append(f"| ➕ **총 코드 추가** | +{total_additions:,}줄 | {'🟩' * min(total_additions // 100, 20)} |")
-        lines.append(f"| ➖ **총 코드 삭제** | -{total_deletions:,}줄 | {'🟥' * min(total_deletions // 100, 20)} |")
-        lines.append(f"| 📁 **변경된 파일** | {total_files_changed:,}개 | {'📄' * min(total_files_changed // 10, 20)} |")
-        lines.append(f"| 📈 **평균 코드 변경** | +{avg_additions}/-{avg_deletions}줄 | - |")
-        lines.append("")
+
+        # Build metrics cards
+        metrics_data = [
+            {
+                "title": "총 PR 수",
+                "value": f"{total_prs}개",
+                "emoji": "📝",
+                "color": "#667eea"
+            },
+            {
+                "title": "참여 인원",
+                "value": f"{unique_authors}명",
+                "emoji": "👥",
+                "color": "#764ba2"
+            },
+            {
+                "title": "총 코드 추가",
+                "value": f"+{total_additions:,}줄",
+                "emoji": "➕",
+                "color": "#10b981"
+            },
+            {
+                "title": "총 코드 삭제",
+                "value": f"-{total_deletions:,}줄",
+                "emoji": "➖",
+                "color": "#ef4444"
+            },
+            {
+                "title": "변경된 파일",
+                "value": f"{total_files_changed:,}개",
+                "emoji": "📁",
+                "color": "#f59e0b"
+            },
+            {
+                "title": "평균 코드 변경",
+                "value": f"+{avg_additions}/-{avg_deletions}줄",
+                "emoji": "📈",
+                "color": "#8b5cf6"
+            }
+        ]
+
+        lines.extend(GameRenderer.render_metric_cards(metrics_data, columns=3))
+
         lines.append("---")
         lines.append("")
 
