@@ -15,6 +15,212 @@ from .utils import pad_to_width
 console = Console()
 
 
+# ============================================
+# 🎮 RPG 장비 시스템 설정
+# ============================================
+
+# 기술별 카테고리 분류 (언어, 프레임워크, 도구/DB)
+TECH_CATEGORIES = {
+    # 프로그래밍 언어 (주무기)
+    "Python": "language",
+    "JavaScript": "language",
+    "TypeScript": "language",
+    "Java": "language",
+    "Go": "language",
+    "Rust": "language",
+    "C++": "language",
+    "C": "language",
+    "C#": "language",
+    "Ruby": "language",
+    "PHP": "language",
+    "Swift": "language",
+    "Kotlin": "language",
+    "Dart": "language",
+    "Scala": "language",
+    "R": "language",
+    "Shell": "language",
+    "Bash": "language",
+    "PowerShell": "language",
+    "Lua": "language",
+    "Perl": "language",
+    "Haskell": "language",
+    "Elixir": "language",
+    "Clojure": "language",
+
+    # 프레임워크 & 라이브러리 (보조무기)
+    "React": "framework",
+    "Vue": "framework",
+    "Angular": "framework",
+    "Next.js": "framework",
+    "Nuxt.js": "framework",
+    "Svelte": "framework",
+    "Django": "framework",
+    "Flask": "framework",
+    "FastAPI": "framework",
+    "Express": "framework",
+    "NestJS": "framework",
+    "Spring": "framework",
+    "Spring Boot": "framework",
+    "Rails": "framework",
+    "Laravel": "framework",
+    "ASP.NET": "framework",
+    "Node.js": "framework",
+    "Deno": "framework",
+    "TensorFlow": "framework",
+    "PyTorch": "framework",
+    "Pandas": "framework",
+    "NumPy": "framework",
+    "Scikit-learn": "framework",
+
+    # 도구, DB, 인프라 (장신구/악세서리)
+    "Docker": "tool",
+    "Kubernetes": "tool",
+    "PostgreSQL": "tool",
+    "MySQL": "tool",
+    "MongoDB": "tool",
+    "Redis": "tool",
+    "Elasticsearch": "tool",
+    "RabbitMQ": "tool",
+    "Kafka": "tool",
+    "Git": "tool",
+    "GitHub Actions": "tool",
+    "Jenkins": "tool",
+    "CircleCI": "tool",
+    "Terraform": "tool",
+    "Ansible": "tool",
+    "AWS": "tool",
+    "GCP": "tool",
+    "Azure": "tool",
+    "Nginx": "tool",
+    "Apache": "tool",
+    "GraphQL": "tool",
+    "REST API": "tool",
+    "gRPC": "tool",
+    "WebSocket": "tool",
+    "HTML": "tool",
+    "CSS": "tool",
+    "SCSS": "tool",
+    "Tailwind": "tool",
+    "Webpack": "tool",
+    "Vite": "tool",
+    "Babel": "tool",
+    "ESLint": "tool",
+    "Prettier": "tool",
+    "Jest": "tool",
+    "Pytest": "tool",
+    "Cypress": "tool",
+    "Selenium": "tool",
+}
+
+# 특정 기술에 대한 커스텀 아이콘 및 무기명
+TECH_CUSTOM_ICONS = {
+    # 언어
+    "Python": {"icon": "🐍", "weapon_name": "파이썬의 마법봉"},
+    "JavaScript": {"icon": "⚡", "weapon_name": "자바스크립트의 성검"},
+    "TypeScript": {"icon": "🛡️", "weapon_name": "타입가드의 방패"},
+    "Java": {"icon": "☕", "weapon_name": "자바의 대검"},
+    "Go": {"icon": "🐹", "weapon_name": "고퍼의 신속검"},
+    "Rust": {"icon": "🦀", "weapon_name": "러스트의 안전갑옷"},
+    "C++": {"icon": "⚙️", "weapon_name": "C++의 전투도끼"},
+    "Ruby": {"icon": "💎", "weapon_name": "루비의 보석검"},
+    "PHP": {"icon": "🐘", "weapon_name": "PHP의 전설활"},
+    "Swift": {"icon": "🦅", "weapon_name": "스위프트의 날개"},
+    "Kotlin": {"icon": "🎯", "weapon_name": "코틀린의 정밀창"},
+    "Dart": {"icon": "🎯", "weapon_name": "다트의 비수"},
+
+    # 프레임워크
+    "React": {"icon": "⚛️", "weapon_name": "리액트의 오브"},
+    "Vue": {"icon": "💚", "weapon_name": "뷰의 마법서"},
+    "Angular": {"icon": "🅰️", "weapon_name": "앵귤러의 실드"},
+    "Django": {"icon": "🎸", "weapon_name": "장고의 연금술"},
+    "Flask": {"icon": "🧪", "weapon_name": "플라스크의 물약"},
+    "FastAPI": {"icon": "⚡", "weapon_name": "FastAPI의 번개창"},
+    "Spring": {"icon": "🌱", "weapon_name": "스프링의 생명나무"},
+    "Next.js": {"icon": "▲", "weapon_name": "Next.js의 차원검"},
+    "Express": {"icon": "🚂", "weapon_name": "익스프레스의 질주"},
+    "Node.js": {"icon": "🟢", "weapon_name": "노드의 마력핵"},
+
+    # 도구
+    "Docker": {"icon": "🐋", "weapon_name": "컨테이너의 갑옷"},
+    "Kubernetes": {"icon": "☸️", "weapon_name": "쿠버네티스의 지휘봉"},
+    "PostgreSQL": {"icon": "🐘", "weapon_name": "포스트그레의 저장고"},
+    "MySQL": {"icon": "🐬", "weapon_name": "MySQL의 데이터 보관함"},
+    "MongoDB": {"icon": "🍃", "weapon_name": "몽고DB의 문서철"},
+    "Redis": {"icon": "🔴", "weapon_name": "레디스의 신속부적"},
+    "Git": {"icon": "🌿", "weapon_name": "깃의 시간마법"},
+    "GitHub Actions": {"icon": "🤖", "weapon_name": "자동화 골렘"},
+    "AWS": {"icon": "☁️", "weapon_name": "클라우드의 날개"},
+    "GraphQL": {"icon": "◆", "weapon_name": "그래프QL의 질의석"},
+}
+
+# 7단계 무기 등급 시스템
+WEAPON_TIERS = [
+    {
+        "threshold": 50,
+        "name": "신화",
+        "prefix": "💎",
+        "suffix": "신화 무기",
+        "color": "#ec4899",
+        "glow": "rgba(236, 72, 153, 0.3)"
+    },
+    {
+        "threshold": 30,
+        "name": "전설",
+        "prefix": "⚔️",
+        "suffix": "전설 무기",
+        "color": "#fbbf24",
+        "glow": "rgba(251, 191, 36, 0.3)"
+    },
+    {
+        "threshold": 20,
+        "name": "영웅",
+        "prefix": "🗡️",
+        "suffix": "영웅 무기",
+        "color": "#f97316",
+        "glow": "rgba(249, 115, 22, 0.3)"
+    },
+    {
+        "threshold": 10,
+        "name": "희귀",
+        "prefix": "⚡",
+        "suffix": "희귀 무기",
+        "color": "#8b5cf6",
+        "glow": "rgba(139, 92, 246, 0.3)"
+    },
+    {
+        "threshold": 5,
+        "name": "고급",
+        "prefix": "🔪",
+        "suffix": "고급 무기",
+        "color": "#3b82f6",
+        "glow": "rgba(59, 130, 246, 0.3)"
+    },
+    {
+        "threshold": 2,
+        "name": "일반",
+        "prefix": "🔨",
+        "suffix": "일반 무기",
+        "color": "#10b981",
+        "glow": "rgba(16, 185, 129, 0.3)"
+    },
+    {
+        "threshold": 0,
+        "name": "보조",
+        "prefix": "🔧",
+        "suffix": "보조 도구",
+        "color": "#6b7280",
+        "glow": "rgba(107, 114, 128, 0.3)"
+    }
+]
+
+# 장비 슬롯 타입 (카테고리별)
+EQUIPMENT_SLOTS = {
+    "language": {"slot": "🎯 주무기", "priority": 1},
+    "framework": {"slot": "🛡️ 보조무기", "priority": 2},
+    "tool": {"slot": "💍 장신구", "priority": 3},
+}
+
+
 @dataclass
 class RepositoryAnalysis:
     """Individual repository analysis data."""
@@ -381,11 +587,11 @@ class YearInReviewReporter:
         return lines
 
     def _generate_tech_stack_analysis(self, tech_stack: List[tuple]) -> List[str]:
-        """무기 장비 분석 생성 (HTML 버전)."""
+        """무기 장비 분석 생성 - 7단계 등급 시스템 및 장비 슬롯 시스템."""
         lines = [
             "## ⚔️ 장착 무기 및 장비 (기술 스택)",
             "",
-            "> 한 해 동안 사용한 언어와 프레임워크",
+            "> 한 해 동안 사용한 언어와 프레임워크를 RPG 장비 시스템으로 시각화",
             "",
         ]
 
@@ -396,46 +602,247 @@ class YearInReviewReporter:
 
         total_changes = sum(count for _, count in tech_stack)
 
-        # Build table data
-        headers = ["순위", "언어/프레임워크", "등급", "사용 횟수", "비율", "시각화"]
-        rows = []
+        # 기술을 카테고리별로 분류
+        categorized_tech = {
+            "language": [],
+            "framework": [],
+            "tool": [],
+            "unknown": []
+        }
 
-        for idx, (lang, count) in enumerate(tech_stack[:10], 1):  # Top 10
+        for lang, count in tech_stack:
             percentage = (count / total_changes * 100) if total_changes > 0 else 0
+            category = TECH_CATEGORIES.get(lang, "unknown")
 
-            # Determine weapon tier
-            if percentage >= 30:
-                tier = "⚔️ 전설 무기"
-                tier_color = "#fbbf24"
-            elif percentage >= 15:
-                tier = "🗡️ 희귀 무기"
-                tier_color = "#8b5cf6"
-            elif percentage >= 5:
-                tier = "🔪 일반 무기"
-                tier_color = "#3b82f6"
-            else:
-                tier = "🔧 보조 도구"
-                tier_color = "#6b7280"
+            # 무기 등급 결정 (7단계)
+            tier_info = None
+            for tier in WEAPON_TIERS:
+                if percentage >= tier["threshold"]:
+                    tier_info = tier
+                    break
 
-            # Visual bar using progress bar
-            visual_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier_color}; height: 100%; width: {percentage}%; border-radius: 4px;"></div></div>'
+            # 커스텀 아이콘 및 무기명 가져오기
+            custom = TECH_CUSTOM_ICONS.get(lang, {})
+            icon = custom.get("icon", "🔹")
+            weapon_name = custom.get("weapon_name", lang)
 
-            rows.append([
-                str(idx),
-                lang,
-                tier,
-                f"{count:,}",
-                f"{percentage:.1f}%",
-                visual_bar
-            ])
+            tech_info = {
+                "name": lang,
+                "count": count,
+                "percentage": percentage,
+                "tier": tier_info,
+                "icon": icon,
+                "weapon_name": weapon_name
+            }
 
-        # Render as HTML table
-        lines.extend(GameRenderer.render_html_table(
-            headers=headers,
-            rows=rows,
-            title="무기 사용 통계",
-            description="상위 10개 언어/프레임워크",
-            striped=True
+            categorized_tech[category].append(tech_info)
+
+        # ============================================
+        # 📦 장비창 시스템 (상위 10개만 슬롯에 표시)
+        # ============================================
+        lines.append("### 📦 캐릭터 장비창")
+        lines.append("")
+        lines.append("> 현재 장착 중인 최상위 장비들")
+        lines.append("")
+
+        # 카테고리별 최상위 기술 선택
+        equipment_slots = []
+
+        # 주무기 슬롯 (언어, 최대 3개)
+        for tech in categorized_tech["language"][:3]:
+            equipment_slots.append({
+                "slot": "🎯 주무기",
+                "tech": tech,
+                "priority": 1
+            })
+
+        # 보조무기 슬롯 (프레임워크, 최대 3개)
+        for tech in categorized_tech["framework"][:3]:
+            equipment_slots.append({
+                "slot": "🛡️ 보조무기",
+                "tech": tech,
+                "priority": 2
+            })
+
+        # 장신구 슬롯 (도구, 최대 4개)
+        for tech in categorized_tech["tool"][:4]:
+            equipment_slots.append({
+                "slot": "💍 장신구",
+                "tech": tech,
+                "priority": 3
+            })
+
+        if equipment_slots:
+            # 장비창 HTML 박스 생성
+            lines.append('<div style="border: 3px solid #8b5cf6; border-radius: 12px; padding: 25px; margin: 20px 0; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);">')
+            lines.append('  <h3 style="margin: 0 0 20px 0; color: #5b21b6; text-align: center; font-size: 1.5em;">⚔️ 장착 중인 장비 ⚔️</h3>')
+            lines.append('  <div style="display: grid; gap: 12px;">')
+
+            current_slot_type = None
+            slot_count = {"🎯 주무기": 1, "🛡️ 보조무기": 1, "💍 장신구": 1}
+
+            for item in equipment_slots:
+                slot = item["slot"]
+                tech = item["tech"]
+                tier = tech["tier"]
+
+                # 슬롯 타입이 바뀔 때마다 헤더 표시
+                if current_slot_type != slot:
+                    if current_slot_type is not None:
+                        lines.append('    <div style="height: 8px;"></div>')
+                    current_slot_type = slot
+
+                slot_num = slot_count[slot]
+                slot_count[slot] += 1
+
+                # 장비 아이템 박스
+                lines.append(f'    <div style="background: white; border: 2px solid {tier["color"]}; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px {tier["glow"]};">')
+                lines.append(f'      <div style="display: flex; align-items: center; justify-content: space-between;">')
+                lines.append(f'        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">')
+                lines.append(f'          <span style="font-size: 1.8em;">{tech["icon"]}</span>')
+                lines.append(f'          <div style="flex: 1;">')
+                lines.append(f'            <div style="font-weight: bold; color: #1f2937; font-size: 1.1em;">{slot} #{slot_num - 1}</div>')
+                lines.append(f'            <div style="color: #6b7280; font-size: 0.95em; margin-top: 2px;">{tech["weapon_name"]}</div>')
+                lines.append(f'          </div>')
+                lines.append(f'        </div>')
+                lines.append(f'        <div style="text-align: right;">')
+                lines.append(f'          <div style="background: {tier["color"]}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap;">{tier["prefix"]} {tier["name"]}</div>')
+                lines.append(f'          <div style="color: {tier["color"]}; font-weight: bold; font-size: 1.1em; margin-top: 4px;">{tech["percentage"]:.1f}%</div>')
+                lines.append(f'        </div>')
+                lines.append(f'      </div>')
+                lines.append(f'    </div>')
+
+            lines.append('  </div>')
+            lines.append('</div>')
+            lines.append("")
+        else:
+            lines.append("_장비를 장착하지 않았습니다._")
+            lines.append("")
+
+        # ============================================
+        # 📊 전체 무기 목록 (카테고리별 분류)
+        # ============================================
+        lines.append("### 📊 무기 및 장비 인벤토리")
+        lines.append("")
+        lines.append("> 한 해 동안 사용한 모든 기술의 상세 통계")
+        lines.append("")
+
+        # 카테고리별 테이블 생성
+        categories_to_display = [
+            ("language", "🎯 주무기 (프로그래밍 언어)", categorized_tech["language"]),
+            ("framework", "🛡️ 보조무기 (프레임워크 & 라이브러리)", categorized_tech["framework"]),
+            ("tool", "💍 장신구 (도구, DB, 인프라)", categorized_tech["tool"]),
+        ]
+
+        for category_key, category_title, tech_list in categories_to_display:
+            if not tech_list:
+                continue
+
+            lines.append(f"#### {category_title}")
+            lines.append("")
+
+            # 테이블 데이터 구성
+            headers = ["순위", "아이콘", "장비명", "등급", "사용 횟수", "비율", "강화도"]
+            rows = []
+
+            for idx, tech in enumerate(tech_list[:15], 1):  # 카테고리별 상위 15개
+                tier = tech["tier"]
+                percentage = tech["percentage"]
+
+                # 강화도 프로그레스 바
+                progress_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 4px; box-shadow: 0 0 10px {tier["glow"]};"></div></div>'
+
+                # 등급 배지
+                tier_badge = f'<span style="background: {tier["color"]}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap;">{tier["prefix"]} {tier["name"]}</span>'
+
+                rows.append([
+                    f"#{idx}",
+                    f'<span style="font-size: 1.5em;">{tech["icon"]}</span>',
+                    f'<strong>{tech["weapon_name"]}</strong><br><span style="color: #6b7280; font-size: 0.9em;">({tech["name"]})</span>',
+                    tier_badge,
+                    f'{tech["count"]:,}회',
+                    f'<strong style="color: {tier["color"]};">{percentage:.1f}%</strong>',
+                    progress_bar
+                ])
+
+            # HTML 테이블 렌더링
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+            lines.append("")
+
+        # Unknown 카테고리도 있으면 표시
+        if categorized_tech["unknown"]:
+            lines.append("#### 🔹 기타 기술")
+            lines.append("")
+
+            headers = ["순위", "기술명", "등급", "사용 횟수", "비율", "강화도"]
+            rows = []
+
+            for idx, tech in enumerate(categorized_tech["unknown"][:10], 1):
+                tier = tech["tier"]
+                percentage = tech["percentage"]
+
+                progress_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 4px;"></div></div>'
+                tier_badge = f'<span style="background: {tier["color"]}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">{tier["prefix"]} {tier["name"]}</span>'
+
+                rows.append([
+                    f"#{idx}",
+                    f"**{tech['name']}**",
+                    tier_badge,
+                    f'{tech["count"]:,}회',
+                    f'{percentage:.1f}%',
+                    progress_bar
+                ])
+
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+            lines.append("")
+
+        # ============================================
+        # 📈 기술 스택 통계 요약
+        # ============================================
+        lines.append("### 📈 기술 스택 다양성 분석")
+        lines.append("")
+
+        diversity_stats = f"""
+**📊 기술 통계**
+- 🎯 주무기 (언어): {len(categorized_tech["language"])}개
+- 🛡️ 보조무기 (프레임워크): {len(categorized_tech["framework"])}개
+- 💍 장신구 (도구): {len(categorized_tech["tool"])}개
+- 🔹 기타: {len(categorized_tech["unknown"])}개
+- ⚡ **총 기술 스택**: {len(tech_stack)}개
+
+**🏆 다양성 평가**
+"""
+
+        tech_count = len(tech_stack)
+        if tech_count >= 20:
+            diversity_stats += "- 💎 **전설급 다재다능**: 매우 다양한 기술 스택을 활용하고 있습니다!"
+        elif tech_count >= 15:
+            diversity_stats += "- ⚔️ **마스터 레벨**: 폭넓은 기술 스택을 보유하고 있습니다!"
+        elif tech_count >= 10:
+            diversity_stats += "- 🗡️ **숙련자 레벨**: 균형잡힌 기술 스택을 가지고 있습니다."
+        elif tech_count >= 5:
+            diversity_stats += "- 🔪 **성장 중**: 핵심 기술에 집중하고 있습니다."
+        else:
+            diversity_stats += "- 🔧 **전문가 지향**: 특정 기술에 깊이 있게 집중하고 있습니다."
+
+        lines.extend(GameRenderer.render_info_box(
+            title="🎯 기술 스택 종합 평가",
+            content=diversity_stats.strip(),
+            emoji="📊",
+            bg_color="#f0f9ff",
+            border_color="#3b82f6"
         ))
 
         lines.extend(["---", ""])
