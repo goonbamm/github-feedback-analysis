@@ -2124,12 +2124,19 @@ def _analyze_single_repository_for_year_review(
 
         # Collect tech stack data
         try:
+            # Get PR metadata for tech stack analysis
+            _, pr_metadata = collector.list_pull_requests(
+                repo=repo_name,
+                since=since,
+                filters=filters,
+                author=None  # Analyze all PRs in repo, not just user's
+            )
             tech_stack_snapshot = collector.collect_tech_stack(
                 repo=repo_name,
-                months=None  # Collect all-time tech stack
+                pr_metadata=pr_metadata
             )
-            if tech_stack_snapshot and tech_stack_snapshot.languages:
-                tech_stack = {lang: count for lang, count in tech_stack_snapshot.languages.items()}
+            if tech_stack_snapshot:
+                tech_stack = {lang: count for lang, count in tech_stack_snapshot.items()}
         except Exception as exc:
             console.print(f"[dim]Could not collect tech stack for {repo_name}: {exc}[/]")
 
