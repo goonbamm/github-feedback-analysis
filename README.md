@@ -550,20 +550,16 @@ reports/
 ├── metrics.json                     # 📈 개인 활동 분석 데이터 (JSON)
 ├── report.md                        # 📄 마크다운 보고서
 ├── integrated_full_report.md        # 🎯 통합 보고서 (brief + PR 리뷰)
-├── prompts/                         # 💬 LLM 프롬프트 패킷
-│   ├── strengths_overview.txt
-│   ├── collaboration_improvements.txt
-│   ├── quality_balance.txt
-│   ├── growth_story.txt
-│   └── next_half_goals.txt
-└── reviews/                         # 🔍 PR 리뷰 (서브디렉토리)
-    └── {repo_name}/
-        ├── pr-{number}/
-        │   ├── artefacts.json       # 원본 PR 데이터
-        │   ├── review_summary.json  # 구조화된 리뷰
-        │   ├── review.md            # 마크다운 리뷰
-        │   └── personal_development.json  # 개인 성장 분석
-        └── integrated_report.md     # 통합 PR 리뷰 보고서
+├── reviews/                         # 🔍 PR 리뷰 (서브디렉토리)
+│   └── {owner}__{repo_name}/        # 저장소별 리뷰 (owner__repo 형식)
+│       ├── pr-{number}/
+│       │   ├── artefacts.json       # 원본 PR 데이터
+│       │   ├── review_summary.json  # 구조화된 리뷰
+│       │   └── review.md            # 마크다운 리뷰
+│       ├── integrated_report.md     # 통합 PR 리뷰 보고서
+│       └── personal_development.json  # 개인 성장 분석
+└── year-in-review/                  # 🎊 연간 회고 (--year-in-review 옵션 사용 시)
+    └── year_{year}_in_review.md     # 연간 종합 보고서
 ```
 
 ### 📊 통합 보고서 구조 (`integrated_full_report.md`)

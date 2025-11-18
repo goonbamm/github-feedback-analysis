@@ -512,20 +512,16 @@ reports/
 ├── metrics.json                     # 📈 Personal activity analysis data (JSON)
 ├── report.md                        # 📄 Markdown report
 ├── integrated_full_report.md        # 🎯 Integrated report (brief + PR reviews)
-├── prompts/                         # 💬 LLM prompt packets
-│   ├── strengths_overview.txt
-│   ├── collaboration_improvements.txt
-│   ├── quality_balance.txt
-│   ├── growth_story.txt
-│   └── next_half_goals.txt
-└── reviews/                         # 🔍 PR reviews (subdirectories)
-    └── {repo_name}/
-        ├── pr-{number}/
-        │   ├── artefacts.json       # Raw PR data
-        │   ├── review_summary.json  # Structured review
-        │   ├── review.md            # Markdown review
-        │   └── personal_development.json  # Personal growth analysis
-        └── integrated_report.md     # Integrated PR review report
+├── reviews/                         # 🔍 PR reviews (subdirectories)
+│   └── {owner}__{repo_name}/        # Repository-specific reviews (owner__repo format)
+│       ├── pr-{number}/
+│       │   ├── artefacts.json       # Raw PR data
+│       │   ├── review_summary.json  # Structured review
+│       │   └── review.md            # Markdown review
+│       ├── integrated_report.md     # Integrated PR review report
+│       └── personal_development.json  # Personal growth analysis
+└── year-in-review/                  # 🎊 Year in Review (when using --year-in-review option)
+    └── year_{year}_in_review.md     # Annual comprehensive report
 ```
 
 </details>
