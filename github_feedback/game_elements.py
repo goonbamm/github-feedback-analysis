@@ -499,22 +499,22 @@ class LevelCalculator:
 
     # 종합 보고서용 99레벨 시스템
     LEVEL_99_TITLES = [
-        (500, 99, "전설의 코드마스터", "👑"),
-        (300, 80, "그랜드마스터", "💎"),
-        (150, 60, "마스터", "🏆"),
-        (75, 40, "전문가", "⭐"),
-        (30, 20, "숙련자", "💫"),
-        (10, 10, "초보자", "🌱"),
+        (700, 99, "전설의 코드마스터", "👑"),
+        (400, 80, "그랜드마스터", "💎"),
+        (200, 60, "마스터", "🏆"),
+        (100, 40, "전문가", "⭐"),
+        (50, 20, "숙련자", "💫"),
+        (20, 10, "초보자", "🌱"),
         (0, 1, "견습생", "✨"),
     ]
 
     # 개별/일반 보고서용 티어 시스템
     TIER_SYSTEM = [
-        (90, 6, "그랜드마스터", "👑"),
-        (75, 5, "마스터", "🏆"),
-        (60, 4, "전문가", "⭐"),
-        (40, 3, "숙련자", "💎"),
-        (20, 2, "견습생", "🎓"),
+        (95, 6, "그랜드마스터", "👑"),
+        (80, 5, "마스터", "🏆"),
+        (70, 4, "전문가", "⭐"),
+        (55, 3, "숙련자", "💎"),
+        (35, 2, "견습생", "🎓"),
         (0, 1, "초보자", "🌱"),
     ]
 
@@ -540,18 +540,18 @@ class LevelCalculator:
         for threshold, base_level, title, emoji in LevelCalculator.LEVEL_99_TITLES:
             if total_activity >= threshold:
                 # 세밀한 레벨 계산
-                if threshold == 500:
+                if threshold == 700:
                     level = 99
-                elif threshold == 300:
-                    level = min(99, 80 + (total_activity - 300) // 20)
-                elif threshold == 150:
-                    level = min(99, 60 + (total_activity - 150) // 10)
-                elif threshold == 75:
-                    level = min(99, 40 + (total_activity - 75) // 5)
-                elif threshold == 30:
-                    level = min(99, 20 + (total_activity - 30) // 3)
-                elif threshold == 10:
-                    level = min(99, 10 + (total_activity - 10) // 2)
+                elif threshold == 400:
+                    level = min(99, 80 + (total_activity - 400) // 20)
+                elif threshold == 200:
+                    level = min(99, 60 + (total_activity - 200) // 10)
+                elif threshold == 100:
+                    level = min(99, 40 + (total_activity - 100) // 5)
+                elif threshold == 50:
+                    level = min(99, 20 + (total_activity - 50) // 3)
+                elif threshold == 20:
+                    level = min(99, 10 + (total_activity - 20) // 2)
                 else:
                     level = max(1, total_activity)
 
@@ -622,32 +622,32 @@ class LevelCalculator:
         """
         badges = []
 
-        # 스탯 기반 뱃지 (80 이상)
-        if stats.get("code_quality", 0) >= 80:
+        # 스탯 기반 뱃지 (85 이상으로 상향)
+        if stats.get("code_quality", 0) >= 85:
             badges.append("🏅 코드 마스터")
-        if stats.get("collaboration", 0) >= 80:
+        if stats.get("collaboration", 0) >= 85:
             badges.append("🤝 협업 챔피언")
-        if stats.get("problem_solving", 0) >= 80:
+        if stats.get("problem_solving", 0) >= 85:
             badges.append("🧠 문제 해결 전문가")
-        if stats.get("productivity", 0) >= 80:
+        if stats.get("productivity", 0) >= 85:
             badges.append("⚡ 생산성 괴물")
-        if stats.get("growth", 0) >= 80:
+        if stats.get("growth", 0) >= 85:
             badges.append("🚀 급성장 개발자")
 
-        # 활동량 기반 뱃지
-        if total_commits >= 200:
+        # 활동량 기반 뱃지 (기준 상향)
+        if total_commits >= 300:
             badges.append("💯 커밋 마라토너")
-        elif total_commits >= 100:
+        elif total_commits >= 150:
             badges.append("📝 활발한 커미터")
 
-        if total_prs >= 50:
+        if total_prs >= 80:
             badges.append("🔀 PR 마스터")
-        elif total_prs >= 20:
+        elif total_prs >= 30:
             badges.append("🔄 PR 컨트리뷰터")
 
-        if total_repos >= 10:
+        if total_repos >= 15:
             badges.append("🌐 멀티버스 탐험가")
-        elif total_repos >= 5:
+        elif total_repos >= 8:
             badges.append("🗺️ 던전 크롤러")
 
         return badges

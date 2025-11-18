@@ -710,8 +710,8 @@ class Reporter:
         award_count = len(metrics.awards) if metrics.awards else 0
         code_quality = min(100, int(
             (merge_rate * 40) +  # Merge success rate (0-40)
-            (min(award_count / 10, 1) * 30) +  # Award achievement (0-30)
-            (30 if total_commits >= 50 else (total_commits / 50) * 30)  # Experience (0-30)
+            (min(award_count / 15, 1) * 30) +  # Award achievement (0-30) - 기준 상향
+            (30 if total_commits >= 100 else (total_commits / 100) * 30)  # Experience (0-30) - 기준 상향
         ))
 
         # Collaboration (0-100): Based on reviews and PR engagement
@@ -720,9 +720,9 @@ class Reporter:
         review_count = collab_network.review_received_count if collab_network else 0
 
         collaboration = min(100, int(
-            (min(total_reviews / 20, 1) * 40) +  # Review activity (0-40)
-            (min(unique_collaborators / 10, 1) * 35) +  # Network size (0-35)
-            (25 if review_count >= 30 else (review_count / 30) * 25)  # Review received (0-25)
+            (min(total_reviews / 30, 1) * 40) +  # Review activity (0-40) - 기준 상향
+            (min(unique_collaborators / 15, 1) * 35) +  # Network size (0-35) - 기준 상향
+            (25 if review_count >= 50 else (review_count / 50) * 25)  # Review received (0-25) - 기준 상향
         ))
 
         # Problem Solving (0-100): Based on PR diversity and tech stack
@@ -731,9 +731,9 @@ class Reporter:
         language_count = len(tech_stack.top_languages) if tech_stack and tech_stack.top_languages else 0
 
         problem_solving = min(100, int(
-            (min(total_prs / 15, 1) * 40) +  # PR production (0-40)
+            (min(total_prs / 25, 1) * 40) +  # PR production (0-40) - 기준 상향
             (tech_diversity * 35) +  # Technology breadth (0-35)
-            (min(language_count / 5, 1) * 25)  # Language variety (0-25)
+            (min(language_count / 7, 1) * 25)  # Language variety (0-25) - 기준 상향
         ))
 
         # Productivity (0-100): Based on total activity volume
@@ -741,9 +741,9 @@ class Reporter:
         monthly_velocity = total_activity / metrics.months if metrics.months > 0 else 0
 
         productivity = min(100, int(
-            (min(total_commits / 100, 1) * 35) +  # Commit volume (0-35)
-            (min(total_prs / 30, 1) * 35) +  # PR volume (0-35)
-            (min(monthly_velocity / 20, 1) * 30)  # Velocity (0-30)
+            (min(total_commits / 150, 1) * 35) +  # Commit volume (0-35) - 기준 상향
+            (min(total_prs / 50, 1) * 35) +  # PR volume (0-35) - 기준 상향
+            (min(monthly_velocity / 30, 1) * 30)  # Velocity (0-30) - 기준 상향
         ))
 
         # Growth (0-100): Based on highlights and retrospective insights
@@ -758,10 +758,10 @@ class Reporter:
             growth_indicators = min(positive_trends, 5)
 
         growth = min(100, int(
-            50 +  # Base growth score
-            (min(highlight_count / 5, 1) * 25) +  # Highlights (0-25)
+            30 +  # Base growth score - 기준 하향 (50->30)
+            (min(highlight_count / 8, 1) * 25) +  # Highlights (0-25) - 기준 상향
             (15 if has_retrospective else 0) +  # Deep analysis bonus (0-15)
-            (growth_indicators * 2)  # Positive trend bonus (0-10)
+            (growth_indicators * 6)  # Positive trend bonus (0-30) - 보너스 증대
         ))
 
         return {

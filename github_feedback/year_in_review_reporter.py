@@ -156,7 +156,7 @@ TECH_CUSTOM_ICONS = {
 # 7단계 무기 등급 시스템
 WEAPON_TIERS = [
     {
-        "threshold": 50,
+        "threshold": 60,  # 기준 상향 (50->60)
         "name": "신화",
         "prefix": "💎",
         "suffix": "신화 무기",
@@ -164,7 +164,7 @@ WEAPON_TIERS = [
         "glow": "rgba(236, 72, 153, 0.3)"
     },
     {
-        "threshold": 30,
+        "threshold": 40,  # 기준 상향 (30->40)
         "name": "전설",
         "prefix": "⚔️",
         "suffix": "전설 무기",
@@ -172,7 +172,7 @@ WEAPON_TIERS = [
         "glow": "rgba(251, 191, 36, 0.3)"
     },
     {
-        "threshold": 20,
+        "threshold": 28,  # 기준 상향 (20->28)
         "name": "영웅",
         "prefix": "🗡️",
         "suffix": "영웅 무기",
@@ -180,7 +180,7 @@ WEAPON_TIERS = [
         "glow": "rgba(249, 115, 22, 0.3)"
     },
     {
-        "threshold": 10,
+        "threshold": 18,  # 기준 상향 (10->18)
         "name": "희귀",
         "prefix": "⚡",
         "suffix": "희귀 무기",
@@ -188,7 +188,7 @@ WEAPON_TIERS = [
         "glow": "rgba(139, 92, 246, 0.3)"
     },
     {
-        "threshold": 5,
+        "threshold": 10,  # 기준 상향 (5->10)
         "name": "고급",
         "prefix": "🔪",
         "suffix": "고급 무기",
@@ -196,7 +196,7 @@ WEAPON_TIERS = [
         "glow": "rgba(59, 130, 246, 0.3)"
     },
     {
-        "threshold": 2,
+        "threshold": 5,  # 기준 상향 (2->5)
         "name": "일반",
         "prefix": "🔨",
         "suffix": "일반 무기",
@@ -870,35 +870,35 @@ class YearInReviewReporter:
         # Calculate stats (0-100 scale)
         # 1. Code Quality - based on PR count and diversity
         code_quality = min(100, int(
-            (min(total_prs / 50, 1) * 50) +  # PR volume
-            (min(total_repos / 10, 1) * 30) +  # Repository diversity
-            20  # Base score
+            (min(total_prs / 80, 1) * 50) +  # PR volume - 기준 상향
+            (min(total_repos / 15, 1) * 30) +  # Repository diversity - 기준 상향
+            0  # Base score - 기준 하향 (20->0)
         ))
 
         # 2. Productivity - based on commit count
         productivity = min(100, int(
-            (min(total_commits / 200, 1) * 60) +  # Commit volume
-            (min(total_activity / 300, 1) * 40)  # Total activity
+            (min(total_commits / 300, 1) * 60) +  # Commit volume - 기준 상향
+            (min(total_activity / 500, 1) * 40)  # Total activity - 기준 상향
         ))
 
         # 3. Collaboration - based on number of repositories
         collaboration = min(100, int(
-            (min(total_repos / 5, 1) * 40) +  # Repository count
-            (min(total_prs / 30, 1) * 40) +  # PR engagement
-            20  # Base score
+            (min(total_repos / 8, 1) * 40) +  # Repository count - 기준 상향
+            (min(total_prs / 50, 1) * 40) +  # PR engagement - 기준 상향
+            0  # Base score - 기준 하향 (20->0)
         ))
 
         # 4. Consistency - based on activity distribution
         consistency = min(100, int(
-            (min(total_activity / 200, 1) * 50) +  # Overall activity
-            30  # Base score
+            (min(total_activity / 300, 1) * 50) +  # Overall activity - 기준 상향
+            10  # Base score - 기준 하향 (30->10)
         ))
 
         # 5. Growth - based on improvement indicators
         repos_with_growth = len([r for r in repository_analyses if r.growth_indicators])
         growth = min(100, int(
-            50 +  # Base growth score
-            (min(repos_with_growth / len(repository_analyses) if repository_analyses else 0, 1) * 50)
+            30 +  # Base growth score - 기준 하향 (50->30)
+            (min(repos_with_growth / len(repository_analyses) if repository_analyses else 0, 1) * 70)  # 보너스 증대 (50->70)
         ))
 
         # 스탯 딕셔너리 구성 (종합 보고서용)
@@ -930,7 +930,7 @@ class YearInReviewReporter:
         )
 
         # consistency를 꾸준함 뱃지로 교체 (종합 보고서 전용)
-        if stats.get("consistency", 0) >= 80:
+        if stats.get("consistency", 0) >= 85:  # 기준 상향 (80->85)
             badges = [b for b in badges if "협업 챔피언" not in b or b == "🤝 협업 챔피언"]
             badges.append("📅 꾸준함의 화신")
 
