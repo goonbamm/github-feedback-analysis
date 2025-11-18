@@ -381,11 +381,13 @@ class YearInReviewReporter:
         return lines
 
     def _generate_tech_stack_analysis(self, tech_stack: List[tuple]) -> List[str]:
-        """무기 장비 분석 생성 (HTML 버전)."""
+        """무기 장비 분석 생성 (테마 장비 시스템 사용)."""
+        from .game_elements import EquipmentSystem
+
         lines = [
             "## ⚔️ 장착 무기 및 장비 (기술 스택)",
             "",
-            "> 한 해 동안 사용한 언어와 프레임워크",
+            "> 한 해 동안 사용한 언어와 프레임워크를 RPG 장비로 시각화",
             "",
         ]
 
@@ -396,47 +398,65 @@ class YearInReviewReporter:
 
         total_changes = sum(count for _, count in tech_stack)
 
-        # Build table data
-        headers = ["순위", "언어/프레임워크", "등급", "사용 횟수", "비율", "시각화"]
-        rows = []
+        # 장비 인벤토리 설명
+        lines.extend([
+            '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 8px; margin-bottom: 20px;">',
+            '  <h3 style="margin: 0 0 8px 0; font-size: 1.2em;">🎒 장비 인벤토리</h3>',
+            '  <p style="margin: 0; opacity: 0.95; line-height: 1.5;">',
+            '    각 기술은 사용 빈도에 따라 전설(⭐⭐⭐), 희귀(⭐⭐), 일반(⭐) 등급으로 분류됩니다.<br>',
+            '    장비마다 고유한 이름과 특성이 부여되어 당신의 기술 역량을 표현합니다!',
+            '  </p>',
+            '</div>',
+            '',
+        ])
 
+        # 각 기술을 장비 카드로 렌더링
         for idx, (lang, count) in enumerate(tech_stack[:10], 1):  # Top 10
             percentage = (count / total_changes * 100) if total_changes > 0 else 0
 
-            # Determine weapon tier
-            if percentage >= 30:
-                tier = "⚔️ 전설 무기"
-                tier_color = "#fbbf24"
-            elif percentage >= 15:
-                tier = "🗡️ 희귀 무기"
-                tier_color = "#8b5cf6"
-            elif percentage >= 5:
-                tier = "🔪 일반 무기"
-                tier_color = "#3b82f6"
-            else:
-                tier = "🔧 보조 도구"
-                tier_color = "#6b7280"
+            # 장비 정보 가져오기
+            equipment_info = EquipmentSystem.get_equipment_info(lang, percentage)
 
-            # Visual bar using progress bar
-            visual_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier_color}; height: 100%; width: {percentage}%; border-radius: 4px;"></div></div>'
+            # 장비 카드 렌더링
+            card_html = EquipmentSystem.render_equipment_card(
+                rank=idx,
+                tech_name=lang,
+                equipment_info=equipment_info,
+                usage_count=count,
+                usage_percentage=percentage
+            )
 
-            rows.append([
-                str(idx),
-                lang,
-                tier,
-                f"{count:,}",
-                f"{percentage:.1f}%",
-                visual_bar
-            ])
+            lines.append(card_html)
+            lines.append('')
 
-        # Render as HTML table
-        lines.extend(GameRenderer.render_html_table(
-            headers=headers,
-            rows=rows,
-            title="무기 사용 통계",
-            description="상위 10개 언어/프레임워크",
-            striped=True
-        ))
+        # 장비 통계 요약
+        legendary_count = sum(1 for lang, count in tech_stack[:10]
+                             if (count / total_changes * 100) >= 30)
+        rare_count = sum(1 for lang, count in tech_stack[:10]
+                        if 15 <= (count / total_changes * 100) < 30)
+        common_count = sum(1 for lang, count in tech_stack[:10]
+                          if 5 <= (count / total_changes * 100) < 15)
+
+        lines.extend([
+            '<div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #667eea;">',
+            '  <h4 style="margin: 0 0 12px 0; color: #2d3748;">📊 장비 등급 분포</h4>',
+            '  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">',
+            f'    <div style="text-align: center; padding: 12px; background: white; border-radius: 6px; border: 2px solid #fbbf24;">',
+            f'      <div style="font-size: 1.5em; margin-bottom: 4px;">⭐⭐⭐</div>',
+            f'      <div style="font-weight: bold; color: #f59e0b;">전설 {legendary_count}개</div>',
+            f'    </div>',
+            f'    <div style="text-align: center; padding: 12px; background: white; border-radius: 6px; border: 2px solid #8b5cf6;">',
+            f'      <div style="font-size: 1.5em; margin-bottom: 4px;">⭐⭐</div>',
+            f'      <div style="font-weight: bold; color: #7c3aed;">희귀 {rare_count}개</div>',
+            f'    </div>',
+            f'    <div style="text-align: center; padding: 12px; background: white; border-radius: 6px; border: 2px solid #3b82f6;">',
+            f'      <div style="font-size: 1.5em; margin-bottom: 4px;">⭐</div>',
+            f'      <div style="font-weight: bold; color: #2563eb;">일반 {common_count}개</div>',
+            f'    </div>',
+            '  </div>',
+            '</div>',
+            '',
+        ])
 
         lines.extend(["---", ""])
         return lines
