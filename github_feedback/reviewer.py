@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 import requests
 
@@ -79,27 +79,26 @@ class Reviewer:
         self._write_json(summary_path, summary.to_dict())
         return summary_path
 
-    def _fallback_summary(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
-        """Provide a deterministic summary with heuristic analysis when the LLM cannot be reached."""
-
-        overview = (
-            f"Pull Request #{bundle.number}는 {bundle.changed_files}개 파일을 수정했으며, "
-            f"+{bundle.additions} 추가, -{bundle.deletions} 삭제가 있습니다."
-        )
+    def _evaluate_description(
+        self, bundle: PullRequestReviewBundle
+    ) -> Tuple[List[ReviewPoint], List[ReviewPoint]]:
+        """Create review points about the PR description quality."""
 
         strengths: List[ReviewPoint] = []
         improvements: List[ReviewPoint] = []
+        min_quality_len = HEURISTIC_THRESHOLDS["pr_body_min_quality_length"]
+        body = bundle.body.strip() if bundle.body else ""
 
-        # Heuristic 1: Assess PR description quality
-        min_quality_len = HEURISTIC_THRESHOLDS['pr_body_min_quality_length']
-        if bundle.body and len(bundle.body.strip()) > min_quality_len:
+        if body and len(body) > min_quality_len:
             strengths.append(
                 ReviewPoint(
                     message="Pull Request 설명이 상세하고 맥락을 잘 제공합니다.",
-                    example=bundle.body.strip().splitlines()[0][:TEXT_LIMITS['commit_message_display_length']],
+                    example=body.splitlines()[0][
+                        : TEXT_LIMITS["commit_message_display_length"]
+                    ],
                 )
             )
-        elif bundle.body and bundle.body.strip():
+        elif body:
             improvements.append(
                 ReviewPoint(
                     message="PR 설명이 너무 간략합니다. 더 많은 맥락을 제공해보세요.",
@@ -114,8 +113,21 @@ class Reviewer:
                 )
             )
 
-        # Heuristic 2: Check for test files
-        test_files = [f for f in bundle.files if 'test' in f.filename.lower() or 'spec' in f.filename.lower()]
+        return strengths, improvements
+
+    def _evaluate_tests(
+        self, bundle: PullRequestReviewBundle
+    ) -> Tuple[List[ReviewPoint], List[ReviewPoint]]:
+        """Assess whether the PR adds or updates tests."""
+
+        strengths: List[ReviewPoint] = []
+        improvements: List[ReviewPoint] = []
+        test_files = [
+            f
+            for f in bundle.files
+            if "test" in f.filename.lower() or "spec" in f.filename.lower()
+        ]
+
         if test_files:
             strengths.append(
                 ReviewPoint(
@@ -131,10 +143,19 @@ class Reviewer:
                 )
             )
 
-        # Heuristic 3: Assess PR size
-        pr_very_large = HEURISTIC_THRESHOLDS['pr_very_large']
-        pr_small = HEURISTIC_THRESHOLDS['pr_small']
+        return strengths, improvements
+
+    def _evaluate_pr_size(
+        self, bundle: PullRequestReviewBundle
+    ) -> Tuple[List[ReviewPoint], List[ReviewPoint]]:
+        """Assess the size of a PR in terms of total changes."""
+
+        strengths: List[ReviewPoint] = []
+        improvements: List[ReviewPoint] = []
+        pr_very_large = HEURISTIC_THRESHOLDS["pr_very_large"]
+        pr_small = HEURISTIC_THRESHOLDS["pr_small"]
         total_changes = bundle.additions + bundle.deletions
+
         if total_changes > pr_very_large:
             improvements.append(
                 ReviewPoint(
@@ -150,8 +171,21 @@ class Reviewer:
                 )
             )
 
-        # Heuristic 4: Check for documentation files
-        doc_files = [f for f in bundle.files if any(ext in f.filename.lower() for ext in ['.md', 'readme', 'doc'])]
+        return strengths, improvements
+
+    def _evaluate_documentation(
+        self, bundle: PullRequestReviewBundle
+    ) -> Tuple[List[ReviewPoint], List[ReviewPoint]]:
+        """Highlight documentation changes, if any."""
+
+        strengths: List[ReviewPoint] = []
+        improvements: List[ReviewPoint] = []
+        doc_files = [
+            f
+            for f in bundle.files
+            if any(ext in f.filename.lower() for ext in [".md", "readme", "doc"])
+        ]
+
         if doc_files:
             strengths.append(
                 ReviewPoint(
@@ -160,7 +194,16 @@ class Reviewer:
                 )
             )
 
-        # Heuristic 5: Assess review comments
+        return strengths, improvements
+
+    def _evaluate_self_review(
+        self, bundle: PullRequestReviewBundle
+    ) -> Tuple[List[ReviewPoint], List[ReviewPoint]]:
+        """Assess whether self-review comments were provided."""
+
+        strengths: List[ReviewPoint] = []
+        improvements: List[ReviewPoint] = []
+
         if bundle.review_comments and len(bundle.review_comments) > 0:
             strengths.append(
                 ReviewPoint(
@@ -175,6 +218,32 @@ class Reviewer:
                     example="복잡한 로직이나 주요 결정사항에 대해 설명하세요.",
                 )
             )
+
+        return strengths, improvements
+
+    def _fallback_summary(self, bundle: PullRequestReviewBundle) -> ReviewSummary:
+        """Provide a deterministic summary with heuristic analysis when the LLM cannot be reached."""
+
+        overview = (
+            f"Pull Request #{bundle.number}는 {bundle.changed_files}개 파일을 수정했으며, "
+            f"+{bundle.additions} 추가, -{bundle.deletions} 삭제가 있습니다."
+        )
+
+        strengths: List[ReviewPoint] = []
+        improvements: List[ReviewPoint] = []
+
+        evaluators = [
+            self._evaluate_description,
+            self._evaluate_tests,
+            self._evaluate_pr_size,
+            self._evaluate_documentation,
+            self._evaluate_self_review,
+        ]
+
+        for evaluator in evaluators:
+            new_strengths, new_improvements = evaluator(bundle)
+            strengths.extend(new_strengths)
+            improvements.extend(new_improvements)
 
         # Ensure we have at least some content
         if not strengths:
