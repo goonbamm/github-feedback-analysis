@@ -423,7 +423,7 @@ class Reporter:
                 # Determine mastery based on award position
                 mastery = 100 - (metrics.awards.index(award) * 10)
                 acquired_skills.append({
-                    "name": award[:40],
+                    "name": award,
                     "type": "패시브",
                     "mastery": mastery,
                     "effect": "지속적으로 발휘되는 강점",
@@ -436,11 +436,11 @@ class Reporter:
             remaining = 5 - len(acquired_skills)
             for highlight in metrics.highlights[:remaining]:
                 acquired_skills.append({
-                    "name": highlight.split('.')[0][:40],
+                    "name": highlight.split('.')[0],
                     "type": "액티브",
                     "mastery": 80,
                     "effect": "의식적으로 활용하는 능력",
-                    "evidence": [highlight[:100]],
+                    "evidence": [highlight],
                     "emoji": "✨"
                 })
 
@@ -452,7 +452,7 @@ class Reporter:
                         "name": "커밋 메시지 향상",
                         "type": "미습득",
                         "mastery": 40,
-                        "effect": suggestion[:40],
+                        "effect": suggestion,
                         "evidence": [suggestion],
                         "emoji": "📝"
                     })
@@ -463,7 +463,7 @@ class Reporter:
                         "name": "PR 제목 최적화",
                         "type": "미습득",
                         "mastery": 40,
-                        "effect": suggestion[:40],
+                        "effect": suggestion,
                         "evidence": [suggestion],
                         "emoji": "🔀"
                     })
@@ -473,7 +473,7 @@ class Reporter:
             positive_patterns = [bp for bp in metrics.retrospective.behavior_patterns if bp.impact == "positive"]
             for pattern in positive_patterns[:3]:
                 growing_skills.append({
-                    "name": pattern.description[:40],
+                    "name": pattern.description,
                     "type": "성장중",
                     "mastery": 60,
                     "effect": "빠르게 발전하고 있는 영역",
