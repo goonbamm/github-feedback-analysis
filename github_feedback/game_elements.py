@@ -245,7 +245,9 @@ class GameRenderer:
             for key, value in experience_data.items():
                 lines.append(f'      <tr>')
                 lines.append(f'        <td style="padding: 6px 0; color: #cbd5e0;">{key}</td>')
-                lines.append(f'        <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #fbbf24;">{value:,}</td>')
+                # Format numbers with commas, but keep strings as-is
+                formatted_value = f'{value:,}' if isinstance(value, int) else value
+                lines.append(f'        <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #fbbf24;">{formatted_value}</td>')
                 lines.append(f'      </tr>')
 
             lines.append(f'    </table>')

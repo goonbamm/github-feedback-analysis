@@ -460,10 +460,10 @@ class YearInReviewReporter:
 
         # 경험치 데이터 준비
         experience_data = {
-            "🏰 탐험한 던전": f"{total_repos}",
-            "⚔️  완료한 퀘스트": f"{total_prs}",
-            "💫 발동한 스킬": f"{total_commits}",
-            "🎯 총 경험치": f"{total_activity} EXP",
+            "🏰 탐험한 던전": total_repos,
+            "⚔️  완료한 퀘스트": total_prs,
+            "💫 발동한 스킬": total_commits,
+            "🎯 총 경험치": f"{total_activity:,} EXP",
         }
 
         # 뱃지 생성
