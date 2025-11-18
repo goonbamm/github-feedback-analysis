@@ -499,19 +499,19 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 个人活动分析数据（JSON）
-├── report.md                 # 📄 Markdown 报告
-├── report.html               # 🎨 HTML 报告（包含可视化图表）
-├── charts/                   # 📊 可视化图表（SVG）
-│   ├── quality.svg          # 质量指标图表
-│   ├── activity.svg         # 活动指标图表
-│   ├── engagement.svg       # 参与度图表
-│   └── ...                  # 其他特定领域图表
-└── prompts/
-    ├── commit_feedback.txt   # 💬 提交信息质量分析
-    ├── pr_feedback.txt       # 🔀 PR 标题分析
-    ├── review_feedback.txt   # 👀 审查语气分析
-    └── issue_feedback.txt    # 🐛 议题质量分析
+├── metrics.json                     # 📈 个人活动分析数据（JSON）
+├── report.md                        # 📄 Markdown 报告
+├── integrated_full_report.md        # 🎯 综合报告（brief + PR 评审）
+├── reviews/                         # 🔍 PR 评审（子目录）
+│   └── {owner}__{repo_name}/        # 仓库专属评审（owner__repo 格式）
+│       ├── pr-{number}/
+│       │   ├── artefacts.json       # 原始 PR 数据
+│       │   ├── review_summary.json  # 结构化评审
+│       │   └── review.md            # Markdown 评审
+│       ├── integrated_report.md     # 综合 PR 评审报告
+│       └── personal_development.json  # 个人成长分析
+└── year-in-review/                  # 🎊 年度回顾（使用 --year-in-review 选项时）
+    └── year_{year}_in_review.md     # 年度综合报告
 ```
 
 </details>

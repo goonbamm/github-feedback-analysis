@@ -498,19 +498,19 @@ nano ~/.config/github_feedback/config.toml
 
 ```
 reports/
-├── metrics.json              # 📈 Datos de análisis de actividad personal (JSON)
-├── report.md                 # 📄 Informe en Markdown
-├── report.html               # 🎨 Informe HTML (con gráficos de visualización)
-├── charts/                   # 📊 Gráficos de visualización (SVG)
-│   ├── quality.svg          # Gráfico de métricas de calidad
-│   ├── activity.svg         # Gráfico de métricas de actividad
-│   ├── engagement.svg       # Gráfico de participación
-│   └── ...                  # Otros gráficos específicos del dominio
-└── prompts/
-    ├── commit_feedback.txt   # 💬 Análisis de calidad de mensajes de commit
-    ├── pr_feedback.txt       # 🔀 Análisis de títulos de PR
-    ├── review_feedback.txt   # 👀 Análisis de tono de revisión
-    └── issue_feedback.txt    # 🐛 Análisis de calidad de issues
+├── metrics.json                     # 📈 Datos de análisis de actividad personal (JSON)
+├── report.md                        # 📄 Informe en Markdown
+├── integrated_full_report.md        # 🎯 Informe integrado (brief + revisiones de PR)
+├── reviews/                         # 🔍 Revisiones de PR (subdirectorios)
+│   └── {owner}__{repo_name}/        # Revisiones específicas del repositorio (formato owner__repo)
+│       ├── pr-{number}/
+│       │   ├── artefacts.json       # Datos originales del PR
+│       │   ├── review_summary.json  # Revisión estructurada
+│       │   └── review.md            # Revisión en Markdown
+│       ├── integrated_report.md     # Informe integrado de revisión de PR
+│       └── personal_development.json  # Análisis de crecimiento personal
+└── year-in-review/                  # 🎊 Revisión Anual (cuando se usa la opción --year-in-review)
+    └── year_{year}_in_review.md     # Informe anual completo
 ```
 
 </details>
