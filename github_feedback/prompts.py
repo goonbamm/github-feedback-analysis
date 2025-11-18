@@ -64,6 +64,41 @@ def get_commit_analysis_system_prompt(web_url: str, repo: str, max_samples: int)
         "   - 예: '첫 줄이 50자를 초과하여 가독성이 떨어집니다. 또한 명령형 동사로 시작하지 않아 일관성이 부족합니다.'\n"
         f"2. 각 예시에 **전체 GitHub URL**을 'url' 필드에 포함하세요: {web_url}/{repo}/commit/{{sha}}\n"
         "3. 예시 개수는 적어도 되지만(각 1-3개), **품질과 구체성**이 가장 중요합니다\n\n"
+        "**Few-shot 학습 예시:**\n\n"
+        "예시 입력:\n"
+        '- 커밋 메시지: "feat(auth): Implement JWT token refresh mechanism (#234)"\n'
+        '- 커밋 메시지: "update"\n\n'
+        "좋은 응답:\n"
+        "{\n"
+        '  "examples_good": [{\n'
+        '    "message": "feat(auth): Implement JWT token refresh mechanism (#234)",\n'
+        '    "reason": "이 커밋 메시지는 Conventional Commits 형식을 완벽하게 따르고 있습니다. '
+        "'feat' 타입으로 기능 추가임을 명시하고, '(auth)' scope로 변경 범위를 지정했으며, 첫 줄이 50자 이내로 간결합니다. "
+        "또한 PR 번호(#234) 참조를 포함하여 추가 컨텍스트 확인이 용이합니다. 명령형 동사 'Implement'를 사용하여 일관성을 유지했습니다.\"\n"
+        '  }],\n'
+        '  "examples_poor": [{\n'
+        '    "message": "update",\n'
+        '    "reason": "이 커밋 메시지는 매우 모호하고 정보가 부족합니다. '
+        "'무엇을' 업데이트했는지, '왜' 업데이트했는지, '어떻게' 변경했는지 전혀 알 수 없습니다. "
+        "또한 10자 이하로 너무 짧고, 타입(feat/fix/refactor 등)도 명시되지 않았습니다. "
+        "리뷰어나 나중에 이 커밋을 보는 사람이 변경 내용을 파악하기 매우 어렵습니다.\",\n"
+        '    "suggestion": "무엇을 업데이트했는지 구체적으로 작성하세요. '
+        "예: 'feat(api): Update user profile API to include avatar URL field' 또는 "
+        "'fix(auth): Update token validation to handle expired tokens properly'\"\n"
+        '  }]\n'
+        "}\n\n"
+        "나쁜 응답 (피해야 할 패턴):\n"
+        "{\n"
+        '  "examples_good": [{\n'
+        '    "message": "feat(auth): Implement JWT token refresh mechanism (#234)",\n'
+        '    "reason": "좋은 커밋 메시지입니다."  // ❌ 너무 간략하고 구체성 부족\n'
+        '  }],\n'
+        '  "examples_poor": [{\n'
+        '    "message": "update",\n'
+        '    "reason": "불명확합니다.",  // ❌ 왜 불명확한지 설명 없음\n'
+        '    "suggestion": "더 자세히 작성하세요"  // ❌ 구체적인 개선 방향 없음\n'
+        '  }]\n'
+        "}\n\n"
         "응답 형식:\n"
         "{\n"
         '  "good_count": 숫자,\n'
@@ -122,6 +157,45 @@ def get_pr_title_analysis_system_prompt() -> str:
         '- "Update code" (무엇을 왜?)\n'
         '- "fix" (무엇을 수정?)\n'
         '- "Implement feature/login/api/..." (구체성 부족)\n\n'
+        "**Few-shot 학습 예시:**\n\n"
+        "예시 입력:\n"
+        '- PR #123 제목: "[Feature] Add Redis caching layer for user session data"\n'
+        '- PR #124 제목: "fix bug"\n\n'
+        "좋은 응답:\n"
+        "{\n"
+        '  "examples_good": [{\n'
+        '    "number": 123,\n'
+        '    "title": "[Feature] Add Redis caching layer for user session data",\n'
+        '    "reason": "이 제목은 변경의 타입([Feature])과 구체적인 구현 내용을 명확하게 전달합니다. '
+        "'무엇을'(Redis caching layer), '어디에'(user session data), '어떻게'(Add)를 모두 포함하여 "
+        "제목만으로도 PR의 목적을 완전히 이해할 수 있습니다. 또한 적절한 길이(50-60자)를 유지하고 있으며, "
+        "기술 스택(Redis)과 적용 대상(user session)을 명시하여 리뷰어가 사전 지식을 준비할 수 있습니다.\",\n"
+        '    "score": 9\n'
+        '  }],\n'
+        '  "examples_poor": [{\n'
+        '    "number": 124,\n'
+        '    "title": "fix bug",\n'
+        '    "reason": "이 제목은 매우 모호하고 정보가 부족합니다. '
+        "'어떤' 버그를, '어디서', '어떻게' 수정했는지 전혀 알 수 없습니다. "
+        "제목이 너무 짧고(7자) 구체적인 동사나 대상이 없어, 리뷰어가 PR 본문을 읽지 않고는 "
+        "변경 내용을 전혀 파악할 수 없습니다. 또한 타입(fix)만 있고 범위나 영향도를 전혀 명시하지 않았습니다.\",\n"
+        '    "suggestion": "어떤 버그를 수정했는지 구체적으로 작성하세요. '
+        "예: '[Fix] Resolve null pointer exception in user authentication flow' 또는 "
+        "'[Fix] Handle edge case when session token expires during API call'\"\n"
+        '  }]\n'
+        "}\n\n"
+        "나쁜 응답 (피해야 할 패턴):\n"
+        "{\n"
+        '  "examples_good": [{\n'
+        '    "title": "[Feature] Add Redis caching layer for user session data",\n'
+        '    "reason": "명확합니다."  // ❌ 왜 명확한지 구체적인 설명 없음\n'
+        '  }],\n'
+        '  "examples_poor": [{\n'
+        '    "title": "fix bug",\n'
+        '    "reason": "너무 짧습니다.",  // ❌ 구체성 부족의 문제점을 충분히 설명하지 않음\n'
+        '    "suggestion": "더 자세히 쓰세요"  // ❌ 구체적인 개선 예시 없음\n'
+        '  }]\n'
+        "}\n\n"
         "응답 형식:\n"
         "{\n"
         '  "clear_count": 숫자,\n'

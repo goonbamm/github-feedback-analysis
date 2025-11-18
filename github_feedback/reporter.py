@@ -194,12 +194,101 @@ class Reporter:
 
         return lines
 
+    def _build_quick_stats_dashboard(self, metrics: MetricSnapshot) -> List[str]:
+        """Build a visual dashboard with key metrics at a glance."""
+        lines = ["## ⚡ Quick Stats Dashboard", ""]
+        lines.append("> 한눈에 보는 핵심 지표")
+        lines.append("")
+
+        # Calculate key metrics
+        total_commits = metrics.stats.get("commits", {}).get("total", 0)
+        total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
+        total_reviews = metrics.stats.get("reviews", {}).get("total", 0)
+        total_issues = metrics.stats.get("issues", {}).get("total", 0)
+        total_activity = total_commits + total_prs + total_reviews + total_issues
+
+        # Calculate quality scores if available
+        commit_quality_pct = 0
+        pr_quality_pct = 0
+
+        if metrics.detailed_feedback:
+            if hasattr(metrics.detailed_feedback, 'commit_feedback') and metrics.detailed_feedback.commit_feedback:
+                cf = metrics.detailed_feedback.commit_feedback
+                if cf.total_commits > 0:
+                    commit_quality_pct = (cf.good_commits / cf.total_commits) * 100
+
+            if hasattr(metrics.detailed_feedback, 'pr_title_feedback') and metrics.detailed_feedback.pr_title_feedback:
+                pf = metrics.detailed_feedback.pr_title_feedback
+                if pf.total_prs > 0:
+                    pr_quality_pct = (pf.clear_prs / pf.total_prs) * 100
+
+        # Create visual stats boxes
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════════╗")
+        lines.append("║                    📊 활동 요약                                ║")
+        lines.append("╠═══════════════════════════════════════════════════════════════╣")
+        lines.append(f"║  💻 커밋: {total_commits:>6}개  |  🔀 PR: {total_prs:>6}개  |  👀 리뷰: {total_reviews:>6}개  ║")
+        lines.append(f"║  🐛 이슈: {total_issues:>6}개  |  📈 총 활동: {total_activity:>6}개           ║")
+        lines.append("╚═══════════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        # Quality indicators with progress bars
+        if commit_quality_pct > 0 or pr_quality_pct > 0:
+            lines.append("### 📈 품질 지표")
+            lines.append("")
+
+            if commit_quality_pct > 0:
+                commit_bar = self._create_progress_bar(commit_quality_pct)
+                commit_emoji = "🟢" if commit_quality_pct >= 80 else "🟡" if commit_quality_pct >= 60 else "🔴"
+                lines.append(f"**커밋 메시지 품질** {commit_emoji}")
+                lines.append(f"```{commit_bar} {commit_quality_pct:.1f}%```")
+                lines.append("")
+
+            if pr_quality_pct > 0:
+                pr_bar = self._create_progress_bar(pr_quality_pct)
+                pr_emoji = "🟢" if pr_quality_pct >= 80 else "🟡" if pr_quality_pct >= 60 else "🔴"
+                lines.append(f"**PR 제목 명확성** {pr_emoji}")
+                lines.append(f"```{pr_bar} {pr_quality_pct:.1f}%```")
+                lines.append("")
+
+        # Top achievements
+        if metrics.awards:
+            lines.append("### 🏆 주요 성과")
+            lines.append("")
+            top_awards = metrics.awards[:3]  # Show top 3 awards
+            for award in top_awards:
+                lines.append(f"- {award}")
+            if len(metrics.awards) > 3:
+                lines.append(f"- ... 외 {len(metrics.awards) - 3}개 어워드")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def _create_progress_bar(percentage: float, width: int = 30) -> str:
+        """Create a text-based progress bar.
+
+        Args:
+            percentage: Percentage value (0-100)
+            width: Width of the progress bar in characters
+
+        Returns:
+            Progress bar string
+        """
+        filled = int((percentage / 100) * width)
+        empty = width - filled
+        return "█" * filled + "░" * empty
+
     def _build_table_of_contents(self, metrics: MetricSnapshot) -> List[str]:
         """Build table of contents section."""
         lines = ["## 📑 목차", ""]
 
         sections = [
-            ("📊 Executive Summary", "한눈에 보는 핵심 지표"),
+            ("⚡ Quick Stats Dashboard", "한눈에 보는 핵심 지표"),
             ("🏆 Awards Cabinet", "획득한 어워드"),
             ("✨ Growth Highlights", "성장 하이라이트"),
             ("📈 Monthly Trends", "월별 활동 트렌드"),
@@ -814,7 +903,7 @@ class Reporter:
         )
 
     def _build_monthly_trends_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build monthly trends section."""
+        """Build monthly trends section with enhanced analytics."""
         if not metrics.monthly_trends:
             return []
 
@@ -822,27 +911,135 @@ class Reporter:
         lines.append("> 월별 활동 패턴과 트렌드 분석")
         lines.append("")
 
+        # Calculate summary statistics
+        total_activities = []
+        for trend in metrics.monthly_trends:
+            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+            total_activities.append(total_activity)
+
+        if total_activities:
+            avg_activity = sum(total_activities) / len(total_activities)
+            max_activity = max(total_activities)
+            min_activity = min(total_activities)
+            max_idx = total_activities.index(max_activity)
+            min_idx = total_activities.index(min_activity)
+
+            # Period comparison (first half vs second half)
+            if len(metrics.monthly_trends) >= 2:
+                midpoint = len(metrics.monthly_trends) // 2
+                first_half_avg = sum(total_activities[:midpoint]) / midpoint
+                second_half_avg = sum(total_activities[midpoint:]) / (len(total_activities) - midpoint)
+                growth_rate = ((second_half_avg - first_half_avg) / first_half_avg * 100) if first_half_avg > 0 else 0
+
+                lines.append("### 📊 기간 비교 분석")
+                lines.append("")
+                lines.append("```")
+                lines.append("╔════════════════════════════════════════════════════════════╗")
+                lines.append("║              전반기 vs 후반기 비교                           ║")
+                lines.append("╠════════════════════════════════════════════════════════════╣")
+                lines.append(f"║  전반기 평균: {first_half_avg:>6.1f}개/월                      ║")
+                lines.append(f"║  후반기 평균: {second_half_avg:>6.1f}개/월                      ║")
+
+                growth_emoji = "📈" if growth_rate > 0 else "📉" if growth_rate < 0 else "➡️"
+                growth_sign = "+" if growth_rate > 0 else ""
+                lines.append(f"║  성장률: {growth_sign}{growth_rate:>6.1f}% {growth_emoji}                        ║")
+                lines.append("╚════════════════════════════════════════════════════════════╝")
+                lines.append("```")
+                lines.append("")
+
+            # Activity trend visualization
+            lines.append("### 📉 활동 추세 시각화")
+            lines.append("")
+            sparkline = self._create_sparkline(total_activities)
+            lines.append(f"```\n{sparkline}\n```")
+            lines.append("")
+            lines.append(f"**피크 월**: {metrics.monthly_trends[max_idx].month} ({max_activity}개)")
+            lines.append(f"**저점 월**: {metrics.monthly_trends[min_idx].month} ({min_activity}개)")
+            lines.append(f"**평균**: {avg_activity:.1f}개/월")
+            lines.append("")
+
+        # LLM insights
         if metrics.monthly_insights and metrics.monthly_insights.insights:
-            lines.append("### 💡 인사이트")
+            lines.append("### 💡 AI 인사이트")
             lines.append("")
             for i, insight in enumerate(metrics.monthly_insights.insights, 1):
                 lines.append(f"{i}. {insight}")
             lines.append("")
 
+        # Detailed monthly data
         lines.append("### 📊 월별 상세 데이터")
         lines.append("")
-        lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 |")
-        lines.append("|---|---|---|---|---|---|")
-        for trend in metrics.monthly_trends:
-            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+        lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 | 트렌드 |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for i, trend in enumerate(metrics.monthly_trends):
+            total_activity = total_activities[i] if i < len(total_activities) else 0
+
+            # Add trend indicator
+            if i == 0:
+                trend_indicator = "🔵"
+            else:
+                prev_total = total_activities[i-1]
+                if total_activity > prev_total * 1.1:
+                    trend_indicator = "📈"
+                elif total_activity < prev_total * 0.9:
+                    trend_indicator = "📉"
+                else:
+                    trend_indicator = "➡️"
+
             lines.append(
                 f"| {trend.month} | {trend.commits} | {trend.pull_requests} | "
-                f"{trend.reviews} | {trend.issues} | **{total_activity}** |"
+                f"{trend.reviews} | {trend.issues} | **{total_activity}** | {trend_indicator} |"
             )
         lines.append("")
         lines.append("---")
         lines.append("")
         return lines
+
+    @staticmethod
+    def _create_sparkline(data: List[int | float], width: int = 50) -> str:
+        """Create a text-based sparkline chart for trend visualization.
+
+        Args:
+            data: List of numeric values to visualize
+            width: Width of the chart in characters
+
+        Returns:
+            Multi-line sparkline chart as string
+        """
+        if not data:
+            return ""
+
+        # Normalize data to fit within chart
+        min_val = min(data)
+        max_val = max(data)
+        value_range = max_val - min_val if max_val != min_val else 1
+
+        # Create chart with 5 rows (height)
+        height = 5
+        chart_lines = []
+
+        for row in range(height):
+            line = []
+            threshold = max_val - (row * value_range / height)
+
+            for value in data:
+                if value >= threshold:
+                    line.append("█")
+                else:
+                    line.append(" ")
+
+            # Add value labels on the right
+            if row == 0:
+                chart_lines.append("".join(line) + f"  {max_val:.0f}")
+            elif row == height - 1:
+                chart_lines.append("".join(line) + f"  {min_val:.0f}")
+            else:
+                chart_lines.append("".join(line))
+
+        # Add x-axis
+        chart_lines.append("─" * len(data))
+
+        return "\n".join(chart_lines)
 
     def _build_tech_stack_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build tech stack section."""
@@ -1253,19 +1450,21 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Awards Cabinet - Celebrate achievements first!
+            # 2. Quick Stats Dashboard - Visual overview at a glance
+            self._build_quick_stats_dashboard(metrics),
+            # 3. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 3. Growth Highlights - Show the story
+            # 4. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 4. Monthly Trends - Show patterns
+            # 5. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 5. Detailed Feedback - Actionable insights
+            # 6. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 6. Deep Retrospective - Comprehensive analysis
+            # 7. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 7. Spotlight Examples - Concrete evidence
+            # 8. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 8. Tech Stack - Technical breadth
+            # 9. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
@@ -1300,19 +1499,21 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Awards Cabinet - Celebrate achievements first!
+            # 2. Quick Stats Dashboard - Visual overview at a glance
+            self._build_quick_stats_dashboard(metrics),
+            # 3. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 3. Growth Highlights - Show the story
+            # 4. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 4. Monthly Trends - Show patterns
+            # 5. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 5. Detailed Feedback - Actionable insights
+            # 6. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 6. Deep Retrospective - Comprehensive analysis
+            # 7. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 7. Spotlight Examples - Concrete evidence
+            # 8. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 8. Tech Stack - Technical breadth
+            # 9. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
