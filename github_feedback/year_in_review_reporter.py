@@ -333,7 +333,7 @@ class YearInReviewReporter:
         return lines
 
     def _generate_tech_stack_analysis(self, tech_stack: List[tuple]) -> List[str]:
-        """무기 장비 분석 생성."""
+        """무기 장비 분석 생성 (HTML 버전)."""
         lines = [
             "## ⚔️ 장착 무기 및 장비 (기술 스택)",
             "",
@@ -348,10 +348,9 @@ class YearInReviewReporter:
 
         total_changes = sum(count for _, count in tech_stack)
 
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
-        lines.append("║                     무기 사용 통계                        ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        # Build table data
+        headers = ["순위", "언어/프레임워크", "등급", "사용 횟수", "비율", "시각화"]
+        rows = []
 
         for idx, (lang, count) in enumerate(tech_stack[:10], 1):  # Top 10
             percentage = (count / total_changes * 100) if total_changes > 0 else 0
@@ -359,25 +358,39 @@ class YearInReviewReporter:
             # Determine weapon tier
             if percentage >= 30:
                 tier = "⚔️ 전설 무기"
+                tier_color = "#fbbf24"
             elif percentage >= 15:
                 tier = "🗡️ 희귀 무기"
+                tier_color = "#8b5cf6"
             elif percentage >= 5:
                 tier = "🔪 일반 무기"
+                tier_color = "#3b82f6"
             else:
                 tier = "🔧 보조 도구"
+                tier_color = "#6b7280"
 
-            # Visual bar (20 blocks for 100%)
-            filled = int(percentage / 5)
-            empty = 20 - filled
-            bar = "▓" * filled + "░" * empty
+            # Visual bar using progress bar
+            visual_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier_color}; height: 100%; width: {percentage}%; border-radius: 4px;"></div></div>'
 
-            # Pad language name
-            lang_padded = pad_to_width(lang, 18, align='left')
-            lines.append(f"║  {idx:2}. {lang_padded} │ [{bar}] {percentage:>5.1f}%  ║")
+            rows.append([
+                str(idx),
+                lang,
+                tier,
+                f"{count:,}",
+                f"{percentage:.1f}%",
+                visual_bar
+            ])
 
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
-        lines.extend(["", "---", ""])
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="무기 사용 통계",
+            description="상위 10개 언어/프레임워크",
+            striped=True
+        ))
+
+        lines.extend(["---", ""])
         return lines
 
 
@@ -385,7 +398,7 @@ class YearInReviewReporter:
         self, year: int, total_repos: int, total_prs: int, total_commits: int,
         repository_analyses: List[RepositoryAnalysis]
     ) -> List[str]:
-        """게임 캐릭터 스탯 생성 (99레벨 시스템 사용)."""
+        """게임 캐릭터 스탯 생성 (HTML 버전, 99레벨 시스템 사용)."""
         lines = [
             "## 🎮 개발자 캐릭터 스탯",
             "",
@@ -433,12 +446,12 @@ class YearInReviewReporter:
             (min(repos_with_growth / len(repository_analyses) if repository_analyses else 0, 1) * 50)
         ))
 
-        # 스탯 딕셔너리 구성
+        # 스탯 딕셔너리 구성 (종합 보고서용)
         stats = {
             "code_quality": code_quality,
             "productivity": productivity,
             "collaboration": collaboration,
-            "consistency": consistency,  # Note: 종합 보고서는 "꾸준함" 사용
+            "consistency": consistency,  # 종합 보고서는 "꾸준함" 사용
             "growth": growth,
         }
 
@@ -447,10 +460,10 @@ class YearInReviewReporter:
 
         # 경험치 데이터 준비
         experience_data = {
-            "🏰 탐험한 던전": f"{total_repos:>4}개",
-            "⚔️  완료한 퀘스트": f"{total_prs:>4}개",
-            "💫 발동한 스킬": f"{total_commits:>4}회",
-            "🎯 총 경험치": f"{total_activity:>4} EXP",
+            "🏰 탐험한 던전": f"{total_repos}",
+            "⚔️  완료한 퀘스트": f"{total_prs}",
+            "💫 발동한 스킬": f"{total_commits}",
+            "🎯 총 경험치": f"{total_activity} EXP",
         }
 
         # 뱃지 생성
@@ -466,63 +479,20 @@ class YearInReviewReporter:
             badges = [b for b in badges if "협업 챔피언" not in b or b == "🤝 협업 챔피언"]
             badges.append("📅 꾸준함의 화신")
 
-        # GameRenderer로 캐릭터 스탯 렌더링 (경험치 데이터 포함)
-        # 하지만 종합 보고서는 커스텀 경험치 섹션이 필요하므로 직접 렌더링
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        # GameRenderer로 캐릭터 스탯 렌더링 (HTML 버전)
+        # 종합 보고서는 99레벨 시스템 사용 (use_tier_system=False)
+        character_lines = GameRenderer.render_character_stats(
+            level=level,
+            title=title,
+            rank_emoji=rank_emoji,
+            specialty_title=specialty_title,
+            stats=stats,
+            experience_data=experience_data,
+            badges=badges,
+            use_tier_system=False  # 99레벨 시스템 사용
+        )
 
-        # Title and level with proper padding
-        title_padded = pad_to_width(title, 24, align='left')
-        avg_stat = sum(stats.values()) / len(stats)
-        lines.append(f"║  {rank_emoji} Lv.{level:>2} {title_padded} 파워: {int(avg_stat):>3}/100  ║")
-
-        # 특성 표시
-        specialty_padded = pad_to_width(specialty_title, 43, align='left')
-        lines.append(f"║  🏅 특성: {specialty_padded} ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append("║                      능력치 현황                          ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-
-        # Render each stat (종합 보고서용 순서: 코드품질, 생산성, 협업력, 꾸준함, 성장성)
-        stat_order = [
-            ("💻", "코드 품질", code_quality),
-            ("⚡", "생산성", productivity),
-            ("🤝", "협업력", collaboration),
-            ("📅", "꾸준함", consistency),
-            ("📈", "성장성", growth),
-        ]
-
-        for emoji, name, value in stat_order:
-            # Create visual bar (20 blocks for 100%)
-            filled = value // 5
-            empty = 20 - filled
-            bar = "▓" * filled + "░" * empty
-
-            # Pad name to 12 display columns
-            name_padded = pad_to_width(name, 12, align='left')
-            lines.append(f"║ {emoji} {name_padded} [{bar}] {value:>3}/100 ║")
-
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append("║                      획득 경험치                          ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-        lines.append(f"║  🏰 탐험한 던전      │  {total_repos:>4}개                          ║")
-        lines.append(f"║  ⚔️  완료한 퀘스트    │  {total_prs:>4}개                          ║")
-        lines.append(f"║  💫 발동한 스킬      │  {total_commits:>4}회                          ║")
-        lines.append(f"║  🎯 총 경험치        │  {total_activity:>4} EXP                      ║")
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
-        lines.append("")
-
-        # 뱃지 표시
-        if badges:
-            lines.append("**🎖️ 획득한 업적 뱃지:**")
-            lines.append("")
-            # Display badges in rows of 3
-            for i in range(0, len(badges), 3):
-                badge_row = badges[i:i+3]
-                lines.append("| " + " | ".join(badge_row) + " |")
-            lines.append("")
-
+        lines.extend(character_lines)
         lines.append("---")
         lines.append("")
         return lines

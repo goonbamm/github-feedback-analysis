@@ -899,7 +899,7 @@ class ReviewReporter:
         return lines
 
     def _render_code_changes_visualization(self, reviews: List[StoredReview]) -> List[str]:
-        """Render code changes as visual bar charts."""
+        """Render code changes as visual bar charts (HTML version)."""
         if not reviews:
             return []
 
@@ -913,8 +913,10 @@ class ReviewReporter:
         # Show top 10 PRs with most changes
         lines.append("### 상위 10개 PR (변경량 기준)")
         lines.append("")
-        lines.append("| PR | 제목 | 추가 | 삭제 | 총 변경 | 시각화 |")
-        lines.append("|-----|------|------|------|---------|---------|")
+
+        # Build table data
+        headers = ["PR", "제목", "추가", "삭제", "총 변경", "시각화"]
+        rows = []
 
         for review in sorted_reviews[:10]:
             total_changes = review.additions + review.deletions
@@ -930,17 +932,27 @@ class ReviewReporter:
                 del_bar_length = 0
 
             visual_bar = f"{'🟩' * add_bar_length}{'🟥' * del_bar_length}"
-
             title_short = review.title[:30] + "..." if len(review.title) > 30 else review.title
-            lines.append(
-                f"| [#{review.number}]({review.html_url}) | {title_short} | "
-                f"+{review.additions:,} | -{review.deletions:,} | "
-                f"{total_changes:,} | {visual_bar} |"
-            )
 
-        lines.append("")
+            rows.append([
+                f"[#{review.number}]({review.html_url})",
+                title_short,
+                f"+{review.additions:,}",
+                f"-{review.deletions:,}",
+                f"{total_changes:,}",
+                visual_bar
+            ])
 
-        # Add distribution chart using Mermaid
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
+        # Add distribution chart using Mermaid (keep as is)
         lines.append("### 코드 변경량 분포")
         lines.append("")
         lines.append("```mermaid")
@@ -991,14 +1003,25 @@ class ReviewReporter:
         lines.append("")
         lines.append("> 분석에 포함된 모든 PR 목록입니다")
         lines.append("")
-        lines.append("| # | PR | 제목 | 날짜 | 링크 |")
-        lines.append("|---|-----|------|------|------|")
+
+        # Build table data
+        headers = ["#", "PR", "제목", "날짜", "링크"]
+        rows = []
         for i, review in enumerate(reviews, 1):
             date_str = review.created_at.strftime("%Y-%m-%d")
             title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
             link = f"[보기]({review.html_url})" if review.html_url else "-"
-            lines.append(f"| {i} | #{review.number} | {title_short} | {date_str} | {link} |")
-        lines.append("")
+            rows.append([str(i), f"#{review.number}", title_short, date_str, link])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
 
@@ -1083,14 +1106,25 @@ class ReviewReporter:
         lines.append("")
         lines.append("> 분석에 포함된 모든 PR 목록입니다")
         lines.append("")
-        lines.append("| # | PR | 제목 | 날짜 | 링크 |")
-        lines.append("|---|-----|------|------|------|")
+
+        # Build table data
+        headers = ["#", "PR", "제목", "날짜", "링크"]
+        rows = []
         for i, review in enumerate(reviews, 1):
             date_str = review.created_at.strftime("%Y-%m-%d")
             title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
             link = f"[보기]({review.html_url})" if review.html_url else "-"
-            lines.append(f"| {i} | #{review.number} | {title_short} | {date_str} | {link} |")
-        lines.append("")
+            rows.append([str(i), f"#{review.number}", title_short, date_str, link])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
 
