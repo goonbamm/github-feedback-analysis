@@ -231,14 +231,32 @@ class ReviewReporter:
         if not self.llm or not reviews:
             return self._fallback_personal_development(reviews)
 
-        context = self._build_prompt_context(repo, reviews)
+        try:
+            messages = self._build_personal_development_messages(repo, reviews)
+            import json as json_module
 
-        # Split reviews into early and recent for growth analysis
+            content = self.llm.complete(messages, temperature=0.4)
+            data = json_module.loads(content)
+            return self._build_personal_development_analysis(data)
+        except Exception as exc:  # pragma: no cover
+            console.log("LLM 개인 발전 분석 실패", str(exc))
+            return self._fallback_personal_development(reviews)
+
+    def _split_reviews_for_growth(self, reviews: List[StoredReview]) -> tuple[List[StoredReview], List[StoredReview]]:
+        """Split reviews into early and recent lists for growth analysis."""
         midpoint = len(reviews) // 2
-        early_reviews = reviews[:midpoint] if midpoint > 0 else []
-        recent_reviews = reviews[midpoint:] if midpoint > 0 else reviews
+        if midpoint <= 0:
+            return [], reviews
+        return reviews[:midpoint], reviews[midpoint:]
 
-        messages = [
+    def _build_personal_development_messages(
+        self, repo: str, reviews: List[StoredReview]
+    ) -> List[dict]:
+        """Create LLM messages used for the personal development prompt."""
+        context = self._build_prompt_context(repo, reviews)
+        early_reviews, recent_reviews = self._split_reviews_for_growth(reviews)
+
+        return [
             {
                 "role": "system",
                 "content": get_personal_development_system_prompt(),
@@ -246,76 +264,88 @@ class ReviewReporter:
             {
                 "role": "user",
                 "content": get_personal_development_user_prompt(
-                    context,
-                    len(early_reviews),
-                    len(recent_reviews)
+                    context, len(early_reviews), len(recent_reviews)
                 ),
             },
         ]
 
-        try:
-            import json as json_module
+    def _build_personal_development_analysis(self, data: dict) -> PersonalDevelopmentAnalysis:
+        """Convert parsed LLM response into domain objects."""
+        if not isinstance(data, dict):  # pragma: no cover - defensive guard
+            raise ValueError("LLM response must be a JSON object")
 
-            content = self.llm.complete(messages, temperature=0.4)
-            data = json_module.loads(content)
+        return PersonalDevelopmentAnalysis(
+            strengths=self._parse_strength_points(data.get("strengths", [])),
+            improvement_areas=self._parse_improvement_areas(
+                data.get("improvement_areas", [])
+            ),
+            growth_indicators=self._parse_growth_indicators(
+                data.get("growth_indicators", [])
+            ),
+            tldr_summary=self._parse_tldr_summary(data.get("tldr_summary")),
+        )
 
-            # Parse TLDR summary
-            tldr_summary = None
-            if "tldr_summary" in data and data["tldr_summary"]:
-                tldr_data = data["tldr_summary"]
-                tldr_summary = TLDRSummary(
-                    top_strength=tldr_data.get("top_strength", ""),
-                    primary_focus=tldr_data.get("primary_focus", ""),
-                    measurable_goal=tldr_data.get("measurable_goal", ""),
+    def _parse_tldr_summary(self, payload: object) -> TLDRSummary | None:
+        if not isinstance(payload, dict):
+            return None
+        return TLDRSummary(
+            top_strength=str(payload.get("top_strength", "")),
+            primary_focus=str(payload.get("primary_focus", "")),
+            measurable_goal=str(payload.get("measurable_goal", "")),
+        )
+
+    def _parse_strength_points(self, payload: object) -> List[StrengthPoint]:
+        points: List[StrengthPoint] = []
+        if not isinstance(payload, list):
+            return points
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            points.append(
+                StrengthPoint(
+                    category=str(item.get("category", "기타")),
+                    description=str(item.get("description", "")),
+                    evidence=list(item.get("evidence", [])),
+                    impact=str(item.get("impact", "medium")),
                 )
-
-            # Parse strengths
-            strengths = []
-            for item in data.get("strengths", []):
-                strengths.append(
-                    StrengthPoint(
-                        category=item.get("category", "기타"),
-                        description=item.get("description", ""),
-                        evidence=item.get("evidence", []),
-                        impact=item.get("impact", "medium"),
-                    )
-                )
-
-            # Parse improvement areas
-            improvement_areas = []
-            for item in data.get("improvement_areas", []):
-                improvement_areas.append(
-                    ImprovementArea(
-                        category=item.get("category", "기타"),
-                        description=item.get("description", ""),
-                        evidence=item.get("evidence", []),
-                        suggestions=item.get("suggestions", []),
-                        priority=item.get("priority", "medium"),
-                    )
-                )
-
-            # Parse growth indicators
-            growth_indicators = []
-            for item in data.get("growth_indicators", []):
-                growth_indicators.append(
-                    GrowthIndicator(
-                        aspect=item.get("aspect", ""),
-                        description=item.get("description", ""),
-                        before_examples=item.get("before_examples", []),
-                        after_examples=item.get("after_examples", []),
-                        progress_summary=item.get("progress_summary", ""),
-                    )
-                )
-
-            return PersonalDevelopmentAnalysis(
-                strengths=strengths,
-                improvement_areas=improvement_areas,
-                growth_indicators=growth_indicators,
-                tldr_summary=tldr_summary,
             )
-        except Exception as exc:  # pragma: no cover
-            console.log("LLM 개인 발전 분석 실패", str(exc))
-            return self._fallback_personal_development(reviews)
+        return points
+
+    def _parse_improvement_areas(self, payload: object) -> List[ImprovementArea]:
+        areas: List[ImprovementArea] = []
+        if not isinstance(payload, list):
+            return areas
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            areas.append(
+                ImprovementArea(
+                    category=str(item.get("category", "기타")),
+                    description=str(item.get("description", "")),
+                    evidence=list(item.get("evidence", [])),
+                    suggestions=list(item.get("suggestions", [])),
+                    priority=str(item.get("priority", "medium")),
+                )
+            )
+        return areas
+
+    def _parse_growth_indicators(self, payload: object) -> List[GrowthIndicator]:
+        indicators: List[GrowthIndicator] = []
+        if not isinstance(payload, list):
+            return indicators
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            indicators.append(
+                GrowthIndicator(
+                    aspect=str(item.get("aspect", "")),
+                    description=str(item.get("description", "")),
+                    before_examples=list(item.get("before_examples", [])),
+                    after_examples=list(item.get("after_examples", [])),
+                    progress_summary=str(item.get("progress_summary", "")),
+                )
+            )
+        return indicators
 
     def _fallback_personal_development(
         self, reviews: List[StoredReview]
