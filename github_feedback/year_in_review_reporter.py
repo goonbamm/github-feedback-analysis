@@ -246,7 +246,12 @@ class YearInReviewReporter:
 
             # Link to detailed report
             if repo.integrated_report_path:
-                lines.append(f"📜 **[상세 보고서 보기]({repo.integrated_report_path.relative_to(self.output_dir.parent)})**")
+                # Year-in-review report is in reports/year-in-review/
+                # Integrated reports are in reports/reviews/
+                # So we need to go up one level (../) from year-in-review to reports
+                rel_from_reports = repo.integrated_report_path.relative_to(self.output_dir.parent)
+                rel_from_year_in_review = Path("..") / rel_from_reports
+                lines.append(f"📜 **[상세 보고서 보기]({rel_from_year_in_review})**")
                 lines.append("")
 
             # Key insights from personal development
