@@ -446,8 +446,8 @@ def _load_default_hosts() -> list[str]:
     ]
 
     try:
-        # Get the path to hosts.config.json in the project root
-        config_path = Path(__file__).parent.parent / "hosts.config.json"
+        # Get the path to hosts.config.json in the .config directory
+        config_path = Path(__file__).parent.parent / ".config" / "hosts.config.json"
 
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as f:
