@@ -2125,18 +2125,27 @@ def _analyze_single_repository_for_year_review(
         # Collect tech stack data
         try:
             # Get PR metadata for tech stack analysis
+            # Use a much broader time window to get sufficient data for tech stack analysis
+            # Instead of only PRs created in the target year, analyze recent repository activity
+            from datetime import timedelta
+            tech_stack_since = datetime(year - 2, 1, 1)  # Look back 2 years for better tech stack data
+
             _, pr_metadata = collector.list_pull_requests(
                 repo=repo_name,
-                since=since,
+                since=tech_stack_since,  # Use broader window for tech stack analysis
                 filters=filters,
                 author=None  # Analyze all PRs in repo, not just user's
             )
+
+            console.print(f"[dim]Analyzing tech stack from {len(pr_metadata)} PRs (since {tech_stack_since.year})[/]")
+
             tech_stack_snapshot = collector.collect_tech_stack(
                 repo=repo_name,
                 pr_metadata=pr_metadata
             )
             if tech_stack_snapshot:
                 tech_stack = {lang: count for lang, count in tech_stack_snapshot.items()}
+                console.print(f"[dim]Found {len(tech_stack)} technologies in tech stack[/]")
         except Exception as exc:
             console.print(f"[dim]Could not collect tech stack for {repo_name}: {exc}[/]")
 
