@@ -525,6 +525,16 @@ class ReviewReporter:
         if analysis.benchmarks:
             self._append_section_separator(lines)
 
+        # Add strength category distribution
+        lines.extend(self._render_strength_category_distribution(analysis))
+        if analysis.strengths:
+            self._append_section_separator(lines)
+
+        # Add improvement priority matrix
+        lines.extend(self._render_improvement_priority_matrix(analysis))
+        if analysis.improvement_areas:
+            self._append_section_separator(lines)
+
         # Overall assessment (collapsed by default)
         if analysis.overall_assessment:
             lines.append("<details>")
@@ -722,6 +732,200 @@ class ReviewReporter:
         lines.append("")
         return lines
 
+    def _render_statistics_dashboard(self, reviews: List[StoredReview]) -> List[str]:
+        """Render key metrics dashboard with visual cards."""
+        lines: List[str] = []
+
+        # Calculate statistics
+        total_prs = len(reviews)
+        total_additions = sum(r.additions for r in reviews)
+        total_deletions = sum(r.deletions for r in reviews)
+        total_files_changed = sum(r.changed_files for r in reviews)
+        avg_additions = total_additions // total_prs if total_prs > 0 else 0
+        avg_deletions = total_deletions // total_prs if total_prs > 0 else 0
+
+        # Count authors
+        unique_authors = len(set(r.author for r in reviews))
+
+        lines.append("## 📊 핵심 지표 대시보드")
+        lines.append("")
+        lines.append("| 지표 | 값 | 시각화 |")
+        lines.append("|------|-----|--------|")
+        lines.append(f"| 📝 **총 PR 수** | {total_prs}개 | {'🟦' * min(total_prs, 20)} |")
+        lines.append(f"| 👥 **참여 인원** | {unique_authors}명 | {'👤' * min(unique_authors, 10)} |")
+        lines.append(f"| ➕ **총 코드 추가** | +{total_additions:,}줄 | {'🟩' * min(total_additions // 100, 20)} |")
+        lines.append(f"| ➖ **총 코드 삭제** | -{total_deletions:,}줄 | {'🟥' * min(total_deletions // 100, 20)} |")
+        lines.append(f"| 📁 **변경된 파일** | {total_files_changed:,}개 | {'📄' * min(total_files_changed // 10, 20)} |")
+        lines.append(f"| 📈 **평균 코드 변경** | +{avg_additions}/-{avg_deletions}줄 | - |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        return lines
+
+    def _render_pr_activity_timeline(self, reviews: List[StoredReview]) -> List[str]:
+        """Render PR activity timeline using Mermaid diagram."""
+        if not reviews:
+            return []
+
+        lines: List[str] = []
+        lines.append("## 📅 PR 활동 타임라인")
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append("gantt")
+        lines.append("    title PR 활동 현황")
+        lines.append("    dateFormat YYYY-MM-DD")
+        lines.append("    section PR 활동")
+
+        # Show first 10 PRs to keep diagram readable
+        for review in reviews[:10]:
+            date_str = review.created_at.strftime("%Y-%m-%d")
+            safe_title = review.title.replace(":", " -")[:30]  # Limit length and escape colons
+            lines.append(f"    PR #{review.number} {safe_title} :{date_str}, 1d")
+
+        if len(reviews) > 10:
+            lines.append(f"    ... 외 {len(reviews) - 10}개 PR :crit, 2024-01-01, 1d")
+
+        lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        return lines
+
+    def _render_code_changes_visualization(self, reviews: List[StoredReview]) -> List[str]:
+        """Render code changes as visual bar charts."""
+        if not reviews:
+            return []
+
+        lines: List[str] = []
+        lines.append("## 📊 PR별 코드 변경량 분석")
+        lines.append("")
+
+        # Sort by total changes
+        sorted_reviews = sorted(reviews, key=lambda r: r.additions + r.deletions, reverse=True)
+
+        # Show top 10 PRs with most changes
+        lines.append("### 상위 10개 PR (변경량 기준)")
+        lines.append("")
+        lines.append("| PR | 제목 | 추가 | 삭제 | 총 변경 | 시각화 |")
+        lines.append("|-----|------|------|------|---------|---------|")
+
+        for review in sorted_reviews[:10]:
+            total_changes = review.additions + review.deletions
+            max_bar_length = 20
+
+            # Create visual bars
+            if total_changes > 0:
+                add_ratio = review.additions / total_changes
+                add_bar_length = int(max_bar_length * add_ratio)
+                del_bar_length = max_bar_length - add_bar_length
+            else:
+                add_bar_length = 0
+                del_bar_length = 0
+
+            visual_bar = f"{'🟩' * add_bar_length}{'🟥' * del_bar_length}"
+
+            title_short = review.title[:30] + "..." if len(review.title) > 30 else review.title
+            lines.append(
+                f"| [#{review.number}]({review.html_url}) | {title_short} | "
+                f"+{review.additions:,} | -{review.deletions:,} | "
+                f"{total_changes:,} | {visual_bar} |"
+            )
+
+        lines.append("")
+
+        # Add distribution chart using Mermaid
+        lines.append("### 코드 변경량 분포")
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append("pie title 전체 코드 변경 구성")
+
+        total_additions = sum(r.additions for r in reviews)
+        total_deletions = sum(r.deletions for r in reviews)
+
+        lines.append(f'    "코드 추가 (+{total_additions:,}줄)" : {total_additions}')
+        lines.append(f'    "코드 삭제 (-{total_deletions:,}줄)" : {total_deletions}')
+        lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        return lines
+
+    def _render_strength_category_distribution(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render strength categories distribution."""
+        if not analysis.strengths:
+            return []
+
+        lines: List[str] = []
+        lines.append("### 💪 강점 영역 분포")
+        lines.append("")
+
+        # Count by category
+        from collections import Counter
+        category_counts = Counter(s.category for s in analysis.strengths)
+
+        # Create visual distribution
+        lines.append("```mermaid")
+        lines.append("pie title 강점 카테고리 분포")
+        for category, count in category_counts.most_common():
+            safe_category = category[:40]  # Limit length
+            lines.append(f'    "{safe_category}" : {count}')
+        lines.append("```")
+        lines.append("")
+
+        return lines
+
+    def _render_improvement_priority_matrix(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render improvement areas as a priority matrix."""
+        if not analysis.improvement_areas:
+            return []
+
+        lines: List[str] = []
+        lines.append("### 🎯 개선 우선순위 매트릭스")
+        lines.append("")
+
+        # Group by priority
+        critical = [a for a in analysis.improvement_areas if a.priority == "critical"]
+        important = [a for a in analysis.improvement_areas if a.priority == "important"]
+        nice_to_have = [a for a in analysis.improvement_areas if a.priority == "nice-to-have"]
+
+        lines.append("```mermaid")
+        lines.append("quadrantChart")
+        lines.append("    title 개선사항 우선순위 매트릭스")
+        lines.append("    x-axis 낮은 중요도 --> 높은 중요도")
+        lines.append("    y-axis 낮은 긴급도 --> 높은 긴급도")
+        lines.append("    quadrant-1 즉시 실행")
+        lines.append("    quadrant-2 계획 수립")
+        lines.append("    quadrant-3 여유있을 때")
+        lines.append("    quadrant-4 재검토")
+
+        # Place items in quadrants
+        for i, area in enumerate(critical, 1):
+            safe_name = area.category[:20]
+            lines.append(f"    {safe_name}: [0.8, 0.8]")
+
+        for i, area in enumerate(important, 1):
+            safe_name = area.category[:20]
+            lines.append(f"    {safe_name}: [0.7, 0.5]")
+
+        for i, area in enumerate(nice_to_have, 1):
+            safe_name = area.category[:20]
+            lines.append(f"    {safe_name}: [0.4, 0.3]")
+
+        lines.append("```")
+        lines.append("")
+        lines.append("**우선순위 범례:**")
+        lines.append("- 🚨 **Critical**: 즉시 조치 필요")
+        lines.append("- ⚠️ **Important**: 계획을 세워 개선")
+        lines.append("- 💭 **Nice-to-have**: 여유가 생길 때 고려")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        return lines
+
     def _fallback_report(self, repo: str, reviews: List[StoredReview]) -> str:
         lines: List[str] = []
         lines.append("# 🎯 통합 코드 리뷰 보고서")
@@ -731,6 +935,15 @@ class ReviewReporter:
         lines.append("")
         lines.append("---")
         lines.append("")
+
+        # Add statistics dashboard
+        lines.extend(self._render_statistics_dashboard(reviews))
+
+        # Add PR activity timeline
+        lines.extend(self._render_pr_activity_timeline(reviews))
+
+        # Add code changes visualization
+        lines.extend(self._render_code_changes_visualization(reviews))
 
         # Table of contents
         lines.append("## 📑 목차")
