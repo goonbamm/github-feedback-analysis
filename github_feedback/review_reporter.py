@@ -289,54 +289,11 @@ class ReviewReporter:
                     )
                 )
 
-            # Parse action plan
-            action_plan = []
-            for item in data.get("action_plan", []):
-                action_plan.append(
-                    ActionPlanItem(
-                        week=item.get("week", 1),
-                        action=item.get("action", ""),
-                        measurable_goal=item.get("measurable_goal", ""),
-                        completed=item.get("completed", False),
-                    )
-                )
-
-            # Parse progress metrics
-            progress_metrics = []
-            for item in data.get("progress_metrics", []):
-                progress_metrics.append(
-                    ProgressMetric(
-                        area=item.get("area", ""),
-                        current_score=float(item.get("current_score", 0)),
-                        target_score=float(item.get("target_score", 0)),
-                        unit=item.get("unit", "점"),
-                    )
-                )
-
-            # Parse benchmarks
-            benchmarks = []
-            for item in data.get("benchmarks", []):
-                benchmarks.append(
-                    BenchmarkItem(
-                        metric=item.get("metric", ""),
-                        my_value=item.get("my_value", ""),
-                        team_average=item.get("team_average", ""),
-                        recommendation=item.get("recommendation", ""),
-                        insight=item.get("insight", ""),
-                    )
-                )
-
             return PersonalDevelopmentAnalysis(
                 strengths=strengths,
                 improvement_areas=improvement_areas,
                 growth_indicators=growth_indicators,
-                overall_assessment=data.get("overall_assessment", ""),
-                key_achievements=data.get("key_achievements", []),
-                next_focus_areas=data.get("next_focus_areas", []),
                 tldr_summary=tldr_summary,
-                action_plan=action_plan,
-                progress_metrics=progress_metrics,
-                benchmarks=benchmarks,
             )
         except Exception as exc:  # pragma: no cover
             console.log("LLM 개인 발전 분석 실패", str(exc))
@@ -416,84 +373,6 @@ class ReviewReporter:
         lines.append(f"- ✅ **가장 잘하고 있는 것**: {analysis.tldr_summary.top_strength}")
         lines.append(f"- 🎯 **이번 달 집중할 것**: {analysis.tldr_summary.primary_focus}")
         lines.append(f"- 📈 **측정 목표**: {analysis.tldr_summary.measurable_goal}")
-        lines.append("")
-        return lines
-
-    def _render_action_plan_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        """Render action plan checklist section."""
-        lines: List[str] = []
-        if not analysis.action_plan:
-            return lines
-
-        lines.append("## 📋 이번 달 액션 플랜")
-        lines.append("")
-        for item in analysis.action_plan:
-            checkbox = "✅" if item.completed else "⬜"
-            week_label = f"Week {item.week}"
-            lines.append(f"{checkbox} **{week_label}**: {item.action}")
-            if item.measurable_goal:
-                lines.append(f"   - 목표: {item.measurable_goal}")
-        lines.append("")
-        return lines
-
-    def _render_progress_tracker_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        """Render progress tracking metrics section."""
-        lines: List[str] = []
-        if not analysis.progress_metrics:
-            return lines
-
-        lines.append("## 📊 개선 진행 상황")
-        lines.append("")
-        lines.append("| 영역 | 현재 | 목표 | 진행률 |")
-        lines.append("|------|------|------|--------|")
-
-        for metric in analysis.progress_metrics:
-            # Create progress bar
-            progress = metric.progress_percent
-            filled = progress // 20  # 5 blocks, each 20%
-            empty = 5 - filled
-            progress_bar = "🟨" * filled + "⬜" * empty
-
-            lines.append(
-                f"| {metric.area} | {metric.current_score}{metric.unit} | "
-                f"{metric.target_score}{metric.unit} | {progress_bar} {progress}% |"
-            )
-        lines.append("")
-        return lines
-
-    def _render_benchmark_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        """Render benchmark comparison section."""
-        lines: List[str] = []
-        if not analysis.benchmarks:
-            return lines
-
-        lines.append("## 🎯 벤치마크 비교")
-        lines.append("")
-        lines.append("| 지표 | 나의 값 | 팀 평균 | 평가 |")
-        lines.append("|------|---------|---------|------|")
-
-        for benchmark in analysis.benchmarks:
-            # Add emoji based on recommendation
-            emoji = {
-                "우수": "🌟",
-                "양호": "✅",
-                "개선 필요": "⚠️",
-            }.get(benchmark.recommendation, "ℹ️")
-
-            recommendation_with_emoji = f"{emoji} {benchmark.recommendation}"
-            lines.append(
-                f"| {benchmark.metric} | {benchmark.my_value} | "
-                f"{benchmark.team_average} | {recommendation_with_emoji} |"
-            )
-
-        # Add insights if available
-        if any(b.insight for b in analysis.benchmarks):
-            lines.append("")
-            lines.append("**📌 인사이트:**")
-            for benchmark in analysis.benchmarks:
-                if benchmark.insight:
-                    lines.append(f"- **{benchmark.metric}**: {benchmark.insight}")
-
         lines.append("")
         return lines
 
@@ -696,89 +575,174 @@ class ReviewReporter:
     def _render_personal_development(
         self, analysis: PersonalDevelopmentAnalysis, reviews: List[StoredReview]
     ) -> List[str]:
-        """Render personal development analysis section."""
+        """Render personal development analysis section with simplified structure."""
         lines: List[str] = []
-        lines.append("## 👤 개인 성장 분석")
+        lines.append("## 👤 개인 피드백 리포트")
         lines.append("")
 
-        # Add TLDR section at the top
+        # 1. TLDR section (30초 요약)
         lines.extend(self._render_tldr_section(analysis))
-        if analysis.tldr_summary:
-            self._append_section_separator(lines)
-
-        # Add action plan
-        lines.extend(self._render_action_plan_section(analysis))
-        if analysis.action_plan:
-            self._append_section_separator(lines)
-
-        # Add progress tracker
-        lines.extend(self._render_progress_tracker_section(analysis))
-        if analysis.progress_metrics:
-            self._append_section_separator(lines)
-
-        # Add benchmarks
-        lines.extend(self._render_benchmark_section(analysis))
-        if analysis.benchmarks:
-            self._append_section_separator(lines)
-
-        # Add strength category distribution
-        lines.extend(self._render_strength_category_distribution(analysis))
-        if analysis.strengths:
-            self._append_section_separator(lines)
-
-        # Add improvement priority matrix
-        lines.extend(self._render_improvement_priority_matrix(analysis))
-        if analysis.improvement_areas:
-            self._append_section_separator(lines)
-
-        # Overall assessment (collapsed by default)
-        if analysis.overall_assessment:
-            lines.append("<details>")
-            lines.append("<summary><b>📝 전반적 평가</b> (클릭하여 펼치기)</summary>")
-            lines.append("")
-            lines.append(analysis.overall_assessment)
-            lines.append("")
-            lines.append("</details>")
-            lines.append("")
-            self._append_section_separator(lines)
+        lines.append("---")
+        lines.append("")
 
         pr_map = {review.number: review for review in reviews}
 
-        # Detailed sections (collapsed by default for better UX)
-        lines.append("<details>")
-        lines.append("<summary><b>✨ 장점 상세</b> (클릭하여 펼치기)</summary>")
+        # 2. Strengths (잘하고 있는 것) - 펼쳐진 상태
+        lines.extend(self._render_new_strengths_section(analysis, pr_map))
+        lines.append("---")
         lines.append("")
-        lines.extend(self._render_strengths_section(analysis, pr_map))
-        lines.append("</details>")
+
+        # 3. Improvements (보완하면 좋을 것) - 펼쳐진 상태
+        lines.extend(self._render_new_improvements_section(analysis, pr_map))
+        lines.append("---")
         lines.append("")
-        self._append_section_separator(lines)
 
-        lines.append("<details>")
-        lines.append("<summary><b>💡 보완점 상세</b> (클릭하여 펼치기)</summary>")
+        # 4. Growth (성장한 점) - 펼쳐진 상태
+        if analysis.growth_indicators:
+            lines.extend(self._render_new_growth_section(analysis, pr_map))
+            lines.append("---")
+            lines.append("")
+
+        return lines
+
+    def _render_new_strengths_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        """Render strengths in a clear, readable format."""
+        lines: List[str] = []
+        lines.append("## ✅ 잘하고 있는 것")
         lines.append("")
-        lines.extend(self._render_improvements_section(analysis, pr_map))
-        lines.append("</details>")
+
+        if not analysis.strengths:
+            lines.append("_분석된 강점이 없습니다._")
+            lines.append("")
+            return lines
+
+        for idx, strength in enumerate(analysis.strengths, 1):
+            # Title with impact indicator
+            impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(strength.impact, "⭐")
+            lines.append(f"### {idx}. {strength.category} {impact_emoji}")
+            lines.append("")
+
+            # Description
+            lines.append(f"**무엇이 좋은가**: {strength.description}")
+            lines.append("")
+
+            # Evidence with PR links
+            if strength.evidence:
+                lines.append("**구체적 근거**:")
+                for evidence in strength.evidence:
+                    # Try to extract PR numbers and add links
+                    pr_num = self._extract_pr_number(evidence)
+                    if pr_num and pr_num in pr_map:
+                        review = pr_map[pr_num]
+                        lines.append(f"- {evidence} ([보기]({review.html_url}))")
+                    else:
+                        lines.append(f"- {evidence}")
+                lines.append("")
+
+        return lines
+
+    def _render_new_improvements_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        """Render improvements in a clear, actionable format."""
+        lines: List[str] = []
+        lines.append("## 🔧 보완하면 좋을 것")
         lines.append("")
-        self._append_section_separator(lines)
 
-        lines.append("<details>")
-        lines.append("<summary><b>🌱 성장 지표 상세</b> (클릭하여 펼치기)</summary>")
+        if not analysis.improvement_areas:
+            lines.append("_분석된 개선점이 없습니다._")
+            lines.append("")
+            return lines
+
+        # Sort by priority
+        priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
+        sorted_improvements = sorted(
+            analysis.improvement_areas,
+            key=lambda area: priority_order.get(area.priority, 1),
+        )
+
+        for idx, area in enumerate(sorted_improvements, 1):
+            # Title with priority indicator
+            priority_emoji = {
+                "critical": "🚨",
+                "important": "⚠️",
+                "nice-to-have": "💭",
+            }.get(area.priority, "⚠️")
+            lines.append(f"### {idx}. {area.category} {priority_emoji}")
+            lines.append("")
+
+            # Description
+            lines.append(f"**현재 상황**: {area.description}")
+            lines.append("")
+
+            # Evidence with PR links
+            if area.evidence:
+                lines.append("**구체적 예시**:")
+                for evidence in area.evidence:
+                    pr_num = self._extract_pr_number(evidence)
+                    if pr_num and pr_num in pr_map:
+                        review = pr_map[pr_num]
+                        lines.append(f"- {evidence} ([보기]({review.html_url}))")
+                    else:
+                        lines.append(f"- {evidence}")
+                lines.append("")
+
+            # Suggestions
+            if area.suggestions:
+                lines.append("**개선 제안**:")
+                for suggestion in area.suggestions:
+                    lines.append(f"- {suggestion}")
+                lines.append("")
+
+        return lines
+
+    def _render_new_growth_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        """Render growth indicators in a before/after format."""
+        lines: List[str] = []
+        lines.append("## 📈 성장한 점")
         lines.append("")
-        lines.extend(self._render_growth_section(analysis))
-        lines.append("</details>")
-        lines.append("")
-        self._append_section_separator(lines)
 
-        # Key achievements and next focus (keep visible)
-        lines.extend(self._render_optional_list_section("### 🏆 주요 성과", analysis.key_achievements))
+        if not analysis.growth_indicators:
+            return lines
 
-        if analysis.key_achievements:
-            self._append_section_separator(lines)
+        for idx, growth in enumerate(analysis.growth_indicators, 1):
+            lines.append(f"### {idx}. {growth.aspect}")
+            lines.append("")
+            lines.append(f"{growth.description}")
+            lines.append("")
 
-        lines.extend(self._render_optional_list_section("### 🎯 다음 집중 영역", analysis.next_focus_areas))
+            # Before examples
+            if growth.before_examples:
+                lines.append("**Before (초기)**:")
+                for example in growth.before_examples:
+                    pr_num = self._extract_pr_number(example)
+                    if pr_num and pr_num in pr_map:
+                        review = pr_map[pr_num]
+                        lines.append(f"- {example} ([보기]({review.html_url}))")
+                    else:
+                        lines.append(f"- {example}")
+                lines.append("")
 
-        if analysis.next_focus_areas:
-            self._append_section_separator(lines)
+            # After examples
+            if growth.after_examples:
+                lines.append("**After (최근)**:")
+                for example in growth.after_examples:
+                    pr_num = self._extract_pr_number(example)
+                    if pr_num and pr_num in pr_map:
+                        review = pr_map[pr_num]
+                        lines.append(f"- {example} ([보기]({review.html_url}))")
+                    else:
+                        lines.append(f"- {example}")
+                lines.append("")
+
+            # Progress summary
+            if growth.progress_summary:
+                lines.append(f"**성장 요약**: {growth.progress_summary}")
+                lines.append("")
 
         return lines
 
@@ -807,126 +771,6 @@ class ReviewReporter:
                 links.append(f"[PR #{pr_num}]({review.html_url})")
 
         return "<br>".join(links) if links else "-"
-
-    def _render_strengths_section(
-        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
-    ) -> List[str]:
-        lines: List[str] = []
-        lines.append("### ✨ 장점 (구체적 근거)")
-        lines.append("")
-
-        if not analysis.strengths:
-            lines.append("분석된 장점이 없습니다.")
-            lines.append("")
-            return lines
-
-        lines.append("| 장점 | 근거/내용 | 링크 |")
-        lines.append("|------|-----------|------|")
-
-        for strength in analysis.strengths:
-            impact_emoji = {"high": "🔥", "medium": "⭐", "low": "💫"}.get(
-                strength.impact, "⭐"
-            )
-            category = f"**{strength.category}** {impact_emoji}"
-
-            content_parts = [strength.description]
-            if strength.evidence:
-                content_parts.append("<br>**구체적 근거:**")
-                for evidence in strength.evidence:
-                    content_parts.append(f"• {evidence}")
-            content = "<br>".join(content_parts)
-
-            link_cell = self._build_links(strength.evidence, pr_map)
-            lines.append(f"| {category} | {content} | {link_cell} |")
-
-        lines.append("")
-        return lines
-
-    def _render_improvements_section(
-        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
-    ) -> List[str]:
-        lines: List[str] = []
-        lines.append("### 💡 보완점 (실행 가능한 제안)")
-        lines.append("")
-
-        if not analysis.improvement_areas:
-            lines.append("분석된 보완점이 없습니다.")
-            lines.append("")
-            return lines
-
-        priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
-        sorted_improvements = sorted(
-            analysis.improvement_areas,
-            key=lambda area: priority_order.get(area.priority, 1),
-        )
-
-        lines.append("| 개선점 | 근거/내용 | 링크 |")
-        lines.append("|--------|-----------|------|")
-
-        for area in sorted_improvements:
-            priority_emoji = {
-                "critical": "🚨",
-                "important": "⚠️",
-                "nice-to-have": "💭",
-            }.get(area.priority, "⚠️")
-            category = f"**{area.category}** {priority_emoji}"
-
-            content_parts = [area.description]
-            if area.evidence:
-                content_parts.append("<br>**구체적 예시:**")
-                for evidence in area.evidence:
-                    content_parts.append(f"• {evidence}")
-            if area.suggestions:
-                content_parts.append("<br>**개선 제안:**")
-                for suggestion in area.suggestions:
-                    content_parts.append(f"• {suggestion}")
-            content = "<br>".join(content_parts)
-
-            link_cell = self._build_links(area.evidence, pr_map)
-            lines.append(f"| {category} | {content} | {link_cell} |")
-
-        lines.append("")
-        return lines
-
-    @staticmethod
-    def _render_growth_section(analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        lines: List[str] = []
-        lines.append("### 🌱 성장한 점 (시간에 따른 변화)")
-        lines.append("")
-
-        if not analysis.growth_indicators:
-            lines.append("- 분석된 성장 지표가 없습니다.")
-            lines.append("")
-            return lines
-
-        for i, growth in enumerate(analysis.growth_indicators, 1):
-            lines.append(f"{i}. **{growth.aspect}**")
-            lines.append(f"   - {growth.description}")
-            if growth.before_examples:
-                lines.append("   - **초기 단계:**")
-                for example in growth.before_examples:
-                    lines.append(f"     - {example}")
-            if growth.after_examples:
-                lines.append("   - **현재 단계:**")
-                for example in growth.after_examples:
-                    lines.append(f"     - {example}")
-            if growth.progress_summary:
-                lines.append(f"   - **성장 요약:** {growth.progress_summary}")
-            lines.append("")
-
-        return lines
-
-    @staticmethod
-    def _render_optional_list_section(title: str, items: Iterable[str]) -> List[str]:
-        items = list(items)
-        if not items:
-            return []
-
-        lines = [title, ""]
-        for item in items:
-            lines.append(f"- {item}")
-        lines.append("")
-        return lines
 
     def _render_statistics_dashboard(self, reviews: List[StoredReview]) -> List[str]:
         """Render key metrics dashboard with visual cards."""
@@ -1043,79 +887,6 @@ class ReviewReporter:
         lines.append(f'    "코드 추가 (+{total_additions:,}줄)" : {total_additions}')
         lines.append(f'    "코드 삭제 (-{total_deletions:,}줄)" : {total_deletions}')
         lines.append("```")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        return lines
-
-    def _render_strength_category_distribution(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        """Render strength categories distribution."""
-        if not analysis.strengths:
-            return []
-
-        lines: List[str] = []
-        lines.append("### 💪 강점 영역 분포")
-        lines.append("")
-
-        # Count by category
-        from collections import Counter
-        category_counts = Counter(s.category for s in analysis.strengths)
-
-        # Create visual distribution
-        lines.append("```mermaid")
-        lines.append("pie title 강점 카테고리 분포")
-        for category, count in category_counts.most_common():
-            safe_category = category[:40]  # Limit length
-            lines.append(f'    "{safe_category}" : {count}')
-        lines.append("```")
-        lines.append("")
-
-        return lines
-
-    def _render_improvement_priority_matrix(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
-        """Render improvement areas as a priority matrix."""
-        if not analysis.improvement_areas:
-            return []
-
-        lines: List[str] = []
-        lines.append("### 🎯 개선 우선순위 매트릭스")
-        lines.append("")
-
-        # Group by priority
-        critical = [a for a in analysis.improvement_areas if a.priority == "critical"]
-        important = [a for a in analysis.improvement_areas if a.priority == "important"]
-        nice_to_have = [a for a in analysis.improvement_areas if a.priority == "nice-to-have"]
-
-        lines.append("```mermaid")
-        lines.append("quadrantChart")
-        lines.append("    title 개선사항 우선순위 매트릭스")
-        lines.append("    x-axis 낮은 중요도 --> 높은 중요도")
-        lines.append("    y-axis 낮은 긴급도 --> 높은 긴급도")
-        lines.append("    quadrant-1 즉시 실행")
-        lines.append("    quadrant-2 계획 수립")
-        lines.append("    quadrant-3 여유있을 때")
-        lines.append("    quadrant-4 재검토")
-
-        # Place items in quadrants
-        for i, area in enumerate(critical, 1):
-            safe_name = area.category[:20]
-            lines.append(f"    {safe_name}: [0.8, 0.8]")
-
-        for i, area in enumerate(important, 1):
-            safe_name = area.category[:20]
-            lines.append(f"    {safe_name}: [0.7, 0.5]")
-
-        for i, area in enumerate(nice_to_have, 1):
-            safe_name = area.category[:20]
-            lines.append(f"    {safe_name}: [0.4, 0.3]")
-
-        lines.append("```")
-        lines.append("")
-        lines.append("**우선순위 범례:**")
-        lines.append("- 🚨 **Critical**: 즉시 조치 필요")
-        lines.append("- ⚠️ **Important**: 계획을 세워 개선")
-        lines.append("- 💭 **Nice-to-have**: 여유가 생길 때 고려")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -1284,7 +1055,7 @@ class ReviewReporter:
         report_text = self._generate_report_text(repo_input, reviews)
 
         # If LLM report doesn't include personal development section, add it at the beginning
-        if "## 👤 개인 성장 분석" not in report_text and "개인 성장 분석" not in report_text:
+        if "## 👤 개인 피드백 리포트" not in report_text and "개인 피드백 리포트" not in report_text:
             lines = report_text.split("\n")
             # Find where to insert (after the header and initial metadata)
             insert_idx = 0
