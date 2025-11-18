@@ -1628,35 +1628,52 @@ def _generate_integrated_full_report(
 
 ## 4. 📊 상세 분석
 
-> 데이터 기반의 심층 분석
+> 데이터 기반의 심층 분석 (필요한 섹션을 클릭하여 펼쳐보세요)
 
-### 📈 월별 활동 트렌드
+<details>
+<summary><b>📈 월별 활동 트렌드</b> (클릭하여 펼치기)</summary>
 
 {monthly_trends_section if monthly_trends_section else "_월별 트렌드 정보가 없습니다._"}
 
-### 💻 기술 스택 분석
+</details>
+
+<details>
+<summary><b>💻 기술 스택 분석</b> (클릭하여 펼치기)</summary>
 
 {tech_stack_section if tech_stack_section else "_기술 스택 정보가 없습니다._"}
 
-### 🤝 협업 분석
+</details>
+
+<details>
+<summary><b>🤝 협업 분석</b> (클릭하여 펼치기)</summary>
 
 {collaboration_section if collaboration_section else "_협업 정보가 없습니다._"}
 
-### 🔍 심층 회고
+</details>
+
+<details>
+<summary><b>🔍 심층 회고</b> (클릭하여 펼치기)</summary>
 
 {retrospective_section if retrospective_section else "_회고 분석 정보가 없습니다._"}
+
+</details>
 
 ---
 
 ## 5. 📝 부록
 
-> 개별 PR 리뷰 및 상세 사례
+> 개별 PR 리뷰 및 상세 사례 (필요시 펼쳐보세요)
+
+<details>
+<summary><b>📝 상세 사례</b> (클릭하여 펼치기)</summary>
 
 {growth_section if growth_section else ""}
 
 {strengths_section if strengths_section else ""}
 
 {improvements_section if improvements_section else ""}
+
+</details>
 
 ---
 

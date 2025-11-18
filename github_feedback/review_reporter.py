@@ -12,11 +12,15 @@ import re
 from .console import Console
 from .llm import LLMClient
 from .models import (
+    ActionPlanItem,
+    BenchmarkItem,
     GrowthIndicator,
     ImprovementArea,
     PersonalDevelopmentAnalysis,
+    ProgressMetric,
     ReviewPoint,
     StrengthPoint,
+    TLDRSummary,
 )
 from .prompts import (
     get_personal_development_system_prompt,
@@ -226,6 +230,16 @@ class ReviewReporter:
             content = self.llm.complete(messages, temperature=0.4)
             data = json_module.loads(content)
 
+            # Parse TLDR summary
+            tldr_summary = None
+            if "tldr_summary" in data and data["tldr_summary"]:
+                tldr_data = data["tldr_summary"]
+                tldr_summary = TLDRSummary(
+                    top_strength=tldr_data.get("top_strength", ""),
+                    primary_focus=tldr_data.get("primary_focus", ""),
+                    measurable_goal=tldr_data.get("measurable_goal", ""),
+                )
+
             # Parse strengths
             strengths = []
             for item in data.get("strengths", []):
@@ -264,6 +278,43 @@ class ReviewReporter:
                     )
                 )
 
+            # Parse action plan
+            action_plan = []
+            for item in data.get("action_plan", []):
+                action_plan.append(
+                    ActionPlanItem(
+                        week=item.get("week", 1),
+                        action=item.get("action", ""),
+                        measurable_goal=item.get("measurable_goal", ""),
+                        completed=item.get("completed", False),
+                    )
+                )
+
+            # Parse progress metrics
+            progress_metrics = []
+            for item in data.get("progress_metrics", []):
+                progress_metrics.append(
+                    ProgressMetric(
+                        area=item.get("area", ""),
+                        current_score=float(item.get("current_score", 0)),
+                        target_score=float(item.get("target_score", 0)),
+                        unit=item.get("unit", "점"),
+                    )
+                )
+
+            # Parse benchmarks
+            benchmarks = []
+            for item in data.get("benchmarks", []):
+                benchmarks.append(
+                    BenchmarkItem(
+                        metric=item.get("metric", ""),
+                        my_value=item.get("my_value", ""),
+                        team_average=item.get("team_average", ""),
+                        recommendation=item.get("recommendation", ""),
+                        insight=item.get("insight", ""),
+                    )
+                )
+
             return PersonalDevelopmentAnalysis(
                 strengths=strengths,
                 improvement_areas=improvement_areas,
@@ -271,6 +322,10 @@ class ReviewReporter:
                 overall_assessment=data.get("overall_assessment", ""),
                 key_achievements=data.get("key_achievements", []),
                 next_focus_areas=data.get("next_focus_areas", []),
+                tldr_summary=tldr_summary,
+                action_plan=action_plan,
+                progress_metrics=progress_metrics,
+                benchmarks=benchmarks,
             )
         except Exception as exc:  # pragma: no cover
             console.log("LLM 개인 발전 분석 실패", str(exc))
@@ -339,6 +394,98 @@ class ReviewReporter:
     # Reporting
     # ------------------------------------------------------------------
 
+    def _render_tldr_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render 30-second summary section."""
+        lines: List[str] = []
+        if not analysis.tldr_summary:
+            return lines
+
+        lines.append("## ⚡ 30초 요약 (TL;DR)")
+        lines.append("")
+        lines.append(f"- ✅ **가장 잘하고 있는 것**: {analysis.tldr_summary.top_strength}")
+        lines.append(f"- 🎯 **이번 달 집중할 것**: {analysis.tldr_summary.primary_focus}")
+        lines.append(f"- 📈 **측정 목표**: {analysis.tldr_summary.measurable_goal}")
+        lines.append("")
+        return lines
+
+    def _render_action_plan_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render action plan checklist section."""
+        lines: List[str] = []
+        if not analysis.action_plan:
+            return lines
+
+        lines.append("## 📋 이번 달 액션 플랜")
+        lines.append("")
+        for item in analysis.action_plan:
+            checkbox = "✅" if item.completed else "⬜"
+            week_label = f"Week {item.week}"
+            lines.append(f"{checkbox} **{week_label}**: {item.action}")
+            if item.measurable_goal:
+                lines.append(f"   - 목표: {item.measurable_goal}")
+        lines.append("")
+        return lines
+
+    def _render_progress_tracker_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render progress tracking metrics section."""
+        lines: List[str] = []
+        if not analysis.progress_metrics:
+            return lines
+
+        lines.append("## 📊 개선 진행 상황")
+        lines.append("")
+        lines.append("| 영역 | 현재 | 목표 | 진행률 |")
+        lines.append("|------|------|------|--------|")
+
+        for metric in analysis.progress_metrics:
+            # Create progress bar
+            progress = metric.progress_percent
+            filled = progress // 20  # 5 blocks, each 20%
+            empty = 5 - filled
+            progress_bar = "🟨" * filled + "⬜" * empty
+
+            lines.append(
+                f"| {metric.area} | {metric.current_score}{metric.unit} | "
+                f"{metric.target_score}{metric.unit} | {progress_bar} {progress}% |"
+            )
+        lines.append("")
+        return lines
+
+    def _render_benchmark_section(self, analysis: PersonalDevelopmentAnalysis) -> List[str]:
+        """Render benchmark comparison section."""
+        lines: List[str] = []
+        if not analysis.benchmarks:
+            return lines
+
+        lines.append("## 🎯 벤치마크 비교")
+        lines.append("")
+        lines.append("| 지표 | 나의 값 | 팀 평균 | 평가 |")
+        lines.append("|------|---------|---------|------|")
+
+        for benchmark in analysis.benchmarks:
+            # Add emoji based on recommendation
+            emoji = {
+                "우수": "🌟",
+                "양호": "✅",
+                "개선 필요": "⚠️",
+            }.get(benchmark.recommendation, "ℹ️")
+
+            recommendation_with_emoji = f"{emoji} {benchmark.recommendation}"
+            lines.append(
+                f"| {benchmark.metric} | {benchmark.my_value} | "
+                f"{benchmark.team_average} | {recommendation_with_emoji} |"
+            )
+
+        # Add insights if available
+        if any(b.insight for b in analysis.benchmarks):
+            lines.append("")
+            lines.append("**📌 인사이트:**")
+            for benchmark in analysis.benchmarks:
+                if benchmark.insight:
+                    lines.append(f"- **{benchmark.metric}**: {benchmark.insight}")
+
+        lines.append("")
+        return lines
+
     def _render_personal_development(
         self, analysis: PersonalDevelopmentAnalysis, reviews: List[StoredReview]
     ) -> List[str]:
@@ -347,24 +494,65 @@ class ReviewReporter:
         lines.append("## 👤 개인 성장 분석")
         lines.append("")
 
+        # Add TLDR section at the top
+        lines.extend(self._render_tldr_section(analysis))
+        if analysis.tldr_summary:
+            self._append_section_separator(lines)
+
+        # Add action plan
+        lines.extend(self._render_action_plan_section(analysis))
+        if analysis.action_plan:
+            self._append_section_separator(lines)
+
+        # Add progress tracker
+        lines.extend(self._render_progress_tracker_section(analysis))
+        if analysis.progress_metrics:
+            self._append_section_separator(lines)
+
+        # Add benchmarks
+        lines.extend(self._render_benchmark_section(analysis))
+        if analysis.benchmarks:
+            self._append_section_separator(lines)
+
+        # Overall assessment (collapsed by default)
         if analysis.overall_assessment:
-            lines.append("### 전반적 평가")
+            lines.append("<details>")
+            lines.append("<summary><b>📝 전반적 평가</b> (클릭하여 펼치기)</summary>")
             lines.append("")
             lines.append(analysis.overall_assessment)
+            lines.append("")
+            lines.append("</details>")
             lines.append("")
             self._append_section_separator(lines)
 
         pr_map = {review.number: review for review in reviews}
 
+        # Detailed sections (collapsed by default for better UX)
+        lines.append("<details>")
+        lines.append("<summary><b>✨ 장점 상세</b> (클릭하여 펼치기)</summary>")
+        lines.append("")
         lines.extend(self._render_strengths_section(analysis, pr_map))
+        lines.append("</details>")
+        lines.append("")
         self._append_section_separator(lines)
 
+        lines.append("<details>")
+        lines.append("<summary><b>💡 보완점 상세</b> (클릭하여 펼치기)</summary>")
+        lines.append("")
         lines.extend(self._render_improvements_section(analysis, pr_map))
+        lines.append("</details>")
+        lines.append("")
         self._append_section_separator(lines)
 
+        lines.append("<details>")
+        lines.append("<summary><b>🌱 성장 지표 상세</b> (클릭하여 펼치기)</summary>")
+        lines.append("")
         lines.extend(self._render_growth_section(analysis))
+        lines.append("</details>")
+        lines.append("")
         self._append_section_separator(lines)
 
+        # Key achievements and next focus (keep visible)
         lines.extend(self._render_optional_list_section("### 🏆 주요 성과", analysis.key_achievements))
 
         if analysis.key_achievements:
