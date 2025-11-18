@@ -455,6 +455,70 @@ class ReviewReporter:
             "growth": growth,
         }
 
+    def _render_skill_card(
+        self,
+        skill_name: str,
+        skill_type: str,
+        mastery_level: int,
+        effect_description: str,
+        evidence: List[str],
+        skill_emoji: str = "💎"
+    ) -> List[str]:
+        """Render a single skill card in game-style format.
+
+        Args:
+            skill_name: Name of the skill
+            skill_type: Type (패시브/액티브/성장중/미습득)
+            mastery_level: Mastery percentage (0-100)
+            effect_description: What this skill does
+            evidence: List of evidence/acquisition paths
+            skill_emoji: Emoji for the skill
+
+        Returns:
+            List of markdown lines for the skill card
+        """
+        lines = []
+
+        # Calculate level from mastery (0-5 stars)
+        stars = min(5, mastery_level // 20)
+        star_display = "★" * stars + "☆" * (5 - stars)
+        level = min(5, (mastery_level // 20) + 1)
+
+        # Type emoji mapping
+        type_emojis = {
+            "패시브": "🟢",
+            "액티브": "🔵",
+            "성장중": "🟡",
+            "미습득": "🔴"
+        }
+        type_emoji = type_emojis.get(skill_type, "⚪")
+
+        # Mastery bar (20 blocks for 100%)
+        filled = mastery_level // 5
+        empty = 20 - filled
+        mastery_bar = "█" * filled + "░" * empty
+
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append(f"║ {skill_emoji} {skill_name:<40} [Lv.{level}] {star_display:<5} ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append(f"║ 타입: {type_emoji} {skill_type:<49} ║")
+        lines.append(f"║ 효과: {effect_description:<51} ║")
+        lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
+
+        if evidence:
+            lines.append("╠═══════════════════════════════════════════════════════════╣")
+            lines.append("║ 습득 경로:                                                ║")
+            for idx, ev in enumerate(evidence[:3], 1):  # Max 3 evidence
+                ev_short = ev[:53] if len(ev) <= 53 else ev[:50] + "..."
+                lines.append(f"║   {idx}. {ev_short:<54} ║")
+
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        return lines
+
     def _render_character_stats(self, reviews: List[StoredReview]) -> List[str]:
         """Render RPG-style character stats visualization."""
         lines: List[str] = []
@@ -572,6 +636,101 @@ class ReviewReporter:
 
         return lines
 
+    def _render_skill_tree_section(
+        self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
+    ) -> List[str]:
+        """Render skill tree section with game-style cards."""
+        lines: List[str] = []
+        lines.append("## 🎮 스킬 트리")
+        lines.append("")
+        lines.append("> 획득한 스킬과 습득 가능한 스킬을 확인하세요")
+        lines.append("")
+
+        # 1. Acquired Skills (from strengths)
+        if analysis.strengths:
+            lines.append("### 💎 획득한 스킬 (Acquired Skills)")
+            lines.append("")
+
+            for strength in analysis.strengths[:5]:  # Top 5 strengths
+                # Calculate mastery based on impact
+                mastery = {"high": 90, "medium": 75, "low": 60}.get(strength.impact, 70)
+
+                # Determine skill type based on category
+                skill_type = "패시브" if "품질" in strength.category or "코드" in strength.category else "액티브"
+
+                # Get skill emoji based on category
+                category_emojis = {
+                    "코드 품질": "💻",
+                    "협업": "🤝",
+                    "문서화": "📝",
+                    "테스트": "🧪",
+                    "설계": "🏗️",
+                }
+                skill_emoji = next((emoji for key, emoji in category_emojis.items() if key in strength.category), "💎")
+
+                lines.extend(self._render_skill_card(
+                    skill_name=strength.category[:40],
+                    skill_type=skill_type,
+                    mastery_level=mastery,
+                    effect_description=strength.description[:51],
+                    evidence=strength.evidence[:3],
+                    skill_emoji=skill_emoji
+                ))
+
+        # 2. Growing Skills (from growth indicators)
+        if analysis.growth_indicators:
+            lines.append("### 🌱 성장 중인 스킬 (Growing Skills)")
+            lines.append("")
+
+            for growth in analysis.growth_indicators[:3]:  # Top 3 growth areas
+                lines.extend(self._render_skill_card(
+                    skill_name=growth.aspect[:40],
+                    skill_type="성장중",
+                    mastery_level=65,  # Growing skills are around 65%
+                    effect_description=growth.description[:51],
+                    evidence=[growth.progress_summary[:53]],
+                    skill_emoji="🌱"
+                ))
+
+        # 3. Available Skills (from improvement areas)
+        if analysis.improvement_areas:
+            lines.append("### 🎯 습득 가능한 스킬 (Available Skills)")
+            lines.append("")
+
+            # Sort by priority
+            priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
+            sorted_improvements = sorted(
+                analysis.improvement_areas[:3],  # Top 3
+                key=lambda area: priority_order.get(area.priority, 1),
+            )
+
+            for area in sorted_improvements:
+                # Calculate mastery based on priority (lower for more critical)
+                mastery = {"critical": 30, "important": 40, "nice-to-have": 50}.get(area.priority, 40)
+
+                # Get skill emoji based on category
+                category_emojis = {
+                    "코드 품질": "💻",
+                    "커밋": "📝",
+                    "PR": "🔀",
+                    "리뷰": "👀",
+                    "테스트": "🧪",
+                }
+                skill_emoji = next((emoji for key, emoji in category_emojis.items() if key in area.category), "🎯")
+
+                lines.extend(self._render_skill_card(
+                    skill_name=area.category[:40],
+                    skill_type="미습득",
+                    mastery_level=mastery,
+                    effect_description=area.description[:51],
+                    evidence=area.suggestions[:3] if area.suggestions else area.evidence[:3],
+                    skill_emoji=skill_emoji
+                ))
+
+        lines.append("---")
+        lines.append("")
+        return lines
+
     def _render_personal_development(
         self, analysis: PersonalDevelopmentAnalysis, reviews: List[StoredReview]
     ) -> List[str]:
@@ -587,17 +746,20 @@ class ReviewReporter:
 
         pr_map = {review.number: review for review in reviews}
 
-        # 2. Strengths (잘하고 있는 것) - 펼쳐진 상태
+        # 2. Skill Tree (NEW! 스킬 트리)
+        lines.extend(self._render_skill_tree_section(analysis, pr_map))
+
+        # 3. Strengths (잘하고 있는 것) - 펼쳐진 상태
         lines.extend(self._render_new_strengths_section(analysis, pr_map))
         lines.append("---")
         lines.append("")
 
-        # 3. Improvements (보완하면 좋을 것) - 펼쳐진 상태
+        # 4. Improvements (보완하면 좋을 것) - 펼쳐진 상태
         lines.extend(self._render_new_improvements_section(analysis, pr_map))
         lines.append("---")
         lines.append("")
 
-        # 4. Growth (성장한 점) - 펼쳐진 상태
+        # 5. Growth (성장한 점) - 펼쳐진 상태
         if analysis.growth_indicators:
             lines.extend(self._render_new_growth_section(analysis, pr_map))
             lines.append("---")

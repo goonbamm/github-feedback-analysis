@@ -403,6 +403,191 @@ class Reporter:
         lines.append("")
         return lines
 
+    def _render_skill_card(
+        self,
+        skill_name: str,
+        skill_type: str,
+        mastery_level: int,
+        effect_description: str,
+        evidence: List[str],
+        skill_emoji: str = "💎"
+    ) -> List[str]:
+        """Render a single skill card in game-style format.
+
+        Args:
+            skill_name: Name of the skill
+            skill_type: Type (패시브/액티브/성장중/미습득)
+            mastery_level: Mastery percentage (0-100)
+            effect_description: What this skill does
+            evidence: List of evidence/acquisition paths
+            skill_emoji: Emoji for the skill
+
+        Returns:
+            List of markdown lines for the skill card
+        """
+        lines = []
+
+        # Calculate level from mastery (0-5 stars)
+        stars = min(5, mastery_level // 20)
+        star_display = "★" * stars + "☆" * (5 - stars)
+        level = min(5, (mastery_level // 20) + 1)
+
+        # Type emoji mapping
+        type_emojis = {
+            "패시브": "🟢",
+            "액티브": "🔵",
+            "성장중": "🟡",
+            "미습득": "🔴"
+        }
+        type_emoji = type_emojis.get(skill_type, "⚪")
+
+        # Mastery bar (20 blocks for 100%)
+        filled = mastery_level // 5
+        empty = 20 - filled
+        mastery_bar = "█" * filled + "░" * empty
+
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append(f"║ {skill_emoji} {skill_name:<40} [Lv.{level}] {star_display:<5} ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append(f"║ 타입: {type_emoji} {skill_type:<49} ║")
+        lines.append(f"║ 효과: {effect_description:<51} ║")
+        lines.append(f"║ 마스터리: [{mastery_bar}] {mastery_level:>3}%  ║")
+
+        if evidence:
+            lines.append("╠═══════════════════════════════════════════════════════════╣")
+            lines.append("║ 습득 경로:                                                ║")
+            for idx, ev in enumerate(evidence[:3], 1):  # Max 3 evidence
+                ev_short = ev[:53] if len(ev) <= 53 else ev[:50] + "..."
+                lines.append(f"║   {idx}. {ev_short:<54} ║")
+
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        return lines
+
+    def _build_skill_tree_section(self, metrics: MetricSnapshot) -> List[str]:
+        """Build skill tree section showing acquired and available skills."""
+        lines = ["## 🎮 스킬 트리", ""]
+        lines.append("> 획득한 스킬과 습득 가능한 스킬을 확인하세요")
+        lines.append("")
+
+        # Collect acquired skills (from awards and highlights)
+        acquired_skills = []
+        available_skills = []
+        growing_skills = []
+
+        # 1. Acquired Skills - from top awards and strengths
+        if metrics.awards:
+            for award in metrics.awards[:3]:
+                # Determine mastery based on award position
+                mastery = 100 - (metrics.awards.index(award) * 10)
+                acquired_skills.append({
+                    "name": award[:40],
+                    "type": "패시브",
+                    "mastery": mastery,
+                    "effect": "지속적으로 발휘되는 강점",
+                    "evidence": [award],
+                    "emoji": "💎"
+                })
+
+        # Add skills from highlights
+        if metrics.highlights and len(acquired_skills) < 5:
+            remaining = 5 - len(acquired_skills)
+            for highlight in metrics.highlights[:remaining]:
+                acquired_skills.append({
+                    "name": highlight.split('.')[0][:40],
+                    "type": "액티브",
+                    "mastery": 80,
+                    "effect": "의식적으로 활용하는 능력",
+                    "evidence": [highlight[:100]],
+                    "emoji": "✨"
+                })
+
+        # 2. Available Skills - from improvement suggestions
+        if metrics.detailed_feedback:
+            if metrics.detailed_feedback.commit_feedback and hasattr(metrics.detailed_feedback.commit_feedback, 'suggestions'):
+                for suggestion in metrics.detailed_feedback.commit_feedback.suggestions[:2]:
+                    available_skills.append({
+                        "name": "커밋 메시지 향상",
+                        "type": "미습득",
+                        "mastery": 40,
+                        "effect": suggestion[:40],
+                        "evidence": [suggestion],
+                        "emoji": "📝"
+                    })
+
+            if metrics.detailed_feedback.pr_title_feedback and hasattr(metrics.detailed_feedback.pr_title_feedback, 'suggestions'):
+                for suggestion in metrics.detailed_feedback.pr_title_feedback.suggestions[:2]:
+                    available_skills.append({
+                        "name": "PR 제목 최적화",
+                        "type": "미습득",
+                        "mastery": 40,
+                        "effect": suggestion[:40],
+                        "evidence": [suggestion],
+                        "emoji": "🔀"
+                    })
+
+        # 3. Growing Skills - from retrospective positive patterns
+        if metrics.retrospective and hasattr(metrics.retrospective, 'behavior_patterns'):
+            positive_patterns = [bp for bp in metrics.retrospective.behavior_patterns if bp.impact == "positive"]
+            for pattern in positive_patterns[:3]:
+                growing_skills.append({
+                    "name": pattern.description[:40],
+                    "type": "성장중",
+                    "mastery": 60,
+                    "effect": "빠르게 발전하고 있는 영역",
+                    "evidence": [pattern.description],
+                    "emoji": "🌱"
+                })
+
+        # Render acquired skills
+        if acquired_skills:
+            lines.append("### 💎 획득한 스킬 (Acquired Skills)")
+            lines.append("")
+            for skill in acquired_skills:
+                lines.extend(self._render_skill_card(
+                    skill["name"],
+                    skill["type"],
+                    skill["mastery"],
+                    skill["effect"],
+                    skill["evidence"],
+                    skill["emoji"]
+                ))
+
+        # Render growing skills
+        if growing_skills:
+            lines.append("### 🌱 성장 중인 스킬 (Growing Skills)")
+            lines.append("")
+            for skill in growing_skills:
+                lines.extend(self._render_skill_card(
+                    skill["name"],
+                    skill["type"],
+                    skill["mastery"],
+                    skill["effect"],
+                    skill["evidence"],
+                    skill["emoji"]
+                ))
+
+        # Render available skills
+        if available_skills:
+            lines.append("### 🎯 습득 가능한 스킬 (Available Skills)")
+            lines.append("")
+            for skill in available_skills[:3]:  # Limit to top 3
+                lines.extend(self._render_skill_card(
+                    skill["name"],
+                    skill["type"],
+                    skill["mastery"],
+                    skill["effect"],
+                    skill["evidence"],
+                    skill["emoji"]
+                ))
+
+        lines.append("---")
+        lines.append("")
+        return lines
+
     def _build_summary_overview_table(self, metrics: MetricSnapshot) -> List[str]:
         """Build integrated summary table with strengths, areas for improvement, and growth."""
         lines = ["## 📊 한눈에 보는 요약", ""]
@@ -1567,19 +1752,21 @@ class Reporter:
             self._build_summary_overview_table(metrics),
             # 3. Character Stats - NEW! Gamified visualization
             self._render_repo_character_stats(metrics),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 4. Skill Tree - NEW! Game-style skill representation
+            self._build_skill_tree_section(metrics),
+            # 5. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 5. Growth Highlights - Show the story
+            # 6. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 6. Monthly Trends - Show patterns
+            # 7. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 7. Detailed Feedback - Actionable insights
+            # 8. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 8. Deep Retrospective - Comprehensive analysis
+            # 9. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 9. Spotlight Examples - Concrete evidence
+            # 10. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 10. Tech Stack - Technical breadth
+            # 11. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
@@ -1618,19 +1805,21 @@ class Reporter:
             self._build_summary_overview_table(metrics),
             # 3. Character Stats - NEW! Gamified visualization
             self._render_repo_character_stats(metrics),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 4. Skill Tree - NEW! Game-style skill representation
+            self._build_skill_tree_section(metrics),
+            # 5. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 5. Growth Highlights - Show the story
+            # 6. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 6. Monthly Trends - Show patterns
+            # 7. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 7. Detailed Feedback - Actionable insights
+            # 8. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 8. Deep Retrospective - Comprehensive analysis
+            # 9. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 9. Spotlight Examples - Concrete evidence
+            # 10. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 10. Tech Stack - Technical breadth
+            # 11. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
