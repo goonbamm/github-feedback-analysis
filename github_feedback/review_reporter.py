@@ -895,149 +895,167 @@ class ReviewReporter:
 
     def _fallback_report(self, repo: str, reviews: List[StoredReview]) -> str:
         lines: List[str] = []
-        lines.append("# 🎯 통합 코드 리뷰 보고서")
+        lines.append("# 🎯 개발자 성장 리포트")
         lines.append("")
         lines.append(f"**저장소**: {repo}")
-        lines.append(f"**검토한 PR 수**: {len(reviews)}건")
+        lines.append(f"**분석 기간**: 총 {len(reviews)}개의 PR")
+        lines.append("")
+        lines.append("> 💡 **보고서 활용 팁**: 스탯을 먼저 확인하고, 장점과 성장한 점에서 자신감을 얻은 후, 보완점에서 다음 목표를 찾아보세요!")
         lines.append("")
         lines.append("---")
         lines.append("")
 
-        # Add statistics dashboard
-        lines.extend(self._render_statistics_dashboard(reviews))
-
-        # Add character stats (RPG-style)
+        # ============ 1. 게임 캐릭터 스탯 (맨 처음!) ============
         lines.extend(self._render_character_stats(reviews))
 
-        # Add PR activity timeline
-        lines.extend(self._render_pr_activity_timeline(reviews))
-
-        # Add code changes visualization
-        lines.extend(self._render_code_changes_visualization(reviews))
-
-        # Table of contents
-        lines.append("## 📑 목차")
-        lines.append("")
-        lines.append("1. **🎮 개발자 캐릭터 스탯** - 게임 스타일 능력치 시각화")
-        lines.append("2. **👤 개인 성장 분석** - 장점, 보완점, 성장한 점")
-        lines.append("3. **✨ 장점** - 뛰어났던 점들")
-        lines.append("4. **💡 보완점** - 개선할 수 있는 부분")
-        lines.append("5. **🌱 올해 성장한 점** - 성장 여정")
-        lines.append("6. **🎊 전체 총평** - 종합 평가")
-        lines.append("7. **📝 개별 PR 하이라이트** - 주요 PR 목록")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Add personal development analysis
+        # ============ 2. 개인 피드백 리포트 (30초 요약 → 장점 → 성장 → 보완점) ============
         personal_dev = self._fallback_personal_development(reviews)
         lines.extend(self._render_personal_development(personal_dev, reviews))
 
-        def _render_points(title: str, emoji: str, entries: List[tuple[StoredReview, ReviewPoint]]) -> None:
-            lines.append(f"## {emoji} {title}")
-            lines.append("")
-            if not entries:
-                lines.append("수집된 항목이 없습니다.")
-                lines.append("")
-                return
+        # ============ 3. 통계 대시보드 ============
+        lines.extend(self._render_statistics_dashboard(reviews))
 
-            lines.append(f"| {title} | 근거/내용 | 링크 |")
-            lines.append("|--------|-----------|------|")
-            for review, point in entries:
-                category = f"**PR #{review.number}**<br>`{review.title}`"
+        # ============ 4. PR 활동 타임라인 ============
+        lines.extend(self._render_pr_activity_timeline(reviews))
 
-                # Combine message and example
-                content_parts = [point.message]
-                if point.example:
-                    content_parts.append(f"<br>💡 **예시:**<br>`{point.example}`")
-                content = "".join(content_parts)
+        # ============ 5. 코드 변경량 분석 ============
+        lines.extend(self._render_code_changes_visualization(reviews))
 
-                # Create link
-                link_cell = f"[PR #{review.number}]({review.html_url})" if review.html_url else "-"
-                lines.append(f"| {category} | {content} | {link_cell} |")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-
-        strength_entries: List[tuple[StoredReview, ReviewPoint]] = []
-        improvement_entries: List[tuple[StoredReview, ReviewPoint]] = []
-
-        for review in reviews:
-            strength_entries.extend((review, point) for point in review.strengths)
-            improvement_entries.extend((review, point) for point in review.improvements)
-
-        _render_points("장점", "✨", strength_entries[:8])
-        _render_points("보완점", "💡", improvement_entries[:8])
-
-        lines.append("## 🌱 올해 성장한 점")
+        # ============ 6. 개별 PR 하이라이트 ============
+        lines.append("## 📝 전체 PR 목록")
         lines.append("")
-        growth_items = [review for review in reviews if review.overview]
-        if not growth_items:
-            lines.append("- 개별 리뷰 요약이 없어 성장 포인트를 추론하기 어렵습니다.")
-        else:
-            for i, review in enumerate(growth_items[:8], 1):
-                lines.append(f"{i}. **PR #{review.number}** `{review.title}`")
-                lines.append(f"   - {review.overview}")
-                lines.append("")
-        lines.append("---")
+        lines.append("> 분석에 포함된 모든 PR 목록입니다")
         lines.append("")
-
-        lines.append("## 🎊 전체 총평")
-        lines.append("")
-        lines.append(
-            "저장된 리뷰 요약을 바탕으로 팀이 지속해서 지식을 공유하고 있으며, "
-            "통합 보고서를 통해 반복되는 강점과 개선점을 추적할 수 있습니다. "
-            f"총 {len(reviews)}건의 PR을 통해 꾸준한 성장을 이어가고 있습니다."
-        )
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        lines.append("## 📝 개별 PR 하이라이트")
-        lines.append("")
+        lines.append("| # | PR | 제목 | 날짜 | 링크 |")
+        lines.append("|---|-----|------|------|------|")
         for i, review in enumerate(reviews, 1):
             date_str = review.created_at.strftime("%Y-%m-%d")
-            highlight = f"{i}. **PR #{review.number}** `{review.title}` ({date_str})"
-            lines.append(highlight)
-            if review.html_url:
-                lines.append(f"   - 🔗 [{review.html_url}]({review.html_url})")
-            lines.append("")
+            title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
+            link = f"[보기]({review.html_url})" if review.html_url else "-"
+            lines.append(f"| {i} | #{review.number} | {title_short} | {date_str} | {link} |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # ============ 7. 마무리 메시지 ============
+        lines.append("## 🎉 마무리")
+        lines.append("")
+        lines.append(
+            f"총 **{len(reviews)}개의 PR**을 통해 꾸준히 성장하고 있습니다! 🚀\n\n"
+            "이 보고서가 여러분의 강점을 확인하고, 다음 성장 목표를 설정하는 데 도움이 되었기를 바랍니다. "
+            "기억하세요: **모든 PR은 성장의 기회**입니다! 💪\n\n"
+            "다음 리포트에서 더 멋진 성장을 기대합니다! 🌟"
+        )
+        lines.append("")
 
         return "\n".join(lines).strip()
 
     def _generate_report_text(self, repo: str, reviews: List[StoredReview]) -> str:
-        if not self.llm:
-            return self._fallback_report(repo, reviews)
+        """Generate integrated report with consistent structure regardless of LLM availability.
 
-        context = self._build_prompt_context(repo, reviews)
+        Structure:
+        1. Header and intro
+        2. Character stats (RPG-style)
+        3. Personal development analysis (strengths, growth, improvements)
+        4. Team report (if LLM available) or statistics
+        5. PR activity visualizations
+        6. PR list and closing
+        """
+        lines: List[str] = []
 
-        messages = [
-            {
-                "role": "system",
-                "content": get_team_report_system_prompt(),
-            },
-            {
-                "role": "user",
-                "content": get_team_report_user_prompt(context),
-            },
-        ]
+        # ============ 1. Header ============
+        lines.append("# 🎯 개발자 성장 리포트")
+        lines.append("")
+        lines.append(f"**저장소**: {repo}")
+        lines.append(f"**분석 기간**: 총 {len(reviews)}개의 PR")
+        lines.append("")
+        lines.append("> 💡 **보고서 활용 팁**: 스탯을 먼저 확인하고, 장점과 성장한 점에서 자신감을 얻은 후, 보완점에서 다음 목표를 찾아보세요!")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
 
-        try:
-            content = self.llm.complete(messages, temperature=0.4)
-            if content.strip():
-                return content.strip()
-        except Exception as exc:  # pragma: no cover - network errors hard to simulate
-            console.log("LLM 통합 보고서 생성 실패", str(exc))
+        # ============ 2. Character Stats (RPG-style) ============
+        lines.extend(self._render_character_stats(reviews))
 
-        return self._fallback_report(repo, reviews)
+        # ============ 3. Personal Development Analysis ============
+        personal_dev = self._analyze_personal_development(repo, reviews)
+        lines.extend(self._render_personal_development(personal_dev, reviews))
+
+        # ============ 4. Team Report (if LLM available) ============
+        if self.llm:
+            try:
+                context = self._build_prompt_context(repo, reviews)
+                messages = [
+                    {
+                        "role": "system",
+                        "content": get_team_report_system_prompt(),
+                    },
+                    {
+                        "role": "user",
+                        "content": get_team_report_user_prompt(context),
+                    },
+                ]
+                team_report = self.llm.complete(messages, temperature=0.4)
+                if team_report.strip():
+                    lines.append("---")
+                    lines.append("")
+                    lines.append(team_report.strip())
+                    lines.append("")
+                    lines.append("---")
+                    lines.append("")
+            except Exception as exc:  # pragma: no cover
+                console.log("LLM 팀 보고서 생성 실패, 기본 통계로 대체", str(exc))
+                lines.extend(self._render_statistics_dashboard(reviews))
+        else:
+            lines.extend(self._render_statistics_dashboard(reviews))
+
+        # ============ 5. PR Activity Visualizations ============
+        lines.extend(self._render_pr_activity_timeline(reviews))
+        lines.extend(self._render_code_changes_visualization(reviews))
+
+        # ============ 6. PR List and Closing ============
+        lines.append("## 📝 전체 PR 목록")
+        lines.append("")
+        lines.append("> 분석에 포함된 모든 PR 목록입니다")
+        lines.append("")
+        lines.append("| # | PR | 제목 | 날짜 | 링크 |")
+        lines.append("|---|-----|------|------|------|")
+        for i, review in enumerate(reviews, 1):
+            date_str = review.created_at.strftime("%Y-%m-%d")
+            title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
+            link = f"[보기]({review.html_url})" if review.html_url else "-"
+            lines.append(f"| {i} | #{review.number} | {title_short} | {date_str} | {link} |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        lines.append("## 🎉 마무리")
+        lines.append("")
+        lines.append(
+            f"총 **{len(reviews)}개의 PR**을 통해 꾸준히 성장하고 있습니다! 🚀\n\n"
+            "이 보고서가 여러분의 강점을 확인하고, 다음 성장 목표를 설정하는 데 도움이 되었기를 바랍니다. "
+            "기억하세요: **모든 PR은 성장의 기회**입니다! 💪\n\n"
+            "다음 리포트에서 더 멋진 성장을 기대합니다! 🌟"
+        )
+        lines.append("")
+
+        return "\n".join(lines).strip()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def create_integrated_report(self, repo: str) -> Path:
-        """Create or refresh the integrated review report for a repository."""
+        """Create or refresh the integrated review report for a repository.
 
+        The report structure is consistent regardless of LLM availability:
+        1. Header with repository info
+        2. Character stats (RPG-style visualization)
+        3. Personal development analysis (strengths, growth, improvements)
+        4. Team report (if LLM available) or statistics
+        5. PR activity visualizations
+        6. PR list and closing message
+        """
         repo_input = repo.strip()
         if not repo_input:
             raise ValueError("Repository cannot be empty")
@@ -1046,28 +1064,9 @@ class ReviewReporter:
         if not reviews:
             raise ValueError("No review summaries found for the given repository")
 
-        # Generate personal development analysis
-        console.log("개인 성장 분석 생성 중...")
-        personal_dev = self._analyze_personal_development(repo_input, reviews)
-
-        # Generate main report
-        console.log("통합 보고서 생성 중...")
+        # Generate integrated report with all sections
+        console.log("통합 보고서 생성 중... (캐릭터 스탯 + 개인 피드백 + 팀 분석)")
         report_text = self._generate_report_text(repo_input, reviews)
-
-        # If LLM report doesn't include personal development section, add it at the beginning
-        if "## 👤 개인 피드백 리포트" not in report_text and "개인 피드백 리포트" not in report_text:
-            lines = report_text.split("\n")
-            # Find where to insert (after the header and initial metadata)
-            insert_idx = 0
-            for i, line in enumerate(lines):
-                if line.startswith("---") or line.startswith("##"):
-                    insert_idx = i
-                    break
-
-            # Insert personal development section
-            personal_dev_lines = self._render_personal_development(personal_dev, reviews)
-            lines = lines[:insert_idx] + personal_dev_lines + lines[insert_idx:]
-            report_text = "\n".join(lines)
 
         # Save report
         repo_dir = self._repo_dir(repo_input)
@@ -1076,13 +1075,16 @@ class ReviewReporter:
         report_path.write_text(report_text, encoding="utf-8")
 
         # Also save personal development analysis as JSON for programmatic access
+        console.log("개인 성장 분석 JSON 저장 중...")
+        personal_dev = self._analyze_personal_development(repo_input, reviews)
         personal_dev_path = repo_dir / "personal_development.json"
         personal_dev_path.write_text(
             json.dumps(personal_dev.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
 
-        console.log(f"개인 성장 분석 저장: {personal_dev_path}")
+        console.log(f"✅ 통합 보고서 완성: {report_path}")
+        console.log(f"✅ 개인 성장 분석: {personal_dev_path}")
         return report_path
 
 
