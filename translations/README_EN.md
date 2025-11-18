@@ -9,6 +9,7 @@ English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語]
 - 📊 **Personal Activity Analysis**: Aggregate and analyze **your** commits, issues, and review activity in specific repositories by period
 - 🤖 **LLM-Based Feedback**: Detailed analysis of your commit messages, PR titles, review tone, and issue quality
 - 🎯 **Integrated Retrospective Report**: Comprehensive insights with personal activity metrics
+- 🎊 **Year in Review**: Automatically analyze all repositories you've been active in this year and generate a comprehensive annual report
 - 🏆 **Achievement Visualization**: Automatically generate awards and highlights based on your contributions
 - 💡 **Repository Discovery**: List accessible repositories and suggest active ones
 - 🎨 **Interactive Mode**: User-friendly interface for direct repository selection
@@ -248,6 +249,12 @@ gfa feedback --repo torvalds/linux
 
 # Analyze personal repository you contributed to
 gfa feedback --repo myusername/my-private-repo
+
+# 🎊 Year in Review report (comprehensive analysis of all repositories active this year)
+gfa feedback --year-in-review
+
+# Year in Review for a specific year
+gfa feedback --year-in-review --year 2024
 
 # Analyze organization repository you contributed to
 gfa feedback --repo microsoft/vscode

@@ -9,6 +9,7 @@
 - 📊 **个人活动分析**：按时间段聚合和分析特定仓库中**你的**提交、议题和审查活动
 - 🤖 **基于 LLM 的反馈**：详细分析你的提交信息、PR 标题、审查语气和议题质量
 - 🎯 **综合回顾报告**：结合个人活动指标提供全面的洞察
+- 🎊 **年度回顾**：自动分析今年活动的所有仓库并生成综合年度报告
 - 🏆 **成就可视化**：根据你的贡献自动生成奖项和亮点
 - 💡 **仓库发现**：列出可访问的仓库并推荐活跃仓库
 - 🎨 **交互模式**：用户友好的仓库直接选择界面
@@ -246,6 +247,12 @@ gfa feedback --repo torvalds/linux
 
 # 分析你在个人仓库的贡献
 gfa feedback --repo myusername/my-private-repo
+
+# 🎊 年度回顾报告（综合分析今年活动的所有仓库）
+gfa feedback --year-in-review
+
+# 特定年份的回顾报告
+gfa feedback --year-in-review --year 2024
 
 # 分析你在组织仓库的贡献
 gfa feedback --repo microsoft/vscode
