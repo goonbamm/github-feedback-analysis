@@ -487,6 +487,90 @@ class GrowthIndicator:
 
 
 @dataclass(slots=True)
+class ActionPlanItem:
+    """Weekly action item for improvement."""
+
+    week: int  # 1-4
+    action: str
+    measurable_goal: str = ""  # e.g., "PR 제목 명확성 70% → 90%"
+    completed: bool = False
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise action plan item."""
+        return {
+            "week": self.week,
+            "action": self.action,
+            "measurable_goal": self.measurable_goal,
+            "completed": self.completed,
+        }
+
+
+@dataclass(slots=True)
+class ProgressMetric:
+    """Progress tracking metric with current and target values."""
+
+    area: str  # e.g., "PR 제목 명확성", "PR 설명 완성도"
+    current_score: float  # 0-10
+    target_score: float  # 0-10
+    unit: str = "점"  # "점", "%", etc.
+
+    @property
+    def progress_percent(self) -> int:
+        """Calculate progress percentage."""
+        if self.target_score <= 0:
+            return 0
+        return int((self.current_score / self.target_score) * 100)
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise progress metric."""
+        return {
+            "area": self.area,
+            "current_score": self.current_score,
+            "target_score": self.target_score,
+            "unit": self.unit,
+            "progress_percent": self.progress_percent,
+        }
+
+
+@dataclass(slots=True)
+class BenchmarkItem:
+    """Benchmark comparison item."""
+
+    metric: str  # e.g., "PR 리뷰 응답 시간", "코드 변경 크기"
+    my_value: str  # e.g., "2.5일", "평균 +250/-150"
+    team_average: str  # e.g., "1.8일", "평균 +200/-100"
+    recommendation: str  # e.g., "개선 필요", "양호", "우수"
+    insight: str = ""  # Additional context or suggestion
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise benchmark item."""
+        return {
+            "metric": self.metric,
+            "my_value": self.my_value,
+            "team_average": self.team_average,
+            "recommendation": self.recommendation,
+            "insight": self.insight,
+        }
+
+
+@dataclass(slots=True)
+class TLDRSummary:
+    """30-second summary of key points."""
+
+    top_strength: str  # Most notable strength
+    primary_focus: str  # Main area to focus on this month
+    measurable_goal: str  # Specific target metric
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise TLDR summary."""
+        return {
+            "top_strength": self.top_strength,
+            "primary_focus": self.primary_focus,
+            "measurable_goal": self.measurable_goal,
+        }
+
+
+@dataclass(slots=True)
 class PersonalDevelopmentAnalysis:
     """Comprehensive analysis of personal strengths, areas for improvement, and growth."""
 
@@ -496,10 +580,15 @@ class PersonalDevelopmentAnalysis:
     overall_assessment: str = ""
     key_achievements: List[str] = field(default_factory=list)
     next_focus_areas: List[str] = field(default_factory=list)
+    # New UX enhancements
+    tldr_summary: Optional[TLDRSummary] = None
+    action_plan: List[ActionPlanItem] = field(default_factory=list)
+    progress_metrics: List[ProgressMetric] = field(default_factory=list)
+    benchmarks: List[BenchmarkItem] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         """Serialise personal development analysis."""
-        return {
+        result: Dict[str, object] = {
             "strengths": [s.to_dict() for s in self.strengths],
             "improvement_areas": [i.to_dict() for i in self.improvement_areas],
             "growth_indicators": [g.to_dict() for g in self.growth_indicators],
@@ -507,6 +596,15 @@ class PersonalDevelopmentAnalysis:
             "key_achievements": self.key_achievements,
             "next_focus_areas": self.next_focus_areas,
         }
+        if self.tldr_summary:
+            result["tldr_summary"] = self.tldr_summary.to_dict()
+        if self.action_plan:
+            result["action_plan"] = [a.to_dict() for a in self.action_plan]
+        if self.progress_metrics:
+            result["progress_metrics"] = [p.to_dict() for p in self.progress_metrics]
+        if self.benchmarks:
+            result["benchmarks"] = [b.to_dict() for b in self.benchmarks]
+        return result
 
 
 @dataclass(slots=True)
