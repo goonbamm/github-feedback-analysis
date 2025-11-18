@@ -1401,13 +1401,148 @@ def _generate_final_summary_table(personal_dev_path: Path) -> str:
     return "\n".join(lines)
 
 
+def _extract_section_content(content: str, section_header: str, next_section_prefix: str = "##") -> str:
+    """Extract content of a specific section from markdown.
+
+    Args:
+        content: Full markdown content
+        section_header: Header to look for (e.g., "## 🏆 Awards Cabinet")
+        next_section_prefix: Prefix for next section (default "##")
+
+    Returns:
+        Extracted section content or empty string if not found
+    """
+    import re
+
+    # Escape special regex characters in header
+    escaped_header = re.escape(section_header)
+
+    # Find section start
+    pattern = rf'^{escaped_header}\s*$'
+    match = re.search(pattern, content, re.MULTILINE)
+    if not match:
+        return ""
+
+    start_pos = match.end()
+
+    # Find next section of same or higher level
+    next_section_pattern = rf'^{re.escape(next_section_prefix)} '
+    next_match = re.search(next_section_pattern, content[start_pos:], re.MULTILINE)
+
+    if next_match:
+        end_pos = start_pos + next_match.start()
+        return content[start_pos:end_pos].strip()
+
+    return content[start_pos:].strip()
+
+
+def _create_executive_summary(brief_content: str, feedback_content: str, output_dir: Path) -> str:
+    """Create executive summary from brief and feedback reports.
+
+    Args:
+        brief_content: Brief report content
+        feedback_content: Feedback report content
+        output_dir: Output directory to find personal_development.json
+
+    Returns:
+        Executive summary markdown section
+    """
+    lines = ["## 🎯 한눈에 보기 (Executive Summary)", ""]
+    lines.append("> 핵심 성과와 개선 포인트를 빠르게 파악하세요")
+    lines.append("")
+
+    # Extract key achievements from brief (awards section)
+    awards_section = _extract_section_content(brief_content, "## 🏆 Awards Cabinet")
+    if awards_section:
+        # Count total awards
+        import re
+        award_matches = re.findall(r'\|\s*[^|]+\s*\|\s*([^|]+)\s*\|', awards_section)
+        total_awards = len([m for m in award_matches if m.strip() and m.strip() not in ['어워드', '-----']])
+        if total_awards > 0:
+            lines.append(f"**🏆 획득 어워드**: {total_awards}개")
+
+    # Extract highlights from brief
+    highlights_section = _extract_section_content(brief_content, "## ✨ Growth Highlights")
+    if highlights_section:
+        import re
+        highlight_matches = re.findall(r'\|\s*\d+\s*\|\s*([^|]+)\s*\|', highlights_section)
+        if highlight_matches and len(highlight_matches) > 0:
+            lines.append("")
+            lines.append("**✨ 주요 성과 Top 3:**")
+            for i, highlight in enumerate(highlight_matches[:3], 1):
+                lines.append(f"{i}. {highlight.strip()}")
+
+    # Extract improvement areas from personal development
+    personal_dev_path = output_dir / "reviews" / "_temp_personal_dev.json"
+    # Try to find personal_development.json in reviews subdirectories
+    reviews_dir = output_dir / "reviews"
+    if reviews_dir.exists():
+        for repo_dir in reviews_dir.iterdir():
+            if repo_dir.is_dir():
+                pd_path = repo_dir / "personal_development.json"
+                if pd_path.exists():
+                    personal_dev_path = pd_path
+                    break
+
+    if personal_dev_path.exists():
+        try:
+            import json
+            with open(personal_dev_path, "r", encoding="utf-8") as f:
+                pd_data = json.load(f)
+
+            improvements = pd_data.get("improvement_areas", [])[:2]
+            if improvements:
+                lines.append("")
+                lines.append("**💡 주요 개선점 Top 2:**")
+                for i, imp in enumerate(improvements, 1):
+                    category = imp.get("category", "")
+                    desc = imp.get("description", "")
+                    lines.append(f"{i}. **{category}**: {desc}")
+
+            # Extract next focus areas
+            next_focus = pd_data.get("next_focus_areas", [])[:3]
+            if next_focus:
+                lines.append("")
+                lines.append("**🎯 다음 집중 영역:**")
+                for i, focus in enumerate(next_focus, 1):
+                    lines.append(f"{i}. {focus}")
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _create_improved_toc() -> str:
+    """Create improved table of contents with better structure."""
+    lines = ["## 📑 목차", ""]
+
+    sections = [
+        ("1", "🎯 한눈에 보기", "핵심 성과와 개선점 요약"),
+        ("2", "🏆 주요 성과", "어워드와 성장 하이라이트"),
+        ("3", "💡 개선 피드백", "장점, 보완점, 실행 계획"),
+        ("4", "📊 상세 분석", "월별 트렌드, 기술 스택, 협업, 회고"),
+        ("5", "📝 부록", "개별 PR 리뷰 및 상세 사례"),
+    ]
+
+    for num, title, desc in sections:
+        lines.append(f"{num}. **{title}** - {desc}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _generate_integrated_full_report(
     output_dir: Path,
     repo_name: str,
     brief_content: str,
     feedback_report_path: Path,
 ) -> Path:
-    """Generate an integrated report combining brief and feedback reports.
+    """Generate an improved integrated report with better UX.
 
     Args:
         output_dir: Output directory for the integrated report
@@ -1435,32 +1570,102 @@ def _generate_integrated_full_report(
         console.print(f"[warning]Error reading feedback report: {exc}[/]")
         raise RuntimeError(f"Failed to read feedback report: {exc}") from exc
 
-    # Generate integrated report
-    integrated_content = f"""# {repo_name} 전체 분석 및 PR 리뷰 보고서
+    # Extract key sections from brief
+    awards_section = _extract_section_content(brief_content, "## 🏆 Awards Cabinet")
+    highlights_section = _extract_section_content(brief_content, "## ✨ Growth Highlights")
+    monthly_trends_section = _extract_section_content(brief_content, "## 📈 Monthly Trends")
+    feedback_section = _extract_section_content(brief_content, "## 💡 Detailed Feedback")
+    retrospective_section = _extract_section_content(brief_content, "## 🔍 Deep Retrospective Analysis")
+    tech_stack_section = _extract_section_content(brief_content, "## 💻 Tech Stack Analysis")
+    collaboration_section = _extract_section_content(brief_content, "## 🤝 PR 활동 요약")
 
-이 보고서는 레포지토리 전체 분석(brief)과 PR 리뷰 분석(feedback)을 통합한 종합 보고서입니다.
+    # Extract key sections from feedback
+    personal_dev_section = _extract_section_content(feedback_content, "## 👤 개인 성장 분석")
+    strengths_section = _extract_section_content(feedback_content, "## ✨ 장점")
+    improvements_section = _extract_section_content(feedback_content, "## 💡 보완점")
+    growth_section = _extract_section_content(feedback_content, "## 🌱 올해 성장한 점")
 
-## 목차
+    # Create executive summary
+    exec_summary = _create_executive_summary(brief_content, feedback_content, output_dir)
 
-1. [레포지토리 개요 (Repository Brief)](#1-레포지토리-개요-repository-brief)
-2. [PR 리뷰 분석 (PR Feedback)](#2-pr-리뷰-분석-pr-feedback)
+    # Create improved TOC
+    toc = _create_improved_toc()
+
+    # Generate integrated report with improved structure
+    integrated_content = f"""# 📊 {repo_name} 통합 분석 보고서
+
+> 레포지토리 전체 분석과 PR 리뷰를 통합한 종합 보고서입니다.
+
+{exec_summary}
+
+{toc}
+
+## 2. 🏆 주요 성과
+
+> 이번 기간 동안 달성한 어워드와 성장 하이라이트
+
+### 🏅 획득 어워드
+
+{awards_section if awards_section else "_어워드 정보가 없습니다._"}
+
+### ✨ 성장 하이라이트
+
+{highlights_section if highlights_section else "_하이라이트 정보가 없습니다._"}
 
 ---
 
-## 1. 레포지토리 개요 (Repository Brief)
+## 3. 💡 개선 피드백
 
-{brief_content}
+> 구체적인 장점, 보완점, 실행 가능한 제안
+
+{personal_dev_section if personal_dev_section else "_개인 성장 분석 정보가 없습니다._"}
+
+### 코드 품질 피드백
+
+{feedback_section if feedback_section else "_상세 피드백 정보가 없습니다._"}
 
 ---
 
-## 2. PR 리뷰 분석 (PR Feedback)
+## 4. 📊 상세 분석
 
-{feedback_content}
+> 데이터 기반의 심층 분석
+
+### 📈 월별 활동 트렌드
+
+{monthly_trends_section if monthly_trends_section else "_월별 트렌드 정보가 없습니다._"}
+
+### 💻 기술 스택 분석
+
+{tech_stack_section if tech_stack_section else "_기술 스택 정보가 없습니다._"}
+
+### 🤝 협업 분석
+
+{collaboration_section if collaboration_section else "_협업 정보가 없습니다._"}
+
+### 🔍 심층 회고
+
+{retrospective_section if retrospective_section else "_회고 분석 정보가 없습니다._"}
 
 ---
+
+## 5. 📝 부록
+
+> 개별 PR 리뷰 및 상세 사례
+
+{growth_section if growth_section else ""}
+
+{strengths_section if strengths_section else ""}
+
+{improvements_section if improvements_section else ""}
+
+---
+
+<div align="center">
 
 *Generated by GitHub Feedback Analysis Tool*
 *Report generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
+
+</div>
 """
 
     # Save integrated report with comprehensive error handling
