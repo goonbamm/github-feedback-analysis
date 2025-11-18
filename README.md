@@ -462,7 +462,7 @@ gfa suggest-repos --sort activity
 
 ### Enterprise 호스트 설정 (`hosts.config.json`)
 
-프로젝트 루트의 `hosts.config.json` 파일을 편집하여 회사별 GitHub Enterprise 호스트를 커스터마이즈할 수 있습니다.
+프로젝트의 `.config/hosts.config.json` 파일을 편집하여 회사별 GitHub Enterprise 호스트를 커스터마이즈할 수 있습니다.
 
 ```json
 {
@@ -477,7 +477,7 @@ gfa suggest-repos --sort activity
 ```
 
 **커스터마이징 방법:**
-1. `hosts.config.json` 파일을 열어서 편집
+1. `.config/hosts.config.json` 파일을 열어서 편집
 2. `default_hosts` 배열에 회사의 GitHub Enterprise 호스트를 추가하거나 수정
 3. 첫 번째 항목은 "github.com (Default)"로 유지하는 것을 권장
 4. 저장 후 `gfa init` 실행 시 수정된 호스트 목록이 표시됩니다
