@@ -95,7 +95,7 @@ class GameRenderer:
         lines.append('<div style="border: 2px solid #444; border-radius: 8px; padding: 16px; margin: 16px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">')
 
         # 스킬명 및 레벨
-        lines.append(f'  <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 8px;">')
+        lines.append(f'  <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;">')
         lines.append(f'    {skill_emoji} {skill_name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">Lv.{level}</span>')
         lines.append(f'  </div>')
 
@@ -115,7 +115,7 @@ class GameRenderer:
         # 효과 설명
         lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px; margin-bottom: 12px;">')
         lines.append(f'    <div style="font-weight: bold; margin-bottom: 4px;">💫 효과</div>')
-        lines.append(f'    <div style="opacity: 0.95;">{effect_description}</div>')
+        lines.append(f'    <div style="opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.6;">{effect_description}</div>')
         lines.append(f'  </div>')
 
         # 마스터리 바
@@ -134,8 +134,8 @@ class GameRenderer:
             lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px;">')
             lines.append(f'    <div style="font-weight: bold; margin-bottom: 8px;">📚 습득 경로</div>')
             lines.append(f'    <ol style="margin: 0; padding-left: 20px;">')
-            for ev in evidence[:5]:  # 최대 5개
-                lines.append(f'      <li style="margin-bottom: 4px; opacity: 0.95;">{ev}</li>')
+            for ev in evidence:  # 모든 증거 표시 (제한 제거)
+                lines.append(f'      <li style="margin-bottom: 4px; opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.6;">{ev}</li>')
             lines.append(f'    </ol>')
             lines.append(f'  </div>')
 
