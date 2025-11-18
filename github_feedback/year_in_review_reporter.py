@@ -89,7 +89,6 @@ class YearInReviewReporter:
         lines.extend(self._generate_executive_summary(repository_analyses, sorted_tech_stack))
         lines.extend(self._generate_tech_stack_analysis(sorted_tech_stack))
         lines.extend(self._generate_repository_breakdown(repository_analyses))
-        lines.extend(self._generate_aggregated_insights(repository_analyses))
         lines.extend(self._generate_goals_section(repository_analyses, year))
         lines.extend(self._generate_footer())
 
@@ -254,22 +253,68 @@ class YearInReviewReporter:
                 lines.append(f"📜 **[상세 보고서 보기]({rel_from_year_in_review})**")
                 lines.append("")
 
-            # Key insights from personal development
+            # Key insights from personal development - More detailed display
             if repo.strengths:
-                lines.append("**✨ 획득한 스킬:**")
-                for strength in repo.strengths[:2]:  # Top 2 strengths
+                lines.append("#### ✨ 획득한 스킬")
+                lines.append("")
+                for idx, strength in enumerate(repo.strengths[:3], 1):  # Top 3 strengths
                     category = strength.get("category", "")
                     desc = strength.get("description", "")
-                    lines.append(f"- 💎 **{category}**: {desc}")
-                lines.append("")
+                    impact = strength.get("impact", "medium")
+                    evidence = strength.get("evidence", [])
+
+                    # Impact emoji
+                    impact_emoji = {"high": "🔥", "medium": "💫", "low": "✨"}.get(impact, "💫")
+
+                    lines.append(f"**{idx}. {impact_emoji} {category}**")
+                    lines.append(f"> {desc}")
+
+                    if evidence:
+                        lines.append("")
+                        lines.append("*구체적인 증거:*")
+                        for ev in evidence[:2]:  # Show top 2 evidence
+                            lines.append(f"- {ev}")
+                    lines.append("")
 
             if repo.improvements:
-                lines.append("**🎯 성장 기회:**")
-                for improvement in repo.improvements[:2]:  # Top 2 improvements
+                lines.append("#### 🎯 성장 기회")
+                lines.append("")
+                for idx, improvement in enumerate(repo.improvements[:3], 1):  # Top 3 improvements
                     category = improvement.get("category", "")
                     desc = improvement.get("description", "")
-                    lines.append(f"- 🌱 **{category}**: {desc}")
+                    priority = improvement.get("priority", "medium")
+                    evidence = improvement.get("evidence", [])
+                    suggestions = improvement.get("suggestions", [])
+
+                    # Priority emoji
+                    priority_emoji = {"critical": "🚨", "important": "⚡", "nice-to-have": "💡"}.get(priority, "⚡")
+
+                    lines.append(f"**{idx}. {priority_emoji} {category}**")
+                    lines.append(f"> {desc}")
+
+                    if evidence:
+                        lines.append("")
+                        lines.append("*근거:*")
+                        for ev in evidence[:2]:  # Show top 2 evidence
+                            lines.append(f"- {ev}")
+
+                    if suggestions:
+                        lines.append("")
+                        lines.append("*개선 방안:*")
+                        for sug in suggestions[:2]:  # Show top 2 suggestions
+                            lines.append(f"- {sug}")
+                    lines.append("")
+
+            if repo.growth_indicators:
+                lines.append("#### 📈 성장 지표")
                 lines.append("")
+                for idx, indicator in enumerate(repo.growth_indicators[:2], 1):  # Top 2 growth indicators
+                    aspect = indicator.get("aspect", "")
+                    progress_summary = indicator.get("progress_summary", "")
+
+                    lines.append(f"**{idx}. 🚀 {aspect}**")
+                    lines.append(f"> {progress_summary}")
+                    lines.append("")
 
             lines.append("---")
             lines.append("")
@@ -324,77 +369,6 @@ class YearInReviewReporter:
         lines.extend(["", "---", ""])
         return lines
 
-    def _generate_aggregated_insights(
-        self, repository_analyses: List[RepositoryAnalysis]
-    ) -> List[str]:
-        """종합 인사이트 생성."""
-        lines = [
-            "## 🌟 종합 성장 분석",
-            "",
-            "> 모든 던전에서 발견된 패턴과 성장 트렌드",
-            "",
-        ]
-
-        # Collect all strengths and improvements
-        all_strengths = defaultdict(int)
-        all_improvements = defaultdict(int)
-
-        for repo in repository_analyses:
-            for strength in repo.strengths:
-                category = strength.get("category", "기타")
-                all_strengths[category] += 1
-
-            for improvement in repo.improvements:
-                category = improvement.get("category", "기타")
-                all_improvements[category] += 1
-
-        # Top recurring strengths
-        if all_strengths:
-            lines.append("### ✨ 반복적으로 발견된 강점 스킬")
-            lines.append("")
-            lines.append("> 여러 던전에서 빛을 발한 당신의 핵심 능력")
-            lines.append("")
-            sorted_strengths = sorted(all_strengths.items(), key=lambda x: x[1], reverse=True)
-            for idx, (category, count) in enumerate(sorted_strengths[:5], 1):
-                lines.append(f"{idx}. 💎 **{category}** - {count}개 던전에서 발휘")
-            lines.append("")
-
-        # Top recurring improvement areas
-        if all_improvements:
-            lines.append("### 🎯 공통 성장 기회")
-            lines.append("")
-            lines.append("> 여러 던전에서 발견된 레벨업 포인트")
-            lines.append("")
-            sorted_improvements = sorted(all_improvements.items(), key=lambda x: x[1], reverse=True)
-            for idx, (category, count) in enumerate(sorted_improvements[:5], 1):
-                lines.append(f"{idx}. 🌱 **{category}** - {count}개 던전에서 발견")
-            lines.append("")
-
-        # Growth indicators
-        lines.append("### 📈 성장 지표")
-        lines.append("")
-
-        repos_with_growth = [r for r in repository_analyses if r.growth_indicators]
-        if repos_with_growth:
-            lines.append(f"🎊 **{len(repository_analyses)}개 던전 중 {len(repos_with_growth)}개에서 측정 가능한 성장을 달성했습니다!**")
-            lines.append("")
-
-            # Sample growth examples
-            lines.append("**대표적인 성장 사례:**")
-            lines.append("")
-            for repo in repos_with_growth[:3]:
-                if repo.growth_indicators:
-                    indicator = repo.growth_indicators[0]
-                    aspect = indicator.get("aspect", "")
-                    summary = indicator.get("progress_summary", "")
-                    lines.append(f"- 🚀 **{repo.full_name}**: {aspect} - {summary}")
-            lines.append("")
-        else:
-            lines.append("💡 _특정 성장 지표는 아직 발견되지 않았지만, 꾸준한 활동으로 성장하고 있습니다!_")
-            lines.append("")
-
-        lines.extend(["", "---", ""])
-        return lines
 
     def _generate_character_stats(
         self, year: int, total_repos: int, total_prs: int, total_commits: int,
