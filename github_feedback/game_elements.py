@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from .utils import pad_to_width
 
@@ -266,6 +266,228 @@ class GameRenderer:
             lines.append('  </div>')
             lines.append('</div>')
             lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_html_table(
+        headers: List[str],
+        rows: List[List[str]],
+        title: str = "",
+        description: str = "",
+        striped: bool = True
+    ) -> List[str]:
+        """범용 HTML 테이블 렌더링.
+
+        Args:
+            headers: 테이블 헤더 리스트
+            rows: 테이블 행 데이터 (각 행은 문자열 리스트)
+            title: 테이블 제목 (선택)
+            description: 테이블 설명 (선택)
+            striped: 줄무늬 스타일 적용 여부
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        # 컨테이너 시작
+        lines.append('<div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+
+        # 제목 및 설명
+        if title:
+            lines.append(f'  <h4 style="margin: 0 0 8px 0; color: #2d3748; font-size: 1.2em;">{title}</h4>')
+        if description:
+            lines.append(f'  <p style="margin: 0 0 12px 0; color: #718096; font-size: 0.9em;">{description}</p>')
+
+        # 테이블 시작
+        lines.append('  <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">')
+
+        # 헤더
+        lines.append('    <thead>')
+        lines.append('      <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">')
+        for header in headers:
+            lines.append(f'        <th style="padding: 12px; text-align: left; font-weight: 600;">{header}</th>')
+        lines.append('      </tr>')
+        lines.append('    </thead>')
+
+        # 바디
+        lines.append('    <tbody>')
+        for idx, row in enumerate(rows):
+            bg_color = '#f7fafc' if striped and idx % 2 == 0 else 'white'
+            lines.append(f'      <tr style="background: {bg_color}; border-bottom: 1px solid #e2e8f0;">')
+            for cell in row:
+                lines.append(f'        <td style="padding: 10px; color: #2d3748;">{cell}</td>')
+            lines.append('      </tr>')
+        lines.append('    </tbody>')
+
+        lines.append('  </table>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_metric_cards(
+        metrics: List[Dict[str, str]],
+        columns: int = 3
+    ) -> List[str]:
+        """메트릭 카드 그리드 렌더링.
+
+        Args:
+            metrics: 메트릭 딕셔너리 리스트
+                    각 딕셔너리는 {"title": "...", "value": "...", "emoji": "...", "color": "#..."}
+            columns: 열 개수 (기본 3)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        # 그리드 컨테이너
+        lines.append(f'<div style="display: grid; grid-template-columns: repeat({columns}, 1fr); gap: 16px; margin: 16px 0;">')
+
+        for metric in metrics:
+            title = metric.get("title", "")
+            value = metric.get("value", "")
+            emoji = metric.get("emoji", "📊")
+            color = metric.get("color", "#667eea")
+
+            # 카드
+            lines.append('  <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">')
+            lines.append(f'    <div style="font-size: 2em; margin-bottom: 8px;">{emoji}</div>')
+            lines.append(f'    <div style="font-size: 0.9em; color: #718096; margin-bottom: 4px;">{title}</div>')
+            lines.append(f'    <div style="font-size: 1.8em; font-weight: bold; color: {color};">{value}</div>')
+            lines.append('  </div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_info_box(
+        title: str,
+        content: str,
+        emoji: str = "💡",
+        bg_color: str = "#eef2ff",
+        border_color: str = "#667eea"
+    ) -> List[str]:
+        """정보 박스 렌더링.
+
+        Args:
+            title: 박스 제목
+            content: 박스 내용
+            emoji: 이모지
+            bg_color: 배경색
+            border_color: 테두리 색
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        lines.append(f'<div style="border-left: 4px solid {border_color}; background: {bg_color}; padding: 16px; margin: 16px 0; border-radius: 4px;">')
+        lines.append(f'  <div style="display: flex; align-items: center; margin-bottom: 8px;">')
+        lines.append(f'    <span style="font-size: 1.5em; margin-right: 8px;">{emoji}</span>')
+        lines.append(f'    <h4 style="margin: 0; color: #2d3748; font-size: 1.1em;">{title}</h4>')
+        lines.append(f'  </div>')
+        lines.append(f'  <div style="color: #4a5568; line-height: 1.6; white-space: pre-wrap;">{content}</div>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_awards_grid(
+        awards: List[Dict[str, str]],
+        columns: int = 2
+    ) -> List[str]:
+        """어워즈 그리드 렌더링.
+
+        Args:
+            awards: 어워즈 딕셔너리 리스트
+                   각 딕셔너리는 {"category": "...", "description": "...", "emoji": "...", "count": "..."}
+            columns: 열 개수
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        lines.append(f'<div style="display: grid; grid-template-columns: repeat({columns}, 1fr); gap: 16px; margin: 16px 0;">')
+
+        for award in awards:
+            category = award.get("category", "")
+            description = award.get("description", "")
+            emoji = award.get("emoji", "🏆")
+            count = award.get("count", "0")
+
+            # 어워드 카드
+            lines.append('  <div style="border: 2px solid #fbbf24; border-radius: 8px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">')
+            lines.append(f'    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">')
+            lines.append(f'      <span style="font-size: 2em;">{emoji}</span>')
+            lines.append(f'      <span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">{count}</span>')
+            lines.append(f'    </div>')
+            lines.append(f'    <h4 style="margin: 0 0 4px 0; color: #78350f; font-size: 1.1em;">{category}</h4>')
+            lines.append(f'    <p style="margin: 0; color: #92400e; font-size: 0.9em; line-height: 1.4;">{description}</p>')
+            lines.append('  </div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_monthly_chart(
+        monthly_data: List[Dict[str, Any]],
+        title: str = "월별 활동 트렌드",
+        value_key: str = "count",
+        label_key: str = "month"
+    ) -> List[str]:
+        """월별 차트 렌더링 (세로 막대 그래프 스타일).
+
+        Args:
+            monthly_data: 월별 데이터 리스트 [{"month": "2024-01", "count": 10}, ...]
+            title: 차트 제목
+            value_key: 값 키 이름
+            label_key: 레이블 키 이름
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        if not monthly_data:
+            return lines
+
+        # 최대값 찾기
+        max_value = max((item.get(value_key, 0) for item in monthly_data), default=1)
+        if max_value == 0:
+            max_value = 1
+
+        # 차트 컨테이너
+        lines.append('<div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 16px 0; color: #2d3748; font-size: 1.2em;">{title}</h4>')
+
+        # 차트 영역
+        lines.append('  <div style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #cbd5e0; padding: 0 8px;">')
+
+        for item in monthly_data:
+            label = item.get(label_key, "")
+            value = item.get(value_key, 0)
+            height_percent = (value / max_value) * 100 if max_value > 0 else 0
+
+            # 막대 및 레이블
+            lines.append('    <div style="display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 4px;">')
+            lines.append(f'      <div style="font-size: 0.8em; font-weight: bold; color: #4a5568; margin-bottom: 4px;">{value}</div>')
+            lines.append(f'      <div style="width: 100%; max-width: 60px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); border-radius: 4px 4px 0 0; height: {height_percent}%; min-height: 4px;"></div>')
+            lines.append(f'      <div style="font-size: 0.75em; color: #718096; margin-top: 8px; transform: rotate(-45deg); white-space: nowrap;">{label}</div>')
+            lines.append('    </div>')
+
+        lines.append('  </div>')
+        lines.append('</div>')
+        lines.append("")
 
         return lines
 

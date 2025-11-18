@@ -299,18 +299,26 @@ class Reporter:
         return lines
 
     def _build_highlights_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build growth highlights section."""
+        """Build growth highlights section (HTML version)."""
         if not metrics.highlights:
             return []
 
         lines = ["## ✨ Growth Highlights", ""]
         lines.append("> 이번 기간 동안의 주요 성과와 성장 포인트")
         lines.append("")
-        lines.append("| # | 성과 |")
-        lines.append("|---|------|")
-        for i, highlight in enumerate(metrics.highlights, 1):
-            lines.append(f"| {i} | {highlight} |")
-        lines.append("")
+
+        # Build HTML table
+        headers = ["#", "성과"]
+        rows = [[str(i), highlight] for i, highlight in enumerate(metrics.highlights, 1)]
+
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
         return lines
@@ -627,7 +635,7 @@ class Reporter:
         return lines
 
     def _build_awards_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build awards cabinet section."""
+        """Build awards cabinet section (HTML version)."""
         if not metrics.awards:
             return []
 
@@ -637,16 +645,27 @@ class Reporter:
 
         categories = self._categorize_awards(metrics.awards)
 
-        # Build a single table with all awards
-        lines.append("| 카테고리 | 어워드 |")
-        lines.append("|----------|--------|")
-
+        # Build awards grid with HTML
+        awards_data = []
         for category_name, category_awards in categories.items():
             if category_awards:
-                for award in category_awards:
-                    lines.append(f"| {category_name} | {award} |")
+                # Extract emoji from category name
+                emoji = category_name.split()[0] if category_name else "🏆"
+                category_title = " ".join(category_name.split()[1:]) if len(category_name.split()) > 1 else category_name
 
-        lines.append("")
+                # Combine all awards in this category
+                description = "<br>".join(f"• {award}" for award in category_awards)
+
+                awards_data.append({
+                    "category": category_title,
+                    "description": description,
+                    "emoji": emoji,
+                    "count": str(len(category_awards))
+                })
+
+        # Render using HTML
+        lines.extend(GameRenderer.render_awards_grid(awards_data, columns=2))
+
         lines.append("---")
         lines.append("")
         return lines
@@ -942,7 +961,7 @@ class Reporter:
         evidence_formatter,
         link_formatter,
     ) -> List[str]:
-        """Build a common feedback table format.
+        """Build a common feedback table format (HTML version).
 
         Args:
             title: Section title
@@ -959,53 +978,61 @@ class Reporter:
         """
         lines = [title, ""]
 
-        # Build the table header
-        lines.append("| 장점 혹은 개선점/보완점 | 근거 (코드, 메세지 등) | 링크 |")
-        lines.append("|------------------------|----------------------|------|")
+        # Build table rows
+        headers = ["장점 혹은 개선점/보완점", "근거 (코드, 메세지 등)", "링크"]
+        rows = []
 
         # Add good examples as strengths (장점)
         if hasattr(feedback_data, 'examples_good') and feedback_data.examples_good:
             for example in feedback_data.examples_good[:DISPLAY_LIMITS['feedback_examples']]:
                 if isinstance(example, dict):
-                    category = f"**장점**: {good_category}"
+                    category = f"<strong>장점</strong>: {good_category}"
                     evidence = evidence_formatter(example)
                     link = link_formatter(example)
-                    lines.append(f"| {category} | {evidence} | {link} |")
+                    rows.append([category, evidence, link])
                 else:
                     example_escaped = _escape_table_cell(str(example))
-                    lines.append(f"| **장점**: {fallback_good_msg} | {example_escaped} | - |")
+                    rows.append([f"<strong>장점</strong>: {fallback_good_msg}", example_escaped, "-"])
 
         # Add poor examples as improvement areas (개선점)
         if hasattr(feedback_data, 'examples_poor') and feedback_data.examples_poor:
             for example in feedback_data.examples_poor[:DISPLAY_LIMITS['feedback_examples']]:
                 if isinstance(example, dict):
-                    category = f"**개선점**: {poor_category}"
+                    category = f"<strong>개선점</strong>: {poor_category}"
                     evidence = evidence_formatter(example)
                     link = link_formatter(example)
-                    lines.append(f"| {category} | {evidence} | {link} |")
+                    rows.append([category, evidence, link])
                 else:
                     example_escaped = _escape_table_cell(str(example))
-                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example_escaped} | - |")
+                    rows.append([f"<strong>개선점</strong>: {fallback_poor_msg}", example_escaped, "-"])
 
         # Handle improve examples (for review tone feedback)
         if hasattr(feedback_data, 'examples_improve') and feedback_data.examples_improve:
             for example in feedback_data.examples_improve[:DISPLAY_LIMITS['feedback_examples']]:
                 if isinstance(example, dict):
-                    category = f"**개선점**: {poor_category}"
+                    category = f"<strong>개선점</strong>: {poor_category}"
                     evidence = evidence_formatter(example)
                     link = link_formatter(example)
-                    lines.append(f"| {category} | {evidence} | {link} |")
+                    rows.append([category, evidence, link])
                 else:
                     example_escaped = _escape_table_cell(str(example))
-                    lines.append(f"| **개선점**: {fallback_poor_msg} | {example_escaped} | - |")
+                    rows.append([f"<strong>개선점</strong>: {fallback_poor_msg}", example_escaped, "-"])
 
         # Add suggestions as additional improvement areas
         if hasattr(feedback_data, 'suggestions') and feedback_data.suggestions:
             for suggestion in feedback_data.suggestions[:3]:  # Limit to 3 suggestions
                 suggestion_escaped = _escape_table_cell(suggestion)
-                lines.append(f"| **보완점**: {suggestion_escaped} | 전반적인 패턴 분석 결과 | - |")
+                rows.append([f"<strong>보완점</strong>: {suggestion_escaped}", "전반적인 패턴 분석 결과", "-"])
 
-        lines.append("")
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         return lines
 
     def _build_commit_feedback(self, commit_feedback) -> List[str]:
@@ -1169,7 +1196,7 @@ class Reporter:
         )
 
     def _build_monthly_trends_section(self, metrics: MetricSnapshot) -> List[str]:
-        """Build monthly trends section."""
+        """Build monthly trends section (HTML version with charts)."""
         if not metrics.monthly_trends:
             return []
 
@@ -1177,24 +1204,58 @@ class Reporter:
         lines.append("> 월별 활동 패턴과 트렌드 분석")
         lines.append("")
 
+        # Insights as info box
         if metrics.monthly_insights and metrics.monthly_insights.insights:
-            lines.append("### 💡 인사이트")
-            lines.append("")
-            for i, insight in enumerate(metrics.monthly_insights.insights, 1):
-                lines.append(f"{i}. {insight}")
-            lines.append("")
+            insights_text = "\n".join(f"{i}. {insight}" for i, insight in enumerate(metrics.monthly_insights.insights, 1))
+            lines.extend(GameRenderer.render_info_box(
+                title="주요 인사이트",
+                content=insights_text,
+                emoji="💡",
+                bg_color="#fffbeb",
+                border_color="#f59e0b"
+            ))
 
-        lines.append("### 📊 월별 상세 데이터")
-        lines.append("")
-        lines.append("| 월 | 커밋 | PR | 리뷰 | 이슈 | 총 활동 |")
-        lines.append("|---|---|---|---|---|---|")
+        # Render activity chart
+        monthly_chart_data = []
         for trend in metrics.monthly_trends:
             total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
-            lines.append(
-                f"| {trend.month} | {trend.commits} | {trend.pull_requests} | "
-                f"{trend.reviews} | {trend.issues} | **{total_activity}** |"
-            )
+            monthly_chart_data.append({
+                "month": trend.month,
+                "count": total_activity
+            })
+
+        lines.extend(GameRenderer.render_monthly_chart(
+            monthly_data=monthly_chart_data,
+            title="월별 총 활동량",
+            value_key="count",
+            label_key="month"
+        ))
+
+        # Render detailed data table
+        lines.append("### 📊 월별 상세 데이터")
         lines.append("")
+
+        headers = ["월", "커밋", "PR", "리뷰", "이슈", "총 활동"]
+        rows = []
+        for trend in metrics.monthly_trends:
+            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+            rows.append([
+                trend.month,
+                str(trend.commits),
+                str(trend.pull_requests),
+                str(trend.reviews),
+                str(trend.issues),
+                f"<strong>{total_activity}</strong>"
+            ])
+
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
         return lines

@@ -102,50 +102,69 @@ class YearInReviewReporter:
     def _generate_header(
         self, year: int, username: str, total_repos: int, total_prs: int, total_commits: int
     ) -> List[str]:
-        """게임 스타일 헤더 생성."""
+        """게임 스타일 헤더 생성 (HTML 버전)."""
         lines = [
             f"# 🎮 {year}년 개발자 모험 결산 보고서",
             "",
-            "```",
-            "╔═══════════════════════════════════════════════════════════╗",
-            "║                                                           ║",
-            f"║          🏆  {username}의 {year}년 대모험 기록  🏆            ║",
-            "║                                                           ║",
-            "║       \"한 해 동안의 모든 코딩 여정이 여기에\"              ║",
-            "║                                                           ║",
-            "╚═══════════════════════════════════════════════════════════╝",
-            "```",
-            "",
-            f"**📅 보고서 생성일**: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M')}",
-            "",
-            "---",
-            "",
-            "## 🎯 한눈에 보는 활동 요약",
-            "",
-            f"{year}년 한 해 동안, 당신은 **{total_repos}개의 저장소 던전**을 탐험하며 **{total_prs}개의 PR 퀘스트**를 완료하고 **{total_commits}번의 커밋 스킬**을 발동했습니다!",
-            "",
-            "### 📊 핵심 지표",
-            "",
-            "```",
-            "╔═══════════════════════════════════════════════════════════╗",
-            "║                     활동 요약 대시보드                    ║",
-            "╠═══════════════════════════════════════════════════════════╣",
-            f"║  🏰 탐험한 저장소 던전        │  {total_repos:>4}개               ║",
-            f"║  ⚔️  완료한 PR 퀘스트          │  {total_prs:>4}개               ║",
-            f"║  💫 발동한 커밋 스킬          │  {total_commits:>4}회               ║",
-            f"║  📈 던전당 평균 퀘스트        │  {total_prs // total_repos if total_repos > 0 else 0:>4}개               ║",
-            "╚═══════════════════════════════════════════════════════════╝",
-            "```",
-            "",
-            "---",
-            "",
         ]
+
+        # HTML 헤더 박스
+        lines.append('<div style="border: 3px solid #fbbf24; border-radius: 12px; padding: 30px; margin: 20px 0; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); text-align: center; box-shadow: 0 4px 6px rgba(251, 191, 36, 0.3);">')
+        lines.append(f'  <h2 style="margin: 0; color: #78350f; font-size: 1.8em;">🏆 {username}의 {year}년 대모험 기록 🏆</h2>')
+        lines.append(f'  <p style="margin: 10px 0 0 0; color: #92400e; font-size: 1.1em; font-style: italic;">"한 해 동안의 모든 코딩 여정이 여기에"</p>')
+        lines.append('</div>')
+        lines.append("")
+
+        lines.append(f"**📅 보고서 생성일**: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M')}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        lines.append("## 🎯 한눈에 보는 활동 요약")
+        lines.append("")
+        lines.append(f"{year}년 한 해 동안, 당신은 **{total_repos}개의 저장소 던전**을 탐험하며 **{total_prs}개의 PR 퀘스트**를 완료하고 **{total_commits}번의 커밋 스킬**을 발동했습니다!")
+        lines.append("")
+
+        # 핵심 지표 카드
+        avg_quests = total_prs // total_repos if total_repos > 0 else 0
+        metrics_data = [
+            {
+                "title": "탐험한 저장소 던전",
+                "value": f"{total_repos}개",
+                "emoji": "🏰",
+                "color": "#667eea"
+            },
+            {
+                "title": "완료한 PR 퀘스트",
+                "value": f"{total_prs}개",
+                "emoji": "⚔️",
+                "color": "#f59e0b"
+            },
+            {
+                "title": "발동한 커밋 스킬",
+                "value": f"{total_commits}회",
+                "emoji": "💫",
+                "color": "#8b5cf6"
+            },
+            {
+                "title": "던전당 평균 퀘스트",
+                "value": f"{avg_quests}개",
+                "emoji": "📈",
+                "color": "#10b981"
+            }
+        ]
+
+        lines.extend(GameRenderer.render_metric_cards(metrics_data, columns=4))
+
+        lines.append("---")
+        lines.append("")
+
         return lines
 
     def _generate_executive_summary(
         self, repository_analyses: List[RepositoryAnalysis], tech_stack: List[tuple]
     ) -> List[str]:
-        """게임 스타일 최고 업적 섹션 생성."""
+        """게임 스타일 최고 업적 섹션 생성 (HTML 버전)."""
         lines = [
             "## 🏆 전설의 업적",
             "",
@@ -155,37 +174,29 @@ class YearInReviewReporter:
 
         # Most active repository
         most_active = max(repository_analyses, key=lambda r: r.pr_count)
-        lines.append("```")
-        lines.append("╔═══════════════════════════════════════════════════════════╗")
-        lines.append("║                      🎖️ 최고 업적 🎖️                      ║")
-        lines.append("╠═══════════════════════════════════════════════════════════╣")
-
-        # Most active repository
-        repo_name = most_active.full_name[:45] if len(most_active.full_name) > 45 else most_active.full_name
-        padded_repo = pad_to_width(repo_name, 45, align='left')
-        lines.append(f"║  🥇 최다 활동 던전: {padded_repo}  ║")
-        lines.append(f"║     └─ 완료 퀘스트: {most_active.pr_count}개                                   ║")
-
-        # Most committed repository
         most_commits = max(repository_analyses, key=lambda r: r.year_commits)
-        if most_commits.full_name != most_active.full_name:
-            repo_name2 = most_commits.full_name[:45] if len(most_commits.full_name) > 45 else most_commits.full_name
-            padded_repo2 = pad_to_width(repo_name2, 45, align='left')
-            lines.append("║                                                           ║")
-            lines.append(f"║  🥈 최다 커밋 던전: {padded_repo2}  ║")
-            lines.append(f"║     └─ 커밋 횟수: {most_commits.year_commits}회                                    ║")
 
-        # Primary technologies
+        # Build achievements list
+        achievement_text = f"🥇 **최다 활동 던전**: {most_active.full_name}\n   └─ 완료 퀘스트: {most_active.pr_count}개"
+
+        if most_commits.full_name != most_active.full_name:
+            achievement_text += f"\n\n🥈 **최다 커밋 던전**: {most_commits.full_name}\n   └─ 커밋 횟수: {most_commits.year_commits}회"
+
         if tech_stack:
             top_3_tech = [tech[0] for tech in tech_stack[:3]]
             tech_str = ', '.join(top_3_tech)
-            tech_padded = pad_to_width(tech_str[:50], 50, align='left')
-            lines.append("║                                                           ║")
-            lines.append(f"║  💻 주력 무기(기술): {tech_padded} ║")
+            achievement_text += f"\n\n💻 **주력 무기(기술)**: {tech_str}"
 
-        lines.append("╚═══════════════════════════════════════════════════════════╝")
-        lines.append("```")
-        lines.extend(["", "---", ""])
+        # Render as info box
+        lines.extend(GameRenderer.render_info_box(
+            title="🎖️ 최고 업적 🎖️",
+            content=achievement_text,
+            emoji="🏆",
+            bg_color="#fef3c7",
+            border_color="#fbbf24"
+        ))
+
+        lines.extend(["---", ""])
         return lines
 
     def _generate_repository_breakdown(
@@ -223,25 +234,25 @@ class YearInReviewReporter:
             lines.append(f"**난이도**: {difficulty}")
             lines.append("")
 
-            lines.append("```")
-            lines.append("╔═══════════════════════════════════════════════════════════╗")
-            lines.append("║                      던전 클리어 통계                     ║")
-            lines.append("╠═══════════════════════════════════════════════════════════╣")
-            lines.append(f"║  ⚔️  완료한 퀘스트 (PR)       │  {repo.pr_count:>4}개               ║")
-            lines.append(f"║  💫 발동한 스킬 (커밋)        │  {repo.year_commits:>4}회 (올해)        ║")
-            lines.append(f"║  📊 총 기여 횟수              │  {repo.commit_count:>4}회 (전체)        ║")
+            # Build stats content
+            stats_content = f"⚔️  **완료한 퀘스트 (PR)**: {repo.pr_count}개\n"
+            stats_content += f"💫 **발동한 스킬 (커밋)**: {repo.year_commits}회 (올해)\n"
+            stats_content += f"📊 **총 기여 횟수**: {repo.commit_count}회 (전체)"
 
             if repo.tech_stack:
                 top_langs = sorted(repo.tech_stack.items(), key=lambda x: x[1], reverse=True)[:3]
-                lines.append("╠═══════════════════════════════════════════════════════════╣")
-                lines.append("║  🔧 사용한 주요 기술                                      ║")
+                stats_content += "\n\n🔧 **사용한 주요 기술**:"
                 for lang, count in top_langs:
-                    lang_padded = pad_to_width(lang, 30, align='left')
-                    lines.append(f"║     • {lang_padded}  {count:>3}회    ║")
+                    stats_content += f"\n   • {lang}: {count}회"
 
-            lines.append("╚═══════════════════════════════════════════════════════════╝")
-            lines.append("```")
-            lines.append("")
+            # Render as info box
+            lines.extend(GameRenderer.render_info_box(
+                title="던전 클리어 통계",
+                content=stats_content,
+                emoji="📊",
+                bg_color="#eff6ff",
+                border_color="#3b82f6"
+            ))
 
             # Link to detailed report
             if repo.integrated_report_path:
