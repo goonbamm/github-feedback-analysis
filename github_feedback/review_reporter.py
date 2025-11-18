@@ -49,6 +49,9 @@ class StoredReview:
     body: str = ""
     review_bodies: List[str] | None = None
     review_comments: List[str] | None = None
+    additions: int = 0
+    deletions: int = 0
+    changed_files: int = 0
 
 
 class ReviewReporter:
@@ -129,6 +132,9 @@ class ReviewReporter:
             body = str(artefact_data.get("body") or "").strip()
             review_bodies = artefact_data.get("review_bodies", [])
             review_comments = artefact_data.get("review_comments", [])
+            additions = int(artefact_data.get("additions", 0))
+            deletions = int(artefact_data.get("deletions", 0))
+            changed_files = int(artefact_data.get("changed_files", 0))
 
             reviews.append(
                 StoredReview(
@@ -143,6 +149,9 @@ class ReviewReporter:
                     body=body,
                     review_bodies=review_bodies if isinstance(review_bodies, list) else [],
                     review_comments=review_comments if isinstance(review_comments, list) else [],
+                    additions=additions,
+                    deletions=deletions,
+                    changed_files=changed_files,
                 )
             )
 
@@ -156,28 +165,30 @@ class ReviewReporter:
         lines.append("")
         lines.append("Pull Request 요약:")
         for review in reviews:
+            # Include code change metrics for better analysis
+            code_metrics = f"+{review.additions}/-{review.deletions}, {review.changed_files}개 파일 변경"
             lines.append(
-                f"- PR #{review.number} {review.title} (작성자: {review.author}, 생성일: {review.created_at.date()})"
+                f"- PR #{review.number} {review.title} (작성자: {review.author}, 생성일: {review.created_at.date()}, 코드 변경: {code_metrics})"
             )
             if review.html_url:
                 lines.append(f"  URL: {review.html_url}")
 
-            # Include PR body for analyzing description quality
+            # Include PR body for analyzing description quality (increased limit for better context)
             if review.body:
-                body_preview = review.body[:300] + "..." if len(review.body) > 300 else review.body
+                body_preview = review.body[:600] + "..." if len(review.body) > 600 else review.body
                 lines.append(f"  PR 설명: {body_preview}")
 
             if review.overview:
                 lines.append(f"  Overview: {review.overview}")
 
-            # Include review comments for tone analysis
+            # Include review comments for tone analysis (increased count and length for better analysis)
             if review.review_comments:
                 lines.append(f"  리뷰 코멘트 ({len(review.review_comments)}개):")
-                for idx, comment in enumerate(review.review_comments[:5], 1):  # Show first 5 comments
-                    comment_preview = comment[:150] + "..." if len(comment) > 150 else comment
+                for idx, comment in enumerate(review.review_comments[:10], 1):  # Show first 10 comments
+                    comment_preview = comment[:300] + "..." if len(comment) > 300 else comment
                     lines.append(f"    {idx}. {comment_preview}")
-                if len(review.review_comments) > 5:
-                    lines.append(f"    ... 외 {len(review.review_comments) - 5}개 코멘트")
+                if len(review.review_comments) > 10:
+                    lines.append(f"    ... 외 {len(review.review_comments) - 10}개 코멘트")
 
             if review.strengths:
                 lines.append("  Strengths:")
