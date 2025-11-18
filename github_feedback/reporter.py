@@ -403,6 +403,105 @@ class Reporter:
         lines.append("")
         return lines
 
+    def _build_summary_overview_table(self, metrics: MetricSnapshot) -> List[str]:
+        """Build integrated summary table with strengths, areas for improvement, and growth."""
+        lines = ["## 📊 한눈에 보는 요약", ""]
+        lines.append("> 잘하고 있는 것, 보완하면 좋을 것, 성장한 점을 한눈에 확인하세요")
+        lines.append("")
+
+        lines.append("| 구분 | 내용 |")
+        lines.append("|------|------|")
+
+        # 1. 잘하고 있는 것 (Strengths) - from awards and highlights
+        strengths = []
+
+        # Get top awards (max 3)
+        if metrics.awards:
+            top_awards = metrics.awards[:3]
+            strengths.extend([f"🏆 {award}" for award in top_awards])
+
+        # Get key highlights if we need more (max 3 total)
+        if len(strengths) < 3 and metrics.highlights:
+            remaining = 3 - len(strengths)
+            for highlight in metrics.highlights[:remaining]:
+                # Shorten highlight to first sentence or 80 chars
+                short_highlight = highlight.split('.')[0][:80]
+                if len(highlight.split('.')[0]) > 80:
+                    short_highlight += "..."
+                strengths.append(f"✨ {short_highlight}")
+
+        # Add strengths to table
+        if strengths:
+            strengths_text = "<br>".join(strengths)
+            lines.append(f"| **✅ 잘하고 있는 것** | {strengths_text} |")
+        else:
+            lines.append("| **✅ 잘하고 있는 것** | 활동을 분석 중입니다 |")
+
+        # 2. 보완하면 좋을 것 (Areas for Improvement) - from detailed feedback suggestions
+        improvements = []
+
+        if metrics.detailed_feedback:
+            # Collect suggestions from all feedback types
+            if metrics.detailed_feedback.commit_feedback and hasattr(metrics.detailed_feedback.commit_feedback, 'suggestions'):
+                improvements.extend([f"📝 {s}" for s in metrics.detailed_feedback.commit_feedback.suggestions[:2]])
+
+            if len(improvements) < 3 and metrics.detailed_feedback.pr_title_feedback and hasattr(metrics.detailed_feedback.pr_title_feedback, 'suggestions'):
+                remaining = 3 - len(improvements)
+                improvements.extend([f"🔀 {s}" for s in metrics.detailed_feedback.pr_title_feedback.suggestions[:remaining]])
+
+            if len(improvements) < 3 and metrics.detailed_feedback.review_tone_feedback and hasattr(metrics.detailed_feedback.review_tone_feedback, 'suggestions'):
+                remaining = 3 - len(improvements)
+                improvements.extend([f"👀 {s}" for s in metrics.detailed_feedback.review_tone_feedback.suggestions[:remaining]])
+
+        # Add improvement areas to table
+        if improvements:
+            improvements_text = "<br>".join(improvements[:3])
+            lines.append(f"| **💡 보완하면 좋을 것** | {improvements_text} |")
+        else:
+            lines.append("| **💡 보완하면 좋을 것** | 전반적으로 좋은 품질을 유지하고 있습니다 |")
+
+        # 3. 성장한 점 (Growth) - from retrospective and highlights
+        growth_points = []
+
+        # Get from retrospective if available
+        if metrics.retrospective:
+            # Use time comparisons showing positive growth
+            if hasattr(metrics.retrospective, 'time_comparisons') and metrics.retrospective.time_comparisons:
+                for tc in metrics.retrospective.time_comparisons[:2]:
+                    if tc.direction == "increasing" and tc.significance in ["major", "moderate"]:
+                        growth_points.append(f"📈 {tc.metric_name} {tc.change_percentage:+.0f}% 증가")
+
+            # Use behavior patterns with positive impact
+            if len(growth_points) < 3 and hasattr(metrics.retrospective, 'behavior_patterns') and metrics.retrospective.behavior_patterns:
+                remaining = 3 - len(growth_points)
+                positive_patterns = [bp for bp in metrics.retrospective.behavior_patterns if bp.impact == "positive"]
+                for pattern in positive_patterns[:remaining]:
+                    short_desc = pattern.description[:60]
+                    if len(pattern.description) > 60:
+                        short_desc += "..."
+                    growth_points.append(f"🧠 {short_desc}")
+
+        # Fallback to highlights
+        if len(growth_points) < 3 and metrics.highlights:
+            remaining = 3 - len(growth_points)
+            for highlight in metrics.highlights[:remaining]:
+                short_highlight = highlight.split('.')[0][:60]
+                if len(highlight.split('.')[0]) > 60:
+                    short_highlight += "..."
+                growth_points.append(f"✨ {short_highlight}")
+
+        # Add growth points to table
+        if growth_points:
+            growth_text = "<br>".join(growth_points[:3])
+            lines.append(f"| **🌱 성장한 점** | {growth_text} |")
+        else:
+            lines.append("| **🌱 성장한 점** | 꾸준한 활동으로 성장하고 있습니다 |")
+
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        return lines
+
     def _build_awards_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build awards cabinet section."""
         if not metrics.awards:
@@ -428,6 +527,216 @@ class Reporter:
         lines.append("")
         return lines
 
+    def _calculate_repo_character_stats(self, metrics: MetricSnapshot) -> dict:
+        """Calculate RPG-style character stats from repository metrics."""
+        stats = metrics.stats
+
+        # Extract key metrics with safe defaults
+        commits = stats.get("commits", {})
+        prs = stats.get("pull_requests", {})
+        reviews = stats.get("reviews", {})
+
+        total_commits = commits.get("total", 0)
+        total_prs = prs.get("total", 0)
+        total_reviews = reviews.get("total", 0)
+        merged_prs = prs.get("merged", 0)
+
+        # Code Quality (0-100): Based on PR merge rate and awards
+        merge_rate = (merged_prs / total_prs) if total_prs > 0 else 0
+        award_count = len(metrics.awards) if metrics.awards else 0
+        code_quality = min(100, int(
+            (merge_rate * 40) +  # Merge success rate (0-40)
+            (min(award_count / 10, 1) * 30) +  # Award achievement (0-30)
+            (30 if total_commits >= 50 else (total_commits / 50) * 30)  # Experience (0-30)
+        ))
+
+        # Collaboration (0-100): Based on reviews and PR engagement
+        collab_network = metrics.collaboration
+        unique_collaborators = collab_network.unique_collaborators if collab_network else 0
+        review_count = collab_network.review_received_count if collab_network else 0
+
+        collaboration = min(100, int(
+            (min(total_reviews / 20, 1) * 40) +  # Review activity (0-40)
+            (min(unique_collaborators / 10, 1) * 35) +  # Network size (0-35)
+            (25 if review_count >= 30 else (review_count / 30) * 25)  # Review received (0-25)
+        ))
+
+        # Problem Solving (0-100): Based on PR diversity and tech stack
+        tech_stack = metrics.tech_stack
+        tech_diversity = tech_stack.diversity_score if tech_stack else 0
+        language_count = len(tech_stack.top_languages) if tech_stack and tech_stack.top_languages else 0
+
+        problem_solving = min(100, int(
+            (min(total_prs / 15, 1) * 40) +  # PR production (0-40)
+            (tech_diversity * 35) +  # Technology breadth (0-35)
+            (min(language_count / 5, 1) * 25)  # Language variety (0-25)
+        ))
+
+        # Productivity (0-100): Based on total activity volume
+        total_activity = total_commits + total_prs + total_reviews
+        monthly_velocity = total_activity / metrics.months if metrics.months > 0 else 0
+
+        productivity = min(100, int(
+            (min(total_commits / 100, 1) * 35) +  # Commit volume (0-35)
+            (min(total_prs / 30, 1) * 35) +  # PR volume (0-35)
+            (min(monthly_velocity / 20, 1) * 30)  # Velocity (0-30)
+        ))
+
+        # Growth (0-100): Based on highlights and retrospective insights
+        highlight_count = len(metrics.highlights) if metrics.highlights else 0
+        has_retrospective = metrics.retrospective is not None
+
+        # Check for positive growth trends
+        growth_indicators = 0
+        if metrics.retrospective and hasattr(metrics.retrospective, 'time_comparisons'):
+            positive_trends = sum(1 for tc in metrics.retrospective.time_comparisons
+                                if tc.direction == "increasing")
+            growth_indicators = min(positive_trends, 5)
+
+        growth = min(100, int(
+            50 +  # Base growth score
+            (min(highlight_count / 5, 1) * 25) +  # Highlights (0-25)
+            (15 if has_retrospective else 0) +  # Deep analysis bonus (0-15)
+            (growth_indicators * 2)  # Positive trend bonus (0-10)
+        ))
+
+        return {
+            "code_quality": code_quality,
+            "collaboration": collaboration,
+            "problem_solving": problem_solving,
+            "productivity": productivity,
+            "growth": growth,
+        }
+
+    def _render_repo_character_stats(self, metrics: MetricSnapshot) -> List[str]:
+        """Render RPG-style character stats visualization for repository."""
+        lines: List[str] = []
+
+        stats = self._calculate_repo_character_stats(metrics)
+        total_power = sum(stats.values())
+        avg_stat = total_power / 5 if stats else 0
+
+        # Determine level based on average stat
+        if avg_stat >= 90:
+            level = 6
+            title = "그랜드마스터"
+            rank_emoji = "👑"
+        elif avg_stat >= 75:
+            level = 5
+            title = "마스터"
+            rank_emoji = "🏆"
+        elif avg_stat >= 60:
+            level = 4
+            title = "전문가"
+            rank_emoji = "⭐"
+        elif avg_stat >= 40:
+            level = 3
+            title = "숙련자"
+            rank_emoji = "💎"
+        elif avg_stat >= 20:
+            level = 2
+            title = "견습생"
+            rank_emoji = "🎓"
+        else:
+            level = 1
+            title = "초보자"
+            rank_emoji = "🌱"
+
+        # Determine specialties based on highest stats
+        stat_names_kr = {
+            "code_quality": "코드 품질",
+            "collaboration": "협업력",
+            "problem_solving": "문제 해결력",
+            "productivity": "생산성",
+            "growth": "성장성",
+        }
+        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        primary_specialty = stat_names_kr[sorted_stats[0][0]]
+
+        # Assign title based on specialty
+        specialty_titles = {
+            "코드 품질": "코드 아키텍트",
+            "협업력": "팀 플레이어",
+            "문제 해결력": "문제 해결사",
+            "생산성": "스피드 러너",
+            "성장성": "라이징 스타",
+        }
+        specialty_title = specialty_titles.get(primary_specialty, "개발자")
+
+        lines.append("## 🎮 저장소 캐릭터 스탯")
+        lines.append("")
+        lines.append("> 저장소의 활동을 RPG 캐릭터 스탯으로 시각화")
+        lines.append("")
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append(f"║  {rank_emoji} Level {level}: {title:<20} 파워 레벨: {int(avg_stat):>3}/100  ║")
+        lines.append(f"║  🏅 특성: {specialty_title:<43} ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append("║                      능력치 현황                          ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+
+        # Render each stat with visual bar
+        stat_emojis = {
+            "code_quality": "💻",
+            "collaboration": "🤝",
+            "problem_solving": "🧩",
+            "productivity": "⚡",
+            "growth": "📈",
+        }
+
+        for stat_key, stat_value in stats.items():
+            stat_name = stat_names_kr[stat_key]
+            emoji = stat_emojis[stat_key]
+
+            # Create visual bar (20 blocks for 100%)
+            filled = stat_value // 5
+            empty = 20 - filled
+            bar = "▓" * filled + "░" * empty
+
+            # Format line with proper spacing
+            lines.append(f"║ {emoji} {stat_name:<12} [{bar}] {stat_value:>3}/100 ║")
+
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        # Add achievements/badges
+        badges = []
+        if stats["code_quality"] >= 80:
+            badges.append("🏅 코드 마스터")
+        if stats["collaboration"] >= 80:
+            badges.append("🤝 협업 챔피언")
+        if stats["problem_solving"] >= 80:
+            badges.append("🧠 문제 해결 전문가")
+        if stats["productivity"] >= 80:
+            badges.append("⚡ 생산성 괴물")
+        if stats["growth"] >= 80:
+            badges.append("🚀 급성장 저장소")
+
+        # Add activity-based badges
+        total_commits = metrics.stats.get("commits", {}).get("total", 0)
+        total_prs = metrics.stats.get("pull_requests", {}).get("total", 0)
+
+        if total_commits >= 100:
+            badges.append("💯 커밋 마라토너")
+        elif total_commits >= 50:
+            badges.append("📝 활발한 커미터")
+
+        if total_prs >= 30:
+            badges.append("🔀 PR 마스터")
+        elif total_prs >= 10:
+            badges.append("🔄 PR 컨트리뷰터")
+
+        if badges:
+            lines.append("**🎖️ 획득한 뱃지:**")
+            lines.append("")
+            for badge in badges:
+                lines.append(f"- {badge}")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        return lines
 
     def _build_detailed_feedback_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build detailed feedback section."""
@@ -1232,14 +1541,15 @@ class Reporter:
 
         Improved report structure for better user experience:
         1. Header with basic info
-        2. Awards Cabinet to celebrate achievements
-        3. Growth Highlights to show progress
-        4. Monthly Trends for pattern analysis
-        5. Detailed Feedback for actionable insights
-        6. Deep Retrospective for comprehensive analysis
-        7. Spotlight Examples for concrete evidence
-        8. Tech Stack to show technical breadth
-        9. Evidence Links for verification
+        2. Summary Overview Table - Quick glance at strengths, improvements, and growth
+        3. Character Stats - Gamified visualization of repository metrics
+        4. Awards Cabinet to celebrate achievements
+        5. Growth Highlights to show progress
+        6. Monthly Trends for pattern analysis
+        7. Detailed Feedback for actionable insights
+        8. Deep Retrospective for comprehensive analysis
+        9. Spotlight Examples for concrete evidence
+        10. Tech Stack to show technical breadth
         """
         self.ensure_structure()
         report_path = self.output_dir / "report.md"
@@ -1253,19 +1563,23 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Awards Cabinet - Celebrate achievements first!
+            # 2. Summary Overview Table - NEW! Quick overview
+            self._build_summary_overview_table(metrics),
+            # 3. Character Stats - NEW! Gamified visualization
+            self._render_repo_character_stats(metrics),
+            # 4. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 3. Growth Highlights - Show the story
+            # 5. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 4. Monthly Trends - Show patterns
+            # 6. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 5. Detailed Feedback - Actionable insights
+            # 7. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 6. Deep Retrospective - Comprehensive analysis
+            # 8. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 7. Spotlight Examples - Concrete evidence
+            # 9. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 8. Tech Stack - Technical breadth
+            # 10. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
@@ -1300,19 +1614,23 @@ class Reporter:
         sections = [
             # 1. Header with basic info
             self._build_header_and_summary(metrics),
-            # 2. Awards Cabinet - Celebrate achievements first!
+            # 2. Summary Overview Table - NEW! Quick overview
+            self._build_summary_overview_table(metrics),
+            # 3. Character Stats - NEW! Gamified visualization
+            self._render_repo_character_stats(metrics),
+            # 4. Awards Cabinet - Celebrate achievements first!
             self._build_awards_section(metrics),
-            # 3. Growth Highlights - Show the story
+            # 5. Growth Highlights - Show the story
             self._build_highlights_section(metrics),
-            # 4. Monthly Trends - Show patterns
+            # 6. Monthly Trends - Show patterns
             self._build_monthly_trends_section(metrics),
-            # 5. Detailed Feedback - Actionable insights
+            # 7. Detailed Feedback - Actionable insights
             self._build_detailed_feedback_section(metrics),
-            # 6. Deep Retrospective - Comprehensive analysis
+            # 8. Deep Retrospective - Comprehensive analysis
             self._build_retrospective_section(metrics),
-            # 7. Spotlight Examples - Concrete evidence
+            # 9. Spotlight Examples - Concrete evidence
             self._build_spotlight_section(metrics),
-            # 8. Tech Stack - Technical breadth
+            # 10. Tech Stack - Technical breadth
             self._build_tech_stack_section(metrics),
             # Evidence Links section removed - links already embedded in relevant sections
         ]
