@@ -1846,6 +1846,17 @@ class Reporter:
 
         console.log("Writing markdown report", f"path={report_path}")
 
+        # Add font styles at the beginning
+        font_styles = [
+            '<style>',
+            '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
+            '  * {',
+            '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+            '  }',
+            '</style>',
+            ''
+        ]
+
         # Build all sections in improved order
         sections = [
             # 1. Header with basic info
@@ -1875,6 +1886,7 @@ class Reporter:
 
         # Combine all sections
         all_lines = []
+        all_lines.extend(font_styles)  # Add font styles first
         for section in sections:
             all_lines.extend(section)
 
@@ -1898,6 +1910,17 @@ class Reporter:
         """
         # Store repo for use in link generation
         self._current_repo = metrics.repo
+
+        # Add font styles at the beginning
+        font_styles = [
+            '<style>',
+            '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
+            '  * {',
+            '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+            '  }',
+            '</style>',
+            ''
+        ]
 
         # Build all sections in improved order (same as generate_markdown)
         sections = [
@@ -1928,6 +1951,7 @@ class Reporter:
 
         # Combine all sections
         all_lines = []
+        all_lines.extend(font_styles)  # Add font styles first
         for section in sections:
             all_lines.extend(section)
 

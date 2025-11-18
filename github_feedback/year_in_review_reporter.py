@@ -289,8 +289,20 @@ class YearInReviewReporter:
             combined_tech_stack.items(), key=lambda x: x[1], reverse=True
         )
 
+        # Add font styles at the beginning
+        font_styles = [
+            '<style>',
+            '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
+            '  * {',
+            '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+            '  }',
+            '</style>',
+            ''
+        ]
+
         # Generate report with game character theme
-        lines = self._generate_header(year, username, total_repos, total_prs, total_commits)
+        lines = font_styles[:]  # Start with font styles
+        lines.extend(self._generate_header(year, username, total_repos, total_prs, total_commits))
         lines.extend(self._generate_character_stats(year, total_repos, total_prs, total_commits, repository_analyses))
         lines.extend(self._generate_executive_summary(repository_analyses, sorted_tech_stack))
         lines.extend(self._generate_tech_stack_analysis(sorted_tech_stack))

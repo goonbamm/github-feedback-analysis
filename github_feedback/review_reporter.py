@@ -1073,6 +1073,15 @@ class ReviewReporter:
         """
         lines: List[str] = []
 
+        # Add font styles at the beginning
+        lines.append('<style>')
+        lines.append('  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");')
+        lines.append('  * {')
+        lines.append('    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;')
+        lines.append('  }')
+        lines.append('</style>')
+        lines.append('')
+
         # ============ 1. Header ============
         lines.append("# 🎯 개발자 성장 리포트")
         lines.append("")
