@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -15,6 +15,7 @@ from .api_client import GitHubApiClient
 from .commit_collector import CommitCollector
 from .config import Config
 from .console import Console
+from .constants import DAYS_PER_MONTH_APPROX, PARALLEL_CONFIG
 from .issue_collector import IssueCollector
 from .models import (
     AnalysisFilters,
@@ -110,19 +111,59 @@ class Collector:
             f"author={author or 'all'}",
         )
 
-        from github_feedback.constants import DAYS_PER_MONTH_APPROX
-        since = datetime.now(timezone.utc) - timedelta(days=DAYS_PER_MONTH_APPROX * max(months, 1))
-        until = datetime.now(timezone.utc)
+        since, until = self._calculate_collection_window(months)
 
-        # Phase 1: Parallel collection of independent data
-        # (commits, PRs, and issues can be collected in parallel)
-        # Import timeout constant from constants module
-        from .constants import PARALLEL_CONFIG
+        phase1_result = self._collect_phase_one(repo, since, filters, author)
+        pull_request_examples, reviews = self._collect_phase_two(
+            repo, since, filters, phase1_result.pr_metadata
+        )
+
+        return CollectionResult(
+            repo=repo,
+            months=months,
+            collected_at=datetime.now(timezone.utc),
+            commits=phase1_result.commits,
+            pull_requests=phase1_result.pull_requests,
+            reviews=reviews,
+            issues=phase1_result.issues,
+            filters=filters,
+            pull_request_examples=pull_request_examples,
+            since_date=since,
+            until_date=until,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @dataclass
+    class _PhaseOneResult:
+        commits: int
+        pull_requests: int
+        issues: int
+        pr_metadata: List[Dict[str, Any]]
+
+    def _calculate_collection_window(self, months: int) -> tuple[datetime, datetime]:
+        """Return the inclusive time window for data collection."""
+
+        months = max(months, 1)
+        until = datetime.now(timezone.utc)
+        since = until - timedelta(days=DAYS_PER_MONTH_APPROX * months)
+        return since, until
+
+    def _collect_phase_one(
+        self,
+        repo: str,
+        since: datetime,
+        filters: AnalysisFilters,
+        author: Optional[str],
+    ) -> "Collector._PhaseOneResult":
+        """Gather commit, PR, and issue metrics in parallel."""
 
         collection_timeout = PARALLEL_CONFIG['collection_timeout']
-        max_workers_phase1 = PARALLEL_CONFIG['max_workers_data_collection']
+        max_workers = PARALLEL_CONFIG['max_workers_data_collection']
 
-        with ThreadPoolExecutor(max_workers=max_workers_phase1) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             console.log("Phase 1: Collecting commits, PRs, and issues in parallel")
 
             future_commits = executor.submit(
@@ -135,7 +176,6 @@ class Collector:
                 self.issue_collector.count_issues, repo, since, filters, author
             )
 
-            # Wait for all to complete with timeout using helper
             commits = handle_future_result(
                 future_commits, "Commit collection", repo, collection_timeout, 0
             )
@@ -153,10 +193,26 @@ class Collector:
             f"issues={issues}",
         )
 
-        # Phase 2: Process dependent data in parallel
-        # (PR examples and reviews depend on pr_metadata)
-        max_workers_phase2 = PARALLEL_CONFIG['max_workers_pr_data']
-        with ThreadPoolExecutor(max_workers=max_workers_phase2) as executor:
+        return Collector._PhaseOneResult(
+            commits=commits,
+            pull_requests=pull_requests,
+            issues=issues,
+            pr_metadata=pr_metadata,
+        )
+
+    def _collect_phase_two(
+        self,
+        repo: str,
+        since: datetime,
+        filters: AnalysisFilters,
+        pr_metadata: List[Dict[str, Any]],
+    ) -> tuple[List[PullRequestSummary], int]:
+        """Process PR metadata into report examples and review counts."""
+
+        collection_timeout = PARALLEL_CONFIG['collection_timeout']
+        max_workers = PARALLEL_CONFIG['max_workers_pr_data']
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             console.log("Phase 2: Building PR examples and counting reviews in parallel")
 
             future_examples = executor.submit(
@@ -166,7 +222,6 @@ class Collector:
                 self.review_collector.count_reviews, repo, pr_metadata, since, filters
             )
 
-            # Wait for all to complete with timeout using helper
             pull_request_examples = handle_future_result(
                 future_examples, "PR examples building", repo, collection_timeout, []
             )
@@ -175,20 +230,7 @@ class Collector:
             )
 
         console.log("Phase 2 complete", f"reviews={reviews}")
-
-        return CollectionResult(
-            repo=repo,
-            months=months,
-            collected_at=datetime.now(timezone.utc),
-            commits=commits,
-            pull_requests=pull_requests,
-            reviews=reviews,
-            issues=issues,
-            filters=filters,
-            pull_request_examples=pull_request_examples,
-            since_date=since,
-            until_date=until,
-        )
+        return pull_request_examples, reviews
 
     # Commit-related methods
     def collect_commit_messages(
