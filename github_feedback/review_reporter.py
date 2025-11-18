@@ -869,30 +869,52 @@ class ReviewReporter:
         return lines
 
     def _render_pr_activity_timeline(self, reviews: List[StoredReview]) -> List[str]:
-        """Render PR activity timeline using Mermaid diagram."""
+        """Render PR activity timeline using HTML table."""
         if not reviews:
             return []
 
         lines: List[str] = []
         lines.append("## 📅 PR 활동 타임라인")
         lines.append("")
-        lines.append("```mermaid")
-        lines.append("gantt")
-        lines.append("    title PR 활동 현황")
-        lines.append("    dateFormat YYYY-MM-DD")
-        lines.append("    section PR 활동")
-
-        # Show first 10 PRs to keep diagram readable
-        for review in reviews[:10]:
-            date_str = review.created_at.strftime("%Y-%m-%d")
-            safe_title = review.title.replace(":", " -")[:30]  # Limit length and escape colons
-            lines.append(f"    PR #{review.number} {safe_title} :{date_str}, 1d")
-
-        if len(reviews) > 10:
-            lines.append(f"    ... 외 {len(reviews) - 10}개 PR :crit, 2024-01-01, 1d")
-
-        lines.append("```")
+        lines.append("> PR 활동의 시간 순서를 확인하세요")
         lines.append("")
+
+        # Build table data - show all PRs in chronological order
+        headers = ["#", "PR 번호", "제목", "작성자", "생성일", "코드 변경", "링크"]
+        rows = []
+
+        for idx, review in enumerate(reviews, 1):
+            date_str = review.created_at.strftime("%Y-%m-%d")
+            title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
+
+            # Code changes with color indicators
+            code_changes = f'<span style="color: #10b981;">+{review.additions}</span> / <span style="color: #ef4444;">-{review.deletions}</span>'
+
+            # Author with emoji
+            author_display = f"👤 {review.author}"
+
+            # Link
+            link = f"[보기]({review.html_url})" if review.html_url else "-"
+
+            rows.append([
+                str(idx),
+                f"#{review.number}",
+                title_short,
+                author_display,
+                date_str,
+                code_changes,
+                link
+            ])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
 
