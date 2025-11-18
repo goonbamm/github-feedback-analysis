@@ -463,21 +463,12 @@ class Reviewer:
         target_dir = self._ensure_target_dir(bundle.repo, bundle.number)
 
         # Write all review files
-        artefact_path = target_dir / ARTEFACTS_FILENAME
-        self._write_json(artefact_path, bundle.to_dict())
+        artefact_path = self.persist_bundle(bundle)
 
         summary = self.generate_summary(bundle)
-        summary_path = target_dir / REVIEW_SUMMARY_FILENAME
-        self._write_json(summary_path, summary.to_dict())
+        summary_path = self.persist_summary(bundle, summary)
 
-        markdown_path = target_dir / REVIEW_MARKDOWN_FILENAME
-        lines = self._build_markdown_content(bundle, summary)
-
-        try:
-            markdown_path.write_text("\n".join(lines), encoding="utf-8")
-        except (OSError, PermissionError) as exc:
-            logger.error(f"Failed to write markdown to {markdown_path}: {exc}")
-            raise
+        markdown_path = self.create_markdown(bundle, summary)
 
         return artefact_path, summary_path, markdown_path
 
