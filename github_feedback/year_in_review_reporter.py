@@ -264,68 +264,116 @@ class YearInReviewReporter:
                 lines.append(f"📜 **[상세 보고서 보기]({rel_from_year_in_review})**")
                 lines.append("")
 
-            # Key insights from personal development - More detailed display
+            # Key insights from personal development - HTML 테이블 형식
             if repo.strengths:
                 lines.append("#### ✨ 획득한 스킬")
                 lines.append("")
-                for idx, strength in enumerate(repo.strengths[:3], 1):  # Top 3 strengths
+
+                # Build table data
+                headers = ["스킬", "설명", "영향도", "증거"]
+                rows = []
+
+                for strength in repo.strengths[:5]:  # Top 5 strengths
                     category = strength.get("category", "")
                     desc = strength.get("description", "")
                     impact = strength.get("impact", "medium")
                     evidence = strength.get("evidence", [])
 
-                    # Impact emoji
-                    impact_emoji = {"high": "🔥", "medium": "💫", "low": "✨"}.get(impact, "💫")
+                    # Impact emoji and text
+                    impact_display = {
+                        "high": "🔥 높음",
+                        "medium": "💫 중간",
+                        "low": "✨ 낮음"
+                    }.get(impact, "💫 중간")
 
-                    lines.append(f"**{idx}. {impact_emoji} {category}**")
-                    lines.append(f"> {desc}")
-
+                    # Format evidence as list
+                    evidence_html = ""
                     if evidence:
-                        lines.append("")
-                        lines.append("*구체적인 증거:*")
-                        for ev in evidence[:2]:  # Show top 2 evidence
-                            lines.append(f"- {ev}")
-                    lines.append("")
+                        evidence_html = "<ul style='margin: 0; padding-left: 20px;'>"
+                        for ev in evidence[:2]:  # Show top 2
+                            evidence_html += f"<li style='margin-bottom: 4px;'>{ev}</li>"
+                        evidence_html += "</ul>"
+                    else:
+                        evidence_html = "-"
+
+                    rows.append([category, desc, impact_display, evidence_html])
+
+                # Render as HTML table
+                lines.extend(GameRenderer.render_html_table(
+                    headers=headers,
+                    rows=rows,
+                    title="",
+                    description="",
+                    striped=True
+                ))
+                lines.append("")
 
             if repo.improvements:
                 lines.append("#### 🎯 성장 기회")
                 lines.append("")
-                for idx, improvement in enumerate(repo.improvements[:3], 1):  # Top 3 improvements
+
+                # Build table data
+                headers = ["분야", "설명", "우선순위", "개선 방안"]
+                rows = []
+
+                for improvement in repo.improvements[:5]:  # Top 5 improvements
                     category = improvement.get("category", "")
                     desc = improvement.get("description", "")
                     priority = improvement.get("priority", "medium")
-                    evidence = improvement.get("evidence", [])
                     suggestions = improvement.get("suggestions", [])
 
-                    # Priority emoji
-                    priority_emoji = {"critical": "🚨", "important": "⚡", "nice-to-have": "💡"}.get(priority, "⚡")
+                    # Priority emoji and text
+                    priority_display = {
+                        "critical": "🚨 긴급",
+                        "important": "⚡ 중요",
+                        "nice-to-have": "💡 권장"
+                    }.get(priority, "⚡ 중요")
 
-                    lines.append(f"**{idx}. {priority_emoji} {category}**")
-                    lines.append(f"> {desc}")
-
-                    if evidence:
-                        lines.append("")
-                        lines.append("*근거:*")
-                        for ev in evidence[:2]:  # Show top 2 evidence
-                            lines.append(f"- {ev}")
-
+                    # Format suggestions as list
+                    suggestions_html = ""
                     if suggestions:
-                        lines.append("")
-                        lines.append("*개선 방안:*")
-                        for sug in suggestions[:2]:  # Show top 2 suggestions
-                            lines.append(f"- {sug}")
-                    lines.append("")
+                        suggestions_html = "<ul style='margin: 0; padding-left: 20px;'>"
+                        for sug in suggestions[:3]:  # Show top 3
+                            suggestions_html += f"<li style='margin-bottom: 4px;'>{sug}</li>"
+                        suggestions_html += "</ul>"
+                    else:
+                        suggestions_html = "-"
+
+                    rows.append([category, desc, priority_display, suggestions_html])
+
+                # Render as HTML table
+                lines.extend(GameRenderer.render_html_table(
+                    headers=headers,
+                    rows=rows,
+                    title="",
+                    description="",
+                    striped=True
+                ))
+                lines.append("")
 
             if repo.growth_indicators:
                 lines.append("#### 📈 성장 지표")
                 lines.append("")
-                for idx, indicator in enumerate(repo.growth_indicators[:2], 1):  # Top 2 growth indicators
+
+                # Build table data
+                headers = ["측면", "진행 상황 요약"]
+                rows = []
+
+                for indicator in repo.growth_indicators[:5]:  # Top 5 growth indicators
                     aspect = indicator.get("aspect", "")
                     progress_summary = indicator.get("progress_summary", "")
 
-                    lines.append(f"**{idx}. 🚀 {aspect}**")
-                    lines.append(f"> {progress_summary}")
-                    lines.append("")
+                    rows.append([f"🚀 {aspect}", progress_summary])
+
+                # Render as HTML table
+                lines.extend(GameRenderer.render_html_table(
+                    headers=headers,
+                    rows=rows,
+                    title="",
+                    description="",
+                    striped=True
+                ))
+                lines.append("")
 
             lines.append("---")
             lines.append("")
@@ -500,7 +548,7 @@ class YearInReviewReporter:
     def _generate_goals_section(
         self, repository_analyses: List[RepositoryAnalysis], year: int
     ) -> List[str]:
-        """다음 연도 목표 생성."""
+        """다음 연도 목표 생성 (HTML 버전)."""
         lines = [
             f"## 🎯 {year + 1}년 퀘스트 목표",
             "",
@@ -521,21 +569,45 @@ class YearInReviewReporter:
         if unique_suggestions:
             lines.append("### 💡 추천 성장 방향")
             lines.append("")
-            lines.append("> 다음 레벨로 올라가기 위한 핵심 포커스")
-            lines.append("")
+
+            # Build suggestion cards
+            suggestion_content = ""
             for idx, suggestion in enumerate(unique_suggestions, 1):
-                lines.append(f"{idx}. 🎯 {suggestion}")
-            lines.append("")
+                suggestion_content += f"{idx}. 🎯 {suggestion}\n"
+
+            # Render as info box
+            lines.extend(GameRenderer.render_info_box(
+                title="다음 레벨로 올라가기 위한 핵심 포커스",
+                content=suggestion_content.strip(),
+                emoji="💡",
+                bg_color="#f0fdf4",
+                border_color="#10b981"
+            ))
 
         lines.append("### 🚀 실행 액션 아이템")
         lines.append("")
-        lines.append("> 새로운 시즌을 준비하는 체크리스트")
-        lines.append("")
-        lines.append("- [ ] 📖 각 저장소의 상세 피드백 검토하기")
-        lines.append("- [ ] 🎯 주요 개선 영역에 대한 구체적이고 측정 가능한 목표 설정")
-        lines.append("- [ ] 🔧 새로운 기술 탐험 또는 현재 스택의 전문성 심화")
-        lines.append("- [ ] 🤝 협업 및 코드 리뷰 참여 확대")
-        lines.append(f"- [ ] 📊 {year + 1}년 내내 분기별 진행 상황 추적")
+
+        # Build action items as HTML checklist
+        action_items = [
+            "📖 각 저장소의 상세 피드백 검토하기",
+            "🎯 주요 개선 영역에 대한 구체적이고 측정 가능한 목표 설정",
+            "🔧 새로운 기술 탐험 또는 현재 스택의 전문성 심화",
+            "🤝 협업 및 코드 리뷰 참여 확대",
+            f"📊 {year + 1}년 내내 분기별 진행 상황 추적"
+        ]
+
+        lines.append('<div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+        lines.append('  <h4 style="margin: 0 0 16px 0; color: #2d3748; font-size: 1.2em;">새로운 시즌을 준비하는 체크리스트</h4>')
+        lines.append('  <div style="display: flex; flex-direction: column; gap: 12px;">')
+
+        for item in action_items:
+            lines.append('    <label style="display: flex; align-items: center; cursor: pointer; padding: 12px; background: #f7fafc; border-radius: 6px; transition: background 0.2s;">')
+            lines.append('      <input type="checkbox" style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">')
+            lines.append(f'      <span style="color: #2d3748; font-size: 1em;">{item}</span>')
+            lines.append('    </label>')
+
+        lines.append('  </div>')
+        lines.append('</div>')
         lines.append("")
 
         lines.append("---")
@@ -543,35 +615,31 @@ class YearInReviewReporter:
         return lines
 
     def _generate_footer(self) -> List[str]:
-        """게임 스타일 푸터 생성."""
+        """게임 스타일 푸터 생성 (HTML 버전)."""
         return [
             "## 🎉 모험의 마무리",
             "",
-            "```",
-            "╔═══════════════════════════════════════════════════════════╗",
-            "║                                                           ║",
-            "║              🌟  축하합니다, 용감한 개발자여!  🌟           ║",
-            "║                                                           ║",
-            "║   모든 커밋, PR, 리뷰가 당신의 성장에 기여했습니다.       ║",
-            "║   이 보고서로 성과를 축하하고 지속적인 성장을 계획하세요. ║",
-            "║                                                           ║",
-            "║   💡 기억하세요:                                          ║",
-            "║   \"완벽한 한 번보다 꾸준한 진보가 더 강합니다!\"          ║",
-            "║                                                           ║",
-            "║              🚀 계속 전진하세요! 🚀                        ║",
-            "║                                                           ║",
-            "╚═══════════════════════════════════════════════════════════╝",
-            "```",
+            '<div style="border: 3px solid #fbbf24; border-radius: 12px; padding: 30px; margin: 20px 0; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); text-align: center; box-shadow: 0 4px 6px rgba(251, 191, 36, 0.3);">',
+            '  <div style="font-size: 2em; margin-bottom: 20px;">🌟</div>',
+            '  <h2 style="margin: 0 0 20px 0; color: #78350f; font-size: 1.8em;">축하합니다, 용감한 개발자여!</h2>',
+            '  <p style="margin: 0 0 20px 0; color: #92400e; font-size: 1.1em; line-height: 1.6;">',
+            '    모든 커밋, PR, 리뷰가 당신의 성장에 기여했습니다.<br>',
+            '    이 보고서로 성과를 축하하고 지속적인 성장을 계획하세요.',
+            '  </p>',
+            '  <div style="background: rgba(255,255,255,0.5); border-radius: 8px; padding: 16px; margin: 20px 0;">',
+            '    <div style="font-size: 1.2em; color: #78350f; font-weight: bold; margin-bottom: 8px;">💡 기억하세요</div>',
+            '    <div style="font-size: 1.1em; color: #92400e; font-style: italic;">"완벽한 한 번보다 꾸준한 진보가 더 강합니다!"</div>',
+            '  </div>',
+            '  <div style="font-size: 1.5em; margin-top: 20px; color: #78350f; font-weight: bold;">🚀 계속 전진하세요! 🚀</div>',
+            '</div>',
             "",
             "---",
             "",
-            "<div align=\"center\">",
+            '<div style="text-align: center; margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">',
+            '  <div style="font-size: 1.2em; margin-bottom: 8px;">⚔️ Generated by GitHub Feedback Analysis Tool ⚔️</div>',
+            '  <div style="font-style: italic; opacity: 0.9;">당신의 코딩 여정을 응원합니다!</div>',
+            '</div>',
             "",
-            "⚔️ *Generated by GitHub Feedback Analysis Tool* ⚔️",
-            "",
-            "_당신의 코딩 여정을 응원합니다!_",
-            "",
-            "</div>",
         ]
 
 
