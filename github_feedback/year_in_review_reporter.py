@@ -1,4 +1,4 @@
-"""Generate comprehensive year-in-review reports aggregating multiple repositories."""
+"""연말 결산 보고서 생성 - 여러 저장소를 종합하여 게임 캐릭터 테마로 시각화합니다."""
 from __future__ import annotations
 
 import json
@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .console import Console
+from .utils import pad_to_width
 
 console = Console()
 
@@ -81,11 +82,12 @@ class YearInReviewReporter:
             combined_tech_stack.items(), key=lambda x: x[1], reverse=True
         )
 
-        # Generate report
+        # Generate report with game character theme
         lines = self._generate_header(year, username, total_repos, total_prs, total_commits)
+        lines.extend(self._generate_character_stats(year, total_repos, total_prs, total_commits, repository_analyses))
         lines.extend(self._generate_executive_summary(repository_analyses, sorted_tech_stack))
-        lines.extend(self._generate_repository_breakdown(repository_analyses))
         lines.extend(self._generate_tech_stack_analysis(sorted_tech_stack))
+        lines.extend(self._generate_repository_breakdown(repository_analyses))
         lines.extend(self._generate_aggregated_insights(repository_analyses))
         lines.extend(self._generate_goals_section(repository_analyses, year))
         lines.extend(self._generate_footer())
@@ -100,28 +102,40 @@ class YearInReviewReporter:
     def _generate_header(
         self, year: int, username: str, total_repos: int, total_prs: int, total_commits: int
     ) -> List[str]:
-        """Generate report header."""
+        """게임 스타일 헤더 생성."""
         lines = [
-            f"# 🎊 {year} Year in Review",
+            f"# 🎮 {year}년 개발자 모험 결산 보고서",
             "",
-            f"> Comprehensive analysis of @{username}'s contributions in {year}",
+            "```",
+            "╔═══════════════════════════════════════════════════════════╗",
+            "║                                                           ║",
+            f"║          🏆  {username}의 {year}년 대모험 기록  🏆            ║",
+            "║                                                           ║",
+            "║       \"한 해 동안의 모든 코딩 여정이 여기에\"              ║",
+            "║                                                           ║",
+            "╚═══════════════════════════════════════════════════════════╝",
+            "```",
             "",
-            f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**📅 보고서 생성일**: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M')}",
             "",
             "---",
             "",
-            "## 🎯 Executive Summary",
+            "## 🎯 한눈에 보는 활동 요약",
             "",
-            f"In {year}, you made significant contributions across **{total_repos} repositories**, creating **{total_prs} pull requests** and committing **{total_commits} times**. This report synthesizes your growth, achievements, and areas for future development.",
+            f"{year}년 한 해 동안, 당신은 **{total_repos}개의 저장소 던전**을 탐험하며 **{total_prs}개의 PR 퀘스트**를 완료하고 **{total_commits}번의 커밋 스킬**을 발동했습니다!",
             "",
-            "### Key Metrics at a Glance",
+            "### 📊 핵심 지표",
             "",
-            "| Metric | Value |",
-            "|--------|-------|",
-            f"| 📦 **Repositories** | {total_repos} |",
-            f"| 🔀 **Pull Requests** | {total_prs} |",
-            f"| 💾 **Commits** | {total_commits} |",
-            f"| 📊 **Average PRs per Repo** | {total_prs // total_repos if total_repos > 0 else 0} |",
+            "```",
+            "╔═══════════════════════════════════════════════════════════╗",
+            "║                     활동 요약 대시보드                    ║",
+            "╠═══════════════════════════════════════════════════════════╣",
+            f"║  🏰 탐험한 저장소 던전        │  {total_repos:>4}개               ║",
+            f"║  ⚔️  완료한 PR 퀘스트          │  {total_prs:>4}개               ║",
+            f"║  💫 발동한 커밋 스킬          │  {total_commits:>4}회               ║",
+            f"║  📈 던전당 평균 퀘스트        │  {total_prs // total_repos if total_repos > 0 else 0:>4}개               ║",
+            "╚═══════════════════════════════════════════════════════════╝",
+            "```",
             "",
             "---",
             "",
@@ -131,77 +145,124 @@ class YearInReviewReporter:
     def _generate_executive_summary(
         self, repository_analyses: List[RepositoryAnalysis], tech_stack: List[tuple]
     ) -> List[str]:
-        """Generate executive summary with top highlights."""
+        """게임 스타일 최고 업적 섹션 생성."""
         lines = [
-            "## 🏆 Top Highlights",
+            "## 🏆 전설의 업적",
+            "",
+            "> 한 해 동안 달성한 최고의 기록들",
             "",
         ]
 
         # Most active repository
         most_active = max(repository_analyses, key=lambda r: r.pr_count)
-        lines.append(f"- **Most Active Repository**: {most_active.full_name} ({most_active.pr_count} PRs)")
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append("║                      🎖️ 최고 업적 🎖️                      ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+
+        # Most active repository
+        repo_name = most_active.full_name[:45] if len(most_active.full_name) > 45 else most_active.full_name
+        padded_repo = pad_to_width(repo_name, 45, align='left')
+        lines.append(f"║  🥇 최다 활동 던전: {padded_repo}  ║")
+        lines.append(f"║     └─ 완료 퀘스트: {most_active.pr_count}개                                   ║")
 
         # Most committed repository
         most_commits = max(repository_analyses, key=lambda r: r.year_commits)
         if most_commits.full_name != most_active.full_name:
-            lines.append(
-                f"- **Most Committed Repository**: {most_commits.full_name} ({most_commits.year_commits} commits)"
-            )
+            repo_name2 = most_commits.full_name[:45] if len(most_commits.full_name) > 45 else most_commits.full_name
+            padded_repo2 = pad_to_width(repo_name2, 45, align='left')
+            lines.append("║                                                           ║")
+            lines.append(f"║  🥈 최다 커밋 던전: {padded_repo2}  ║")
+            lines.append(f"║     └─ 커밋 횟수: {most_commits.year_commits}회                                    ║")
 
         # Primary technologies
         if tech_stack:
             top_3_tech = [tech[0] for tech in tech_stack[:3]]
-            lines.append(f"- **Primary Technologies**: {', '.join(top_3_tech)}")
+            tech_str = ', '.join(top_3_tech)
+            tech_padded = pad_to_width(tech_str[:50], 50, align='left')
+            lines.append("║                                                           ║")
+            lines.append(f"║  💻 주력 무기(기술): {tech_padded} ║")
 
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
         lines.extend(["", "---", ""])
         return lines
 
     def _generate_repository_breakdown(
         self, repository_analyses: List[RepositoryAnalysis]
     ) -> List[str]:
-        """Generate per-repository breakdown."""
+        """던전별 탐험 기록 생성."""
         lines = [
-            "## 📊 Repository Breakdown",
+            "## 🏰 던전 탐험 기록",
             "",
-            "> Detailed analysis of each repository you contributed to",
+            "> 각 저장소 던전에서의 모험을 상세히 기록합니다",
             "",
         ]
 
         for idx, repo in enumerate(repository_analyses, 1):
-            lines.append(f"### {idx}. {repo.full_name}")
+            # Calculate dungeon difficulty based on activity
+            total_activity = repo.pr_count + repo.year_commits
+            if total_activity >= 100:
+                difficulty = "⭐⭐⭐⭐⭐ (전설)"
+                difficulty_emoji = "💎"
+            elif total_activity >= 50:
+                difficulty = "⭐⭐⭐⭐ (어려움)"
+                difficulty_emoji = "🔥"
+            elif total_activity >= 20:
+                difficulty = "⭐⭐⭐ (보통)"
+                difficulty_emoji = "⚔️"
+            elif total_activity >= 10:
+                difficulty = "⭐⭐ (쉬움)"
+                difficulty_emoji = "🌟"
+            else:
+                difficulty = "⭐ (입문)"
+                difficulty_emoji = "✨"
+
+            lines.append(f"### {idx}. {difficulty_emoji} {repo.full_name}")
             lines.append("")
-            lines.append("| Metric | Value |")
-            lines.append("|--------|-------|")
-            lines.append(f"| Pull Requests | {repo.pr_count} |")
-            lines.append(f"| Commits ({repo.year_commits} in year) | {repo.commit_count} total |")
+            lines.append(f"**난이도**: {difficulty}")
+            lines.append("")
+
+            lines.append("```")
+            lines.append("╔═══════════════════════════════════════════════════════════╗")
+            lines.append("║                      던전 클리어 통계                     ║")
+            lines.append("╠═══════════════════════════════════════════════════════════╣")
+            lines.append(f"║  ⚔️  완료한 퀘스트 (PR)       │  {repo.pr_count:>4}개               ║")
+            lines.append(f"║  💫 발동한 스킬 (커밋)        │  {repo.year_commits:>4}회 (올해)        ║")
+            lines.append(f"║  📊 총 기여 횟수              │  {repo.commit_count:>4}회 (전체)        ║")
 
             if repo.tech_stack:
                 top_langs = sorted(repo.tech_stack.items(), key=lambda x: x[1], reverse=True)[:3]
-                langs_str = ", ".join([f"{lang} ({count})" for lang, count in top_langs])
-                lines.append(f"| Top Languages | {langs_str} |")
+                lines.append("╠═══════════════════════════════════════════════════════════╣")
+                lines.append("║  🔧 사용한 주요 기술                                      ║")
+                for lang, count in top_langs:
+                    lang_padded = pad_to_width(lang, 30, align='left')
+                    lines.append(f"║     • {lang_padded}  {count:>3}회    ║")
 
+            lines.append("╚═══════════════════════════════════════════════════════════╝")
+            lines.append("```")
             lines.append("")
 
             # Link to detailed report
             if repo.integrated_report_path:
-                lines.append(f"📄 **[View Detailed Report]({repo.integrated_report_path.relative_to(self.output_dir.parent)})**")
+                lines.append(f"📜 **[상세 보고서 보기]({repo.integrated_report_path.relative_to(self.output_dir.parent)})**")
                 lines.append("")
 
             # Key insights from personal development
             if repo.strengths:
-                lines.append("**✨ Key Strengths:**")
+                lines.append("**✨ 획득한 스킬:**")
                 for strength in repo.strengths[:2]:  # Top 2 strengths
                     category = strength.get("category", "")
                     desc = strength.get("description", "")
-                    lines.append(f"- **{category}**: {desc}")
+                    lines.append(f"- 💎 **{category}**: {desc}")
                 lines.append("")
 
             if repo.improvements:
-                lines.append("**💡 Areas for Growth:**")
+                lines.append("**🎯 성장 기회:**")
                 for improvement in repo.improvements[:2]:  # Top 2 improvements
                     category = improvement.get("category", "")
                     desc = improvement.get("description", "")
-                    lines.append(f"- **{category}**: {desc}")
+                    lines.append(f"- 🌱 **{category}**: {desc}")
                 lines.append("")
 
             lines.append("---")
@@ -210,40 +271,61 @@ class YearInReviewReporter:
         return lines
 
     def _generate_tech_stack_analysis(self, tech_stack: List[tuple]) -> List[str]:
-        """Generate technology stack analysis."""
+        """무기 장비 분석 생성."""
         lines = [
-            "## 💻 Technology Stack Evolution",
+            "## ⚔️ 장착 무기 및 장비 (기술 스택)",
             "",
-            "> Languages and frameworks you worked with this year",
+            "> 한 해 동안 사용한 언어와 프레임워크",
             "",
         ]
 
         if not tech_stack:
-            lines.append("_No technology data available._")
+            lines.append("_기술 데이터가 없습니다._")
             lines.extend(["", "---", ""])
             return lines
 
         total_changes = sum(count for _, count in tech_stack)
 
-        lines.append("| Language/Framework | Usage | Percentage |")
-        lines.append("|-------------------|-------|------------|")
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+        lines.append("║                     무기 사용 통계                        ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
 
-        for lang, count in tech_stack[:10]:  # Top 10
+        for idx, (lang, count) in enumerate(tech_stack[:10], 1):  # Top 10
             percentage = (count / total_changes * 100) if total_changes > 0 else 0
-            bar = "█" * int(percentage / 5)  # Visual bar (each █ = 5%)
-            lines.append(f"| {lang} | {count} | {percentage:.1f}% {bar} |")
 
+            # Determine weapon tier
+            if percentage >= 30:
+                tier = "⚔️ 전설 무기"
+            elif percentage >= 15:
+                tier = "🗡️ 희귀 무기"
+            elif percentage >= 5:
+                tier = "🔪 일반 무기"
+            else:
+                tier = "🔧 보조 도구"
+
+            # Visual bar (20 blocks for 100%)
+            filled = int(percentage / 5)
+            empty = 20 - filled
+            bar = "▓" * filled + "░" * empty
+
+            # Pad language name
+            lang_padded = pad_to_width(lang, 18, align='left')
+            lines.append(f"║  {idx:2}. {lang_padded} │ [{bar}] {percentage:>5.1f}%  ║")
+
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
         lines.extend(["", "---", ""])
         return lines
 
     def _generate_aggregated_insights(
         self, repository_analyses: List[RepositoryAnalysis]
     ) -> List[str]:
-        """Generate aggregated insights across all repositories."""
+        """종합 인사이트 생성."""
         lines = [
-            "## 🌟 Aggregated Insights",
+            "## 🌟 종합 성장 분석",
             "",
-            "> Cross-repository patterns and growth trends",
+            "> 모든 던전에서 발견된 패턴과 성장 트렌드",
             "",
         ]
 
@@ -253,60 +335,235 @@ class YearInReviewReporter:
 
         for repo in repository_analyses:
             for strength in repo.strengths:
-                category = strength.get("category", "Other")
+                category = strength.get("category", "기타")
                 all_strengths[category] += 1
 
             for improvement in repo.improvements:
-                category = improvement.get("category", "Other")
+                category = improvement.get("category", "기타")
                 all_improvements[category] += 1
 
         # Top recurring strengths
         if all_strengths:
-            lines.append("### ✅ Recurring Strengths")
+            lines.append("### ✨ 반복적으로 발견된 강점 스킬")
+            lines.append("")
+            lines.append("> 여러 던전에서 빛을 발한 당신의 핵심 능력")
             lines.append("")
             sorted_strengths = sorted(all_strengths.items(), key=lambda x: x[1], reverse=True)
-            for category, count in sorted_strengths[:5]:
-                lines.append(f"- **{category}** (appeared in {count} repositories)")
+            for idx, (category, count) in enumerate(sorted_strengths[:5], 1):
+                lines.append(f"{idx}. 💎 **{category}** - {count}개 던전에서 발휘")
             lines.append("")
 
         # Top recurring improvement areas
         if all_improvements:
-            lines.append("### 🔧 Recurring Improvement Areas")
+            lines.append("### 🎯 공통 성장 기회")
+            lines.append("")
+            lines.append("> 여러 던전에서 발견된 레벨업 포인트")
             lines.append("")
             sorted_improvements = sorted(all_improvements.items(), key=lambda x: x[1], reverse=True)
-            for category, count in sorted_improvements[:5]:
-                lines.append(f"- **{category}** (appeared in {count} repositories)")
+            for idx, (category, count) in enumerate(sorted_improvements[:5], 1):
+                lines.append(f"{idx}. 🌱 **{category}** - {count}개 던전에서 발견")
             lines.append("")
 
         # Growth indicators
-        lines.append("### 📈 Growth Indicators")
+        lines.append("### 📈 성장 지표")
         lines.append("")
 
         repos_with_growth = [r for r in repository_analyses if r.growth_indicators]
         if repos_with_growth:
-            lines.append(f"- Showed measurable growth in **{len(repos_with_growth)} out of {len(repository_analyses)} repositories**")
+            lines.append(f"🎊 **{len(repository_analyses)}개 던전 중 {len(repos_with_growth)}개에서 측정 가능한 성장을 달성했습니다!**")
+            lines.append("")
 
             # Sample growth examples
+            lines.append("**대표적인 성장 사례:**")
+            lines.append("")
             for repo in repos_with_growth[:3]:
                 if repo.growth_indicators:
                     indicator = repo.growth_indicators[0]
                     aspect = indicator.get("aspect", "")
                     summary = indicator.get("progress_summary", "")
-                    lines.append(f"- **{repo.full_name}**: {aspect} - {summary}")
+                    lines.append(f"- 🚀 **{repo.full_name}**: {aspect} - {summary}")
+            lines.append("")
         else:
-            lines.append("- _No specific growth indicators identified across repositories_")
+            lines.append("💡 _특정 성장 지표는 아직 발견되지 않았지만, 꾸준한 활동으로 성장하고 있습니다!_")
+            lines.append("")
 
         lines.extend(["", "---", ""])
+        return lines
+
+    def _generate_character_stats(
+        self, year: int, total_repos: int, total_prs: int, total_commits: int,
+        repository_analyses: List[RepositoryAnalysis]
+    ) -> List[str]:
+        """게임 캐릭터 스탯 생성."""
+        lines = [
+            "## 🎮 개발자 캐릭터 스탯",
+            "",
+            f"> {year}년 한 해 동안의 활동을 RPG 캐릭터 스탯으로 시각화",
+            "",
+        ]
+
+        # Calculate overall stats based on activity
+        total_activity = total_prs + total_commits
+
+        # Calculate level based on total activity
+        if total_activity >= 500:
+            level = 99
+            title = "전설의 코드마스터"
+            rank_emoji = "👑"
+        elif total_activity >= 300:
+            level = 80 + (total_activity - 300) // 20
+            title = "그랜드마스터"
+            rank_emoji = "💎"
+        elif total_activity >= 150:
+            level = 60 + (total_activity - 150) // 10
+            title = "마스터"
+            rank_emoji = "🏆"
+        elif total_activity >= 75:
+            level = 40 + (total_activity - 75) // 5
+            title = "전문가"
+            rank_emoji = "⭐"
+        elif total_activity >= 30:
+            level = 20 + (total_activity - 30) // 3
+            title = "숙련자"
+            rank_emoji = "💫"
+        elif total_activity >= 10:
+            level = 10 + (total_activity - 10) // 2
+            title = "초보자"
+            rank_emoji = "🌱"
+        else:
+            level = max(1, total_activity)
+            title = "견습생"
+            rank_emoji = "✨"
+
+        level = min(99, level)  # Cap at level 99
+
+        # Calculate stats (0-100 scale)
+        # 1. Code Quality - based on PR count and diversity
+        code_quality = min(100, int(
+            (min(total_prs / 50, 1) * 50) +  # PR volume
+            (min(total_repos / 10, 1) * 30) +  # Repository diversity
+            20  # Base score
+        ))
+
+        # 2. Productivity - based on commit count
+        productivity = min(100, int(
+            (min(total_commits / 200, 1) * 60) +  # Commit volume
+            (min(total_activity / 300, 1) * 40)  # Total activity
+        ))
+
+        # 3. Collaboration - based on number of repositories
+        collaboration = min(100, int(
+            (min(total_repos / 5, 1) * 40) +  # Repository count
+            (min(total_prs / 30, 1) * 40) +  # PR engagement
+            20  # Base score
+        ))
+
+        # 4. Consistency - based on activity distribution
+        consistency = min(100, int(
+            (min(total_activity / 200, 1) * 50) +  # Overall activity
+            30  # Base score
+        ))
+
+        # 5. Growth - based on improvement indicators
+        repos_with_growth = len([r for r in repository_analyses if r.growth_indicators])
+        growth = min(100, int(
+            50 +  # Base growth score
+            (min(repos_with_growth / len(repository_analyses) if repository_analyses else 0, 1) * 50)
+        ))
+
+        # Average stat for power level
+        avg_stat = (code_quality + productivity + collaboration + consistency + growth) / 5
+
+        lines.append("```")
+        lines.append("╔═══════════════════════════════════════════════════════════╗")
+
+        # Title and level with proper padding
+        title_padded = pad_to_width(title, 24, align='left')
+        lines.append(f"║  {rank_emoji} Lv.{level:>2} {title_padded} 파워: {int(avg_stat):>3}/100  ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append("║                      능력치 현황                          ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+
+        # Render each stat
+        stats = [
+            ("💻", "코드 품질", code_quality),
+            ("⚡", "생산성", productivity),
+            ("🤝", "협업력", collaboration),
+            ("📅", "꾸준함", consistency),
+            ("📈", "성장성", growth),
+        ]
+
+        for emoji, name, value in stats:
+            # Create visual bar (20 blocks for 100%)
+            filled = value // 5
+            empty = 20 - filled
+            bar = "▓" * filled + "░" * empty
+
+            # Pad name to 12 display columns
+            name_padded = pad_to_width(name, 12, align='left')
+            lines.append(f"║ {emoji} {name_padded} [{bar}] {value:>3}/100 ║")
+
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append("║                      획득 경험치                          ║")
+        lines.append("╠═══════════════════════════════════════════════════════════╣")
+        lines.append(f"║  🏰 탐험한 던전      │  {total_repos:>4}개                          ║")
+        lines.append(f"║  ⚔️  완료한 퀘스트    │  {total_prs:>4}개                          ║")
+        lines.append(f"║  💫 발동한 스킬      │  {total_commits:>4}회                          ║")
+        lines.append(f"║  🎯 총 경험치        │  {total_activity:>4} EXP                      ║")
+        lines.append("╚═══════════════════════════════════════════════════════════╝")
+        lines.append("```")
+        lines.append("")
+
+        # Add badges based on stats
+        badges = []
+        if code_quality >= 80:
+            badges.append("🏅 코드 마스터")
+        if productivity >= 80:
+            badges.append("⚡ 생산성 괴물")
+        if collaboration >= 80:
+            badges.append("🤝 협업 챔피언")
+        if consistency >= 80:
+            badges.append("📅 꾸준함의 화신")
+        if growth >= 80:
+            badges.append("🚀 급성장 개발자")
+
+        # Activity-based badges
+        if total_commits >= 200:
+            badges.append("💯 커밋 마라토너")
+        elif total_commits >= 100:
+            badges.append("📝 활발한 커미터")
+
+        if total_prs >= 50:
+            badges.append("🔀 PR 마스터")
+        elif total_prs >= 20:
+            badges.append("🔄 PR 컨트리뷰터")
+
+        if total_repos >= 10:
+            badges.append("🌐 멀티버스 탐험가")
+        elif total_repos >= 5:
+            badges.append("🗺️ 던전 크롤러")
+
+        if badges:
+            lines.append("**🎖️ 획득한 업적 뱃지:**")
+            lines.append("")
+            # Display badges in rows of 3
+            for i in range(0, len(badges), 3):
+                badge_row = badges[i:i+3]
+                lines.append("| " + " | ".join(badge_row) + " |")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
         return lines
 
     def _generate_goals_section(
         self, repository_analyses: List[RepositoryAnalysis], year: int
     ) -> List[str]:
-        """Generate goals and recommendations for next year."""
+        """다음 연도 목표 생성."""
         lines = [
-            f"## 🎯 Goals for {year + 1}",
+            f"## 🎯 {year + 1}년 퀘스트 목표",
             "",
-            "> Based on your {year} performance, here are recommended focus areas",
+            f"> {year}년의 경험을 바탕으로 한 다음 시즌 추천 퀘스트",
             "",
         ]
 
@@ -321,19 +578,23 @@ class YearInReviewReporter:
         unique_suggestions = list(dict.fromkeys(all_suggestions))[:5]
 
         if unique_suggestions:
-            lines.append("### 💡 Recommended Focus Areas")
+            lines.append("### 💡 추천 성장 방향")
+            lines.append("")
+            lines.append("> 다음 레벨로 올라가기 위한 핵심 포커스")
             lines.append("")
             for idx, suggestion in enumerate(unique_suggestions, 1):
-                lines.append(f"{idx}. {suggestion}")
+                lines.append(f"{idx}. 🎯 {suggestion}")
             lines.append("")
 
-        lines.append("### 🚀 Action Items")
+        lines.append("### 🚀 실행 액션 아이템")
         lines.append("")
-        lines.append("- [ ] Review detailed feedback for each repository")
-        lines.append("- [ ] Set specific, measurable goals for top improvement areas")
-        lines.append("- [ ] Explore new technologies or deepen expertise in current stack")
-        lines.append("- [ ] Increase collaboration and code review participation")
-        lines.append(f"- [ ] Track progress quarterly throughout {year + 1}")
+        lines.append("> 새로운 시즌을 준비하는 체크리스트")
+        lines.append("")
+        lines.append("- [ ] 📖 각 저장소의 상세 피드백 검토하기")
+        lines.append("- [ ] 🎯 주요 개선 영역에 대한 구체적이고 측정 가능한 목표 설정")
+        lines.append("- [ ] 🔧 새로운 기술 탐험 또는 현재 스택의 전문성 심화")
+        lines.append("- [ ] 🤝 협업 및 코드 리뷰 참여 확대")
+        lines.append(f"- [ ] 📊 {year + 1}년 내내 분기별 진행 상황 추적")
         lines.append("")
 
         lines.append("---")
@@ -341,20 +602,33 @@ class YearInReviewReporter:
         return lines
 
     def _generate_footer(self) -> List[str]:
-        """Generate report footer."""
+        """게임 스타일 푸터 생성."""
         return [
-            "## 🎉 Closing Thoughts",
+            "## 🎉 모험의 마무리",
             "",
-            "Every commit, PR, and review contributes to your growth as a developer. ",
-            "Use this report to celebrate your achievements and plan for continued improvement.",
-            "",
-            "**Remember**: Consistent progress beats occasional perfection. Keep shipping! 🚀",
+            "```",
+            "╔═══════════════════════════════════════════════════════════╗",
+            "║                                                           ║",
+            "║              🌟  축하합니다, 용감한 개발자여!  🌟           ║",
+            "║                                                           ║",
+            "║   모든 커밋, PR, 리뷰가 당신의 성장에 기여했습니다.       ║",
+            "║   이 보고서로 성과를 축하하고 지속적인 성장을 계획하세요. ║",
+            "║                                                           ║",
+            "║   💡 기억하세요:                                          ║",
+            "║   \"완벽한 한 번보다 꾸준한 진보가 더 강합니다!\"          ║",
+            "║                                                           ║",
+            "║              🚀 계속 전진하세요! 🚀                        ║",
+            "║                                                           ║",
+            "╚═══════════════════════════════════════════════════════════╝",
+            "```",
             "",
             "---",
             "",
             "<div align=\"center\">",
             "",
-            "*Generated by GitHub Feedback Analysis Tool*",
+            "⚔️ *Generated by GitHub Feedback Analysis Tool* ⚔️",
+            "",
+            "_당신의 코딩 여정을 응원합니다!_",
             "",
             "</div>",
         ]
