@@ -92,73 +92,89 @@ class ReviewReporter:
 
         reviews: List[StoredReview] = []
         for pr_dir in sorted(repo_dir.glob("pr-*")):
-            summary_path = pr_dir / "review_summary.json"
-            artefact_path = pr_dir / "artefacts.json"
-            if not summary_path.exists() or not artefact_path.exists():
+            summary_data = self._load_json_payload(pr_dir / "review_summary.json")
+            artefact_data = self._load_json_payload(pr_dir / "artefacts.json")
+            if not summary_data or not artefact_data:
                 continue
 
-            try:
-                summary_text = summary_path.read_text(encoding="utf-8").strip()
-                artefact_text = artefact_path.read_text(encoding="utf-8").strip()
-
-                if not summary_text or not artefact_text:
-                    console.log("Skipping empty review artefact", str(pr_dir))
-                    continue
-
-                summary_data = json.loads(summary_text)
-                artefact_data = json.loads(artefact_text)
-            except json.JSONDecodeError:
-                console.log("Skipping invalid review artefact", str(pr_dir))
-                continue
-
-            try:
-                number = int(artefact_data.get("number"))
-                title = str(artefact_data.get("title") or "").strip()
-                author = str(artefact_data.get("author") or "unknown").strip()
-                html_url = str(artefact_data.get("html_url") or "").strip()
-                created_at_raw = artefact_data.get("created_at")
-                created_at = (
-                    datetime.fromisoformat(created_at_raw)
-                    if isinstance(created_at_raw, str)
-                    else datetime.now(timezone.utc)
-                )
-            except Exception:  # pragma: no cover - defensive parsing guard
-                console.log("Skipping malformed artefact", str(pr_dir))
-                continue
-
-            overview = str(summary_data.get("overview") or "").strip()
-            strengths = self._load_points(summary_data.get("strengths", []))
-            improvements = self._load_points(summary_data.get("improvements", []))
-
-            # Load additional fields from artefacts
-            body = str(artefact_data.get("body") or "").strip()
-            review_bodies = artefact_data.get("review_bodies", [])
-            review_comments = artefact_data.get("review_comments", [])
-            additions = int(artefact_data.get("additions", 0))
-            deletions = int(artefact_data.get("deletions", 0))
-            changed_files = int(artefact_data.get("changed_files", 0))
-
-            reviews.append(
-                StoredReview(
-                    number=number,
-                    title=title,
-                    author=author,
-                    html_url=html_url,
-                    created_at=created_at,
-                    overview=overview,
-                    strengths=strengths,
-                    improvements=improvements,
-                    body=body,
-                    review_bodies=review_bodies if isinstance(review_bodies, list) else [],
-                    review_comments=review_comments if isinstance(review_comments, list) else [],
-                    additions=additions,
-                    deletions=deletions,
-                    changed_files=changed_files,
-                )
-            )
+            stored_review = self._build_stored_review(summary_data, artefact_data, pr_dir)
+            if stored_review:
+                reviews.append(stored_review)
 
         reviews.sort(key=lambda item: (item.created_at, item.number))
         return reviews
+
+    def _load_json_payload(self, path: Path) -> dict | None:
+        if not path.exists():
+            return None
+
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+        except OSError:
+            console.log("Skipping unreadable artefact", str(path))
+            return None
+
+        if not text:
+            console.log("Skipping empty review artefact", str(path.parent))
+            return None
+
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            console.log("Skipping invalid review artefact", str(path.parent))
+            return None
+
+        if not isinstance(payload, dict):
+            console.log("Skipping unexpected review artefact", str(path.parent))
+            return None
+
+        return payload
+
+    def _build_stored_review(
+        self, summary_data: dict, artefact_data: dict, pr_dir: Path
+    ) -> StoredReview | None:
+        try:
+            number = int(artefact_data.get("number"))
+            title = str(artefact_data.get("title") or "").strip()
+            author = str(artefact_data.get("author") or "unknown").strip()
+            html_url = str(artefact_data.get("html_url") or "").strip()
+            created_at_raw = artefact_data.get("created_at")
+            created_at = (
+                datetime.fromisoformat(created_at_raw)
+                if isinstance(created_at_raw, str)
+                else datetime.now(timezone.utc)
+            )
+        except Exception:  # pragma: no cover - defensive parsing guard
+            console.log("Skipping malformed artefact", str(pr_dir))
+            return None
+
+        overview = str(summary_data.get("overview") or "").strip()
+        strengths = self._load_points(summary_data.get("strengths", []))
+        improvements = self._load_points(summary_data.get("improvements", []))
+
+        body = str(artefact_data.get("body") or "").strip()
+        review_bodies = artefact_data.get("review_bodies", [])
+        review_comments = artefact_data.get("review_comments", [])
+        additions = int(artefact_data.get("additions", 0))
+        deletions = int(artefact_data.get("deletions", 0))
+        changed_files = int(artefact_data.get("changed_files", 0))
+
+        return StoredReview(
+            number=number,
+            title=title,
+            author=author,
+            html_url=html_url,
+            created_at=created_at,
+            overview=overview,
+            strengths=strengths,
+            improvements=improvements,
+            body=body,
+            review_bodies=review_bodies if isinstance(review_bodies, list) else [],
+            review_comments=review_comments if isinstance(review_comments, list) else [],
+            additions=additions,
+            deletions=deletions,
+            changed_files=changed_files,
+        )
 
     def _build_prompt_context(self, repo: str, reviews: List[StoredReview]) -> str:
         lines: List[str] = []
