@@ -128,32 +128,38 @@ class ReviewCollector(BaseCollector):
         filters = filters or AnalysisFilters()
         review_comments: List[Dict[str, str]] = []
 
-        # Get pull requests first
-        # If author is specified, use Issues API for efficient filtering
+        params: Dict[str, Any] = {
+            "state": "all",
+            "sort": "created",
+            "direction": "desc",
+            "per_page": 50,
+        }
+        endpoint = f"repos/{repo}/pulls"
         if author:
-            params: Dict[str, Any] = {
-                "creator": author,
-                "state": "all",
-                "sort": "created",
-                "direction": "desc",
-                "per_page": 50,
-            }
-            prs = self.api_client.request_list(f"repos/{repo}/issues", params)
-        else:
-            params: Dict[str, Any] = {
-                "state": "all",
-                "sort": "created",
-                "direction": "desc",
-                "per_page": 50,
-            }
-            prs = self.api_client.request_list(f"repos/{repo}/pulls", params)
-        for pr in prs:
+            params["creator"] = author
+            endpoint = f"repos/{repo}/issues"
+
+        def should_stop(pr: Dict[str, Any]) -> bool:
+            created_at_raw = pr.get("created_at")
+            if not created_at_raw:
+                return False
+            created_at = self.parse_timestamp(created_at_raw).astimezone(timezone.utc)
+            return created_at < since
+
+        pull_requests = self.api_client.paginate(
+            endpoint,
+            base_params=params,
+            per_page=50,
+            early_stop=should_stop,
+        )
+
+        for pr in pull_requests:
+            if len(review_comments) >= limit:
+                break
+
             # Skip non-PRs when using Issues API
             if author and "pull_request" not in pr:
                 continue
-
-            if len(review_comments) >= limit:
-                break
 
             created_at_raw = pr.get("created_at")
             if not created_at_raw:
@@ -167,41 +173,53 @@ class ReviewCollector(BaseCollector):
             if not number:
                 continue
 
-            # Get reviews for this PR
-            try:
-                reviews = self.api_client.request_list(
-                    f"repos/{repo}/pulls/{number}/reviews",
-                    build_pagination_params(),
-                )
-
-                for review in reviews:
-                    if len(review_comments) >= limit:
-                        break
-
-                    body = review.get("body", "").strip()
-                    if not body:
-                        continue
-
-                    review_author = review.get("user")
-                    if self.filter_helper.filter_bot(review_author, filters):
-                        continue
-
-                    review_comments.append(
-                        {
-                            "pr_number": number,
-                            "author": (review.get("user") or {}).get("login", ""),
-                            "body": body,
-                            "state": review.get("state", ""),
-                            "submitted_at": review.get("submitted_at", ""),
-                            "url": review.get("html_url", ""),
-                        }
-                    )
-            except (requests.HTTPError, ValueError) as exc:
-                # Skip PRs that fail to fetch reviews
-                logger.warning(f"Failed to fetch reviews for PR #{number}: {exc}")
-                continue
+            comments = self._fetch_review_comments_for_pr(repo, number, filters)
+            for comment in comments:
+                review_comments.append(comment)
+                if len(review_comments) >= limit:
+                    break
 
         return review_comments[:limit]
+
+    def _fetch_review_comments_for_pr(
+        self,
+        repo: str,
+        pr_number: int,
+        filters: AnalysisFilters,
+    ) -> List[Dict[str, str]]:
+        """Fetch and filter review comments for a single PR."""
+
+        try:
+            reviews = self.api_client.paginate(
+                f"repos/{repo}/pulls/{pr_number}/reviews",
+                base_params=build_pagination_params(),
+            )
+        except (requests.HTTPError, ValueError) as exc:
+            logger.warning(f"Failed to fetch reviews for PR #{pr_number}: {exc}")
+            return []
+
+        comments: List[Dict[str, str]] = []
+        for review in reviews:
+            body = review.get("body", "").strip()
+            if not body:
+                continue
+
+            review_author = review.get("user")
+            if self.filter_helper.filter_bot(review_author, filters):
+                continue
+
+            comments.append(
+                {
+                    "pr_number": pr_number,
+                    "author": (review_author or {}).get("login", ""),
+                    "body": body,
+                    "state": review.get("state", ""),
+                    "submitted_at": review.get("submitted_at", ""),
+                    "url": review.get("html_url", ""),
+                }
+            )
+
+        return comments
 
     def get_authenticated_user(self) -> str:
         """Return the username of the authenticated user (PAT owner).

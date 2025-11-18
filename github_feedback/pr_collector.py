@@ -6,7 +6,7 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 import requests
 
@@ -46,8 +46,6 @@ class PullRequestCollector(BaseCollector):
 
         params = build_list_params()
 
-        pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
-
         def should_stop(pr: Dict[str, Any]) -> bool:
             """Early stop condition: PR created before analysis period."""
             created_at = self.parse_timestamp(pr["created_at"]).astimezone(timezone.utc)
@@ -60,18 +58,7 @@ class PullRequestCollector(BaseCollector):
             early_stop=should_stop,
         )
 
-        # Apply filters
-        metadata: List[Dict[str, Any]] = []
-        for pr in all_prs:
-            author = pr.get("user")
-            if self.filter_helper.filter_bot(author, filters):
-                continue
-            if not self.pr_matches_branch_filters(pr, filters):
-                continue
-            if not self.pr_matches_file_filters(repo, pr, filters, pr_file_cache):
-                continue
-            metadata.append(pr)
-
+        metadata = self._apply_pr_filters(repo, all_prs, filters)
         return len(metadata), metadata
 
     def _list_pull_requests_by_author(
@@ -138,23 +125,31 @@ class PullRequestCollector(BaseCollector):
                 if pr_data:
                     prs_raw.append(pr_data)
 
-        # Apply filters to fetched PRs
+        metadata = self._apply_pr_filters(repo, prs_raw, filters)
+        return len(metadata), metadata
+
+    def _apply_pr_filters(
+        self,
+        repo: str,
+        pull_requests: Iterable[Dict[str, Any]],
+        filters: AnalysisFilters,
+    ) -> List[Dict[str, Any]]:
+        """Apply all PR filters consistently across listing strategies."""
+
         pr_file_cache: Dict[int, List[Dict[str, Any]]] = {}
         metadata: List[Dict[str, Any]] = []
 
-        for pr in prs_raw:
-            # Apply filters
-            author_obj = pr.get("user")
-            if self.filter_helper.filter_bot(author_obj, filters):
+        for pr in pull_requests:
+            author = pr.get("user")
+            if self.filter_helper.filter_bot(author, filters):
                 continue
             if not self.pr_matches_branch_filters(pr, filters):
                 continue
             if not self.pr_matches_file_filters(repo, pr, filters, pr_file_cache):
                 continue
-
             metadata.append(pr)
 
-        return len(metadata), metadata
+        return metadata
 
     def build_pull_request_examples(
         self, pr_metadata: List[Dict[str, Any]]
