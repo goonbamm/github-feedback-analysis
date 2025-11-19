@@ -344,6 +344,7 @@ class GameRenderer:
             "collaboration": "🤝",
             "problem_solving": "🧩",
             "productivity": "⚡",
+            "consistency": "📅",
             "growth": "📈",
         }
 
@@ -352,6 +353,7 @@ class GameRenderer:
             "collaboration": "협업력",
             "problem_solving": "문제 해결력",
             "productivity": "생산성",
+            "consistency": "꾸준함",
             "growth": "성장성",
         }
 
@@ -361,6 +363,7 @@ class GameRenderer:
             "collaboration": "#8b5cf6",  # 보라색
             "problem_solving": "#ec4899",  # 핑크색
             "productivity": "#f59e0b",  # 주황색
+            "consistency": "#f97316",  # 진한 주황
             "growth": "#10b981",  # 초록색
         }
 
@@ -669,6 +672,7 @@ class LevelCalculator:
         "협업력": "팀 플레이어",
         "문제 해결력": "문제 해결사",
         "생산성": "스피드 러너",
+        "꾸준함": "꾸준함의 달인",
         "성장성": "라이징 스타",
     }
 
@@ -738,6 +742,7 @@ class LevelCalculator:
             "collaboration": "협업력",
             "problem_solving": "문제 해결력",
             "productivity": "생산성",
+            "consistency": "꾸준함",
             "growth": "성장성",
         }
 
