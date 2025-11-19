@@ -280,14 +280,22 @@ class YearInReviewReporter:
 
         # Aggregate tech stack
         combined_tech_stack = defaultdict(int)
+        repos_with_tech_stack = 0
         for repo in repository_analyses:
-            for lang, count in repo.tech_stack.items():
-                combined_tech_stack[lang] += count
+            if repo.tech_stack:
+                repos_with_tech_stack += 1
+                console.log(f"[dim]  {repo.full_name}: {len(repo.tech_stack)} technologies[/]")
+                for lang, count in repo.tech_stack.items():
+                    combined_tech_stack[lang] += count
+            else:
+                console.log(f"[warning]  {repo.full_name}: No tech stack data[/]")
 
         # Sort tech stack by usage
         sorted_tech_stack = sorted(
             combined_tech_stack.items(), key=lambda x: x[1], reverse=True
         )
+
+        console.log(f"[dim]Tech stack aggregation: {repos_with_tech_stack}/{total_repos} repos with data, {len(sorted_tech_stack)} total technologies[/]")
 
         # Add font styles at the beginning
         font_styles = [

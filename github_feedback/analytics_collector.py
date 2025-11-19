@@ -122,11 +122,19 @@ class AnalyticsCollector(BaseCollector):
             Dictionary mapping language names to counts
         """
         language_counts: Dict[str, int] = {}
+        total_files_analyzed = 0
+        total_files_with_language = 0
 
-        def fetch_pr_files(pr: Dict[str, Any]) -> Dict[str, int]:
-            """Fetch files for a single PR and count languages."""
+        def fetch_pr_files(pr: Dict[str, Any]) -> tuple[Dict[str, int], int, int]:
+            """Fetch files for a single PR and count languages.
+
+            Returns:
+                Tuple of (language_counts, files_analyzed, files_with_language)
+            """
             number = int(pr.get("number", 0))
             local_counts: Dict[str, int] = {}
+            files_analyzed = 0
+            files_with_language = 0
 
             try:
                 files = self.api_client.request_all(
@@ -134,15 +142,17 @@ class AnalyticsCollector(BaseCollector):
                 )
 
                 for file_entry in files:
+                    files_analyzed += 1
                     filename = file_entry.get("filename", "")
                     language = FilterHelper.filename_to_language(filename)
                     if language:
+                        files_with_language += 1
                         local_counts[language] = local_counts.get(language, 0) + 1
 
             except (requests.HTTPError, ValueError) as exc:
                 logger.warning(f"Failed to fetch files for PR #{number}: {exc}")
 
-            return local_counts
+            return local_counts, files_analyzed, files_with_language
 
         # Parallelize file fetching for recent PRs
         from .constants import COLLECTION_LIMITS
@@ -150,6 +160,12 @@ class AnalyticsCollector(BaseCollector):
         prs_to_process = pr_metadata[:max_prs]
         completed_count = 0
         total_prs = len(prs_to_process)
+
+        if total_prs == 0:
+            console.log("[warning]No PRs to process for tech stack analysis[/]")
+            return language_counts
+
+        console.log(f"Processing {total_prs} PRs for tech stack analysis (max: {max_prs})...")
 
         max_workers = THREAD_POOL_CONFIG['max_workers_pr_fetch']
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -160,7 +176,10 @@ class AnalyticsCollector(BaseCollector):
             for future in as_completed(futures):
                 completed_count += 1
                 try:
-                    local_counts = future.result()
+                    local_counts, files_analyzed, files_with_language = future.result()
+                    total_files_analyzed += files_analyzed
+                    total_files_with_language += files_with_language
+
                     for language, count in local_counts.items():
                         language_counts[language] = (
                             language_counts.get(language, 0) + count
@@ -172,6 +191,13 @@ class AnalyticsCollector(BaseCollector):
                 except Exception as exc:
                     logger.warning(f"Failed to process PR for tech stack analysis: {exc}")
                     continue
+
+        # Final summary
+        console.log(
+            f"Tech stack analysis complete: {total_files_analyzed} files analyzed, "
+            f"{total_files_with_language} files with recognized languages, "
+            f"{len(language_counts)} unique languages found"
+        )
 
         return language_counts
 
