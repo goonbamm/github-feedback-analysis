@@ -483,12 +483,12 @@ class Reporter:
                     if quality_ratio >= 0.7:  # 70% or better
                         mastery = min(100, int(quality_ratio * 100))
                         acquired_skills.append({
-                            "name": "명확한 커밋 메시지 작성",
+                            "name": "커밋 스토리텔러",
                             "type": "패시브",
                             "mastery": mastery,
                             "effect": f"전체 커밋의 {int(quality_ratio * 100)}%가 명확하고 의미있는 메시지",
                             "evidence": [f"{cf.good_messages}/{cf.total_commits} 커밋이 높은 품질"],
-                            "emoji": "📝"
+                            "emoji": "📜"
                         })
 
             # PR title mastery
@@ -499,12 +499,12 @@ class Reporter:
                     if quality_ratio >= 0.7:  # 70% or better
                         mastery = min(100, int(quality_ratio * 100))
                         acquired_skills.append({
-                            "name": "명확한 PR 제목 작성",
+                            "name": "PR 타이틀 메이커",
                             "type": "패시브",
                             "mastery": mastery,
                             "effect": f"전체 PR의 {int(quality_ratio * 100)}%가 명확하고 구체적",
                             "evidence": [f"{pf.clear_titles}/{pf.total_prs} PR이 높은 품질"],
-                            "emoji": "🔀"
+                            "emoji": "🎯"
                         })
 
             # Review tone mastery
@@ -516,12 +516,12 @@ class Reporter:
                     if quality_ratio >= 0.7:  # 70% or better
                         mastery = min(100, int(quality_ratio * 100))
                         acquired_skills.append({
-                            "name": "건설적인 리뷰 작성",
+                            "name": "코드 멘토",
                             "type": "패시브",
                             "mastery": mastery,
                             "effect": f"전체 리뷰의 {int(quality_ratio * 100)}%가 건설적이고 도움이 됨",
                             "evidence": [f"{rtf.constructive_reviews}/{total_reviews} 리뷰가 높은 품질"],
-                            "emoji": "👀"
+                            "emoji": "💬"
                         })
 
         # 2. Available Skills - from improvement suggestions
@@ -529,34 +529,34 @@ class Reporter:
             if metrics.detailed_feedback.commit_feedback and hasattr(metrics.detailed_feedback.commit_feedback, 'suggestions'):
                 for suggestion in metrics.detailed_feedback.commit_feedback.suggestions[:2]:
                     available_skills.append({
-                        "name": "커밋 메시지 향상",
+                        "name": "메시지 장인 수련",
                         "type": "미습득",
                         "mastery": 40,
                         "effect": suggestion,
                         "evidence": [suggestion],
-                        "emoji": "📝"
+                        "emoji": "🔨"
                     })
 
             if metrics.detailed_feedback.pr_title_feedback and hasattr(metrics.detailed_feedback.pr_title_feedback, 'suggestions'):
                 for suggestion in metrics.detailed_feedback.pr_title_feedback.suggestions[:2]:
                     available_skills.append({
-                        "name": "PR 제목 최적화",
+                        "name": "타이틀 작명술",
                         "type": "미습득",
                         "mastery": 40,
                         "effect": suggestion,
                         "evidence": [suggestion],
-                        "emoji": "🔀"
+                        "emoji": "✍️"
                     })
 
             if metrics.detailed_feedback.review_tone_feedback and hasattr(metrics.detailed_feedback.review_tone_feedback, 'suggestions'):
                 for suggestion in metrics.detailed_feedback.review_tone_feedback.suggestions[:2]:
                     available_skills.append({
-                        "name": "건설적인 리뷰 작성",
+                        "name": "멘토링의 기술",
                         "type": "미습득",
                         "mastery": 40,
                         "effect": suggestion,
                         "evidence": [suggestion],
-                        "emoji": "👀"
+                        "emoji": "🎓"
                     })
 
         # 3. Growing Skills - from retrospective positive patterns
