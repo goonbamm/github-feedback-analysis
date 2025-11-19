@@ -1691,8 +1691,10 @@ def _generate_integrated_full_report(
 """
 
     # Save integrated report with comprehensive error handling
+    from .utils import FileSystemManager
+
     try:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        FileSystemManager.ensure_directory(output_dir)
     except PermissionError as exc:
         raise RuntimeError(
             f"Permission denied creating directory {output_dir}: {exc}"
@@ -2184,8 +2186,10 @@ def _analyze_single_repository_for_year_review(
             console.print(f"[dim]💾 Saving detailed feedback to metrics.json...[/]")
             metrics_path = _get_year_in_review_metrics_path(output_dir, repo_name)
             legacy_metrics_path = _get_legacy_year_in_review_metrics_path(output_dir, repo_name)
+            from .utils import FileSystemManager
+
             metrics_dir = metrics_path.parent
-            metrics_dir.mkdir(parents=True, exist_ok=True)
+            FileSystemManager.ensure_directory(metrics_dir)
 
             metrics_data, loaded_from_legacy = _load_year_in_review_metrics_data(
                 metrics_path, legacy_metrics_path
@@ -2596,8 +2600,10 @@ def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metri
     output_dir = output_dir.expanduser()
 
     # Create directory with error handling
+    from .utils import FileSystemManager
+
     try:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        FileSystemManager.ensure_directory(output_dir)
     except PermissionError as exc:
         raise RuntimeError(
             f"Permission denied creating directory {output_dir}: {exc}"

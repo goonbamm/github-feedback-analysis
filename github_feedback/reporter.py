@@ -9,7 +9,14 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tuple, Union
 
 from .console import Console
-from .constants import AWARD_CATEGORIES, AWARD_KEYWORDS, COLLECTION_LIMITS, DISPLAY_LIMITS
+from .constants import (
+    AWARD_CATEGORIES,
+    AWARD_KEYWORDS,
+    COLLECTION_LIMITS,
+    DISPLAY_LIMITS,
+    REGEX_PATTERNS,
+    SKILL_MASTERY,
+)
 from .game_elements import GameRenderer, LevelCalculator
 from .models import (
     CommitMessageFeedback,
@@ -133,7 +140,9 @@ class Reporter:
     web_url: str = "https://github.com"  # Base URL for GitHub links (configurable for enterprise)
 
     def ensure_structure(self) -> None:
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        from .utils import FileSystemManager
+
+        FileSystemManager.ensure_directory(self.output_dir)
 
     def _get_repo_from_context(self) -> str:
         """Get the current repository being processed.
@@ -453,20 +462,24 @@ class Reporter:
 
         # 1. Acquired Skills - from top awards and strengths
         if metrics.awards:
-            for award in metrics.awards[:3]:
+            max_awards = SKILL_MASTERY['max_top_awards_for_skills']
+            for award in metrics.awards[:max_awards]:
                 # Determine mastery based on award position
-                mastery = 100 - (metrics.awards.index(award) * 10)
+                base_mastery = SKILL_MASTERY['base_mastery']
+                reduction = SKILL_MASTERY['mastery_reduction_per_rank']
+                mastery = base_mastery - (metrics.awards.index(award) * reduction)
 
                 # Extract skill name from award by removing emoji and trimming
                 # Award format: "🏆 Award Name - Description"
                 skill_name = award
                 # Remove leading emoji and spaces
-                skill_name = re.sub(r'^[\U0001F300-\U0001F9FF\s]+', '', skill_name)
-                # Take content before " - " if exists, otherwise use first 60 chars
+                skill_name = REGEX_PATTERNS['emoji_prefix'].sub('', skill_name)
+                # Take content before " - " if exists, otherwise use first N chars
                 if ' - ' in skill_name:
                     skill_name = skill_name.split(' - ')[0].strip()
-                # Limit to 60 chars
-                skill_name = skill_name[:60].rstrip('.,!? ') if len(skill_name) > 60 else skill_name
+                # Limit to configured max length
+                max_len = SKILL_MASTERY['skill_name_max_length']
+                skill_name = skill_name[:max_len].rstrip('.,!? ') if len(skill_name) > max_len else skill_name
 
                 acquired_skills.append({
                     "name": skill_name,
@@ -478,17 +491,19 @@ class Reporter:
                 })
 
         # Add skills from highlights
-        if metrics.highlights and len(acquired_skills) < 5:
-            remaining = 5 - len(acquired_skills)
+        max_skills = SKILL_MASTERY['max_skills_total']
+        if metrics.highlights and len(acquired_skills) < max_skills:
+            remaining = max_skills - len(acquired_skills)
             for highlight in metrics.highlights[:remaining]:
-                # Extract first sentence and limit to 60 chars
+                # Extract first sentence and limit to configured max length
                 first_sentence = highlight.split('.')[0]
-                skill_name = first_sentence[:60].rstrip('.,!? ') if len(first_sentence) > 60 else first_sentence
+                max_len = SKILL_MASTERY['skill_name_max_length']
+                skill_name = first_sentence[:max_len].rstrip('.,!? ') if len(first_sentence) > max_len else first_sentence
 
                 acquired_skills.append({
                     "name": skill_name,
                     "type": "액티브",
-                    "mastery": 80,
+                    "mastery": SKILL_MASTERY['highlight_mastery'],
                     "effect": highlight,  # Full highlight as effect description
                     "evidence": [highlight],
                     "emoji": "✨"
@@ -503,13 +518,14 @@ class Reporter:
                 cf = metrics.detailed_feedback.commit_feedback
                 if cf.total_commits > 0:
                     quality_ratio = cf.good_messages / cf.total_commits
-                    mastery = min(100, int(quality_ratio * 100))
+                    base_mastery = SKILL_MASTERY['base_mastery']
+                    mastery = min(base_mastery, int(quality_ratio * base_mastery))
 
                     # Determine skill level and name
-                    if quality_ratio >= 0.8:
+                    if quality_ratio >= SKILL_MASTERY['excellent_quality_ratio']:
                         skill_name = "커밋 스토리텔링 마스터"
                         skill_type = "전설"
-                    elif quality_ratio >= 0.6:
+                    elif quality_ratio >= SKILL_MASTERY['good_quality_ratio']:
                         skill_name = "커밋 메시지 장인"
                         skill_type = "숙련"
                     else:

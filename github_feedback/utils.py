@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
+import logging
 import re
+from pathlib import Path
 from typing import Iterable, Iterator, TypeVar
 from urllib.parse import urlparse
 
 T = TypeVar('T')
 
-__all__ = ["truncate_patch", "limit_items", "validate_pat_format", "validate_url", "validate_repo_format", "validate_months", "safe_truncate_str", "display_width", "pad_to_width"]
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "truncate_patch",
+    "limit_items",
+    "validate_pat_format",
+    "validate_url",
+    "validate_repo_format",
+    "validate_months",
+    "safe_truncate_str",
+    "display_width",
+    "pad_to_width",
+    "FileSystemManager",
+]
 
 
 def display_width(text: str) -> int:
@@ -262,3 +277,60 @@ def validate_months(months: int) -> None:
         raise ValueError("Months must be at least 1")
     if months > 120:
         raise ValueError("Months cannot exceed 120 (10 years)")
+
+
+class FileSystemManager:
+    """Centralized file system operations with consistent error handling.
+
+    This class provides utility methods for common file system operations
+    with consistent error handling and logging across the codebase.
+    """
+
+    @staticmethod
+    def ensure_directory(path: Path) -> Path:
+        """Create directory with parents if it doesn't exist, with error handling.
+
+        This method consolidates the directory creation pattern used throughout
+        the codebase, providing consistent error handling and logging.
+
+        Args:
+            path: Path to the directory to create.
+
+        Returns:
+            The created or existing directory path.
+
+        Raises:
+            OSError: If directory creation fails due to OS-level issues.
+            PermissionError: If lacking permissions to create the directory.
+
+        Example:
+            >>> from pathlib import Path
+            >>> output_dir = FileSystemManager.ensure_directory(Path("reports/2024"))
+        """
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+        except (OSError, PermissionError) as exc:
+            logger.error(f"Failed to create directory {path}: {exc}")
+            raise
+
+    @staticmethod
+    def ensure_parent_directory(file_path: Path) -> Path:
+        """Ensure the parent directory of a file exists.
+
+        Args:
+            file_path: Path to a file whose parent directory should exist.
+
+        Returns:
+            The parent directory path.
+
+        Raises:
+            OSError: If directory creation fails.
+            PermissionError: If lacking permissions.
+
+        Example:
+            >>> file_path = Path("reports/2024/metrics.json")
+            >>> FileSystemManager.ensure_parent_directory(file_path)
+        """
+        parent = file_path.parent
+        return FileSystemManager.ensure_directory(parent)

@@ -11,6 +11,13 @@ from typing import Iterable, List
 import re
 
 from .console import Console
+from .constants import (
+    STAT_WEIGHTS_CODE_QUALITY,
+    STAT_WEIGHTS_COLLABORATION,
+    STAT_WEIGHTS_GROWTH,
+    STAT_WEIGHTS_PROBLEM_SOLVING,
+    STAT_WEIGHTS_PRODUCTIVITY,
+)
 from .game_elements import GameRenderer, LevelCalculator
 from .llm import LLMClient
 from .models import (
@@ -450,40 +457,51 @@ class ReviewReporter:
         # Code Quality (0-100): Based on strength ratio and file organization
         avg_files_per_pr = total_files / total_prs if total_prs > 0 else 0
         strength_ratio = total_strengths / max(total_strengths + total_improvements, 1)
+
+        w_cq = STAT_WEIGHTS_CODE_QUALITY
         code_quality = min(100, int(
-            (strength_ratio * 50) +  # Strength contribution (0-50)
-            (min(avg_files_per_pr / 10, 1) * 25) +  # File organization (0-25)
-            (25 if total_prs >= 10 else (total_prs / 10) * 25)  # Experience bonus (0-25)
+            (strength_ratio * w_cq['strength_contribution']) +
+            (min(avg_files_per_pr / w_cq['optimal_files_per_pr'], 1) * w_cq['file_organization']) +
+            (w_cq['experience_bonus'] if total_prs >= w_cq['experience_pr_threshold']
+             else (total_prs / w_cq['experience_pr_threshold']) * w_cq['experience_bonus'])
         ))
 
         # Collaboration (0-100): Based on review engagement
         has_reviews = sum(1 for r in reviews if r.review_bodies or r.review_comments)
         collaboration_rate = has_reviews / total_prs if total_prs > 0 else 0
         avg_feedback = (total_strengths + total_improvements) / total_prs if total_prs > 0 else 0
+
+        w_col = STAT_WEIGHTS_COLLABORATION
         collaboration = min(100, int(
-            (collaboration_rate * 50) +  # Review engagement (0-50)
-            (min(avg_feedback / 5, 1) * 30) +  # Feedback quality (0-30)
-            (20 if total_prs >= 5 else (total_prs / 5) * 20)  # Participation bonus (0-20)
+            (collaboration_rate * w_col['review_engagement']) +
+            (min(avg_feedback / w_col['optimal_feedback_per_pr'], 1) * w_col['feedback_quality']) +
+            (w_col['participation_bonus'] if total_prs >= w_col['participation_pr_threshold']
+             else (total_prs / w_col['participation_pr_threshold']) * w_col['participation_bonus'])
         ))
 
         # Problem Solving (0-100): Based on PR complexity and scope
         avg_changes = (total_additions + total_deletions) / total_prs if total_prs > 0 else 0
+
+        w_ps = STAT_WEIGHTS_PROBLEM_SOLVING
         problem_solving = min(100, int(
-            (min(avg_changes / 500, 1) * 40) +  # Change complexity (0-40)
-            (min(avg_files_per_pr / 15, 1) * 30) +  # Scope breadth (0-30)
-            (30 if total_prs >= 8 else (total_prs / 8) * 30)  # Problem count (0-30)
+            (min(avg_changes / w_ps['optimal_changes_per_pr'], 1) * w_ps['change_complexity']) +
+            (min(avg_files_per_pr / w_ps['optimal_files_per_pr'], 1) * w_ps['scope_breadth']) +
+            (w_ps['problem_count'] if total_prs >= w_ps['problem_pr_threshold']
+             else (total_prs / w_ps['problem_pr_threshold']) * w_ps['problem_count'])
         ))
 
         # Productivity (0-100): Based on output volume
+        w_prod = STAT_WEIGHTS_PRODUCTIVITY
         productivity = min(100, int(
-            (min(total_prs / 20, 1) * 40) +  # PR count (0-40)
-            (min(total_additions / 5000, 1) * 35) +  # Code output (0-35)
-            (min(total_files / 100, 1) * 25)  # File coverage (0-25)
+            (min(total_prs / w_prod['optimal_pr_count'], 1) * w_prod['pr_count']) +
+            (min(total_additions / w_prod['optimal_additions'], 1) * w_prod['code_output']) +
+            (min(total_files / w_prod['optimal_file_count'], 1) * w_prod['file_coverage'])
         ))
 
         # Growth (0-100): Based on consistent improvement
         # Calculate trend from first half vs second half
-        if total_prs >= 4:
+        w_growth = STAT_WEIGHTS_GROWTH
+        if total_prs >= w_growth['min_prs_for_trend']:
             mid_point = total_prs // 2
             first_half = reviews[:mid_point]
             second_half = reviews[mid_point:]
@@ -493,12 +511,17 @@ class ReviewReporter:
 
             improvement_rate = (second_avg_strengths - first_avg_strengths) / max(first_avg_strengths, 1)
             growth = min(100, max(0, int(
-                50 +  # Base growth
-                (improvement_rate * 30) +  # Improvement trend (±30)
-                (20 if total_prs >= 15 else (total_prs / 15) * 20)  # Consistency bonus (0-20)
+                w_growth['base_growth'] +
+                (improvement_rate * w_growth['improvement_trend']) +
+                (w_growth['consistency_bonus'] if total_prs >= w_growth['consistency_pr_threshold']
+                 else (total_prs / w_growth['consistency_pr_threshold']) * w_growth['consistency_bonus'])
             )))
         else:
-            growth = min(100, int((total_prs / 4) * 60 + 40))  # Base growth for new developers
+            # Base growth for new developers
+            growth = min(100, int(
+                (total_prs / w_growth['min_prs_for_trend']) * w_growth['new_developer_multiplier'] +
+                w_growth['new_developer_base']
+            ))
 
         return {
             "code_quality": code_quality,
@@ -1302,8 +1325,10 @@ class ReviewReporter:
         report_text = self._generate_report_text(repo_input, reviews)
 
         # Save report
+        from .utils import FileSystemManager
+
         repo_dir = self._repo_dir(repo_input)
-        repo_dir.mkdir(parents=True, exist_ok=True)
+        FileSystemManager.ensure_directory(repo_dir)
         report_path = repo_dir / "integrated_report.md"
         report_path.write_text(report_text, encoding="utf-8")
 
