@@ -2432,50 +2432,35 @@ def _display_final_summary(
 
 @app.command()
 def feedback(
-    repo: Annotated[
-        Optional[str],
-        typer.Option(
-            None,
-            "--repo",
-            "-r",
-            help="Repository in owner/name format (e.g. microsoft/vscode)",
-        ),
-    ] = None,
-    output_dir: Annotated[
-        Path,
-        typer.Option(
-            Path("reports"),
-            "--output",
-            "-o",
-            help="Output directory for reports",
-        ),
-    ] = Path("reports"),
-    interactive: Annotated[
-        bool,
-        typer.Option(
-            False,
-            "--interactive",
-            "-i",
-            help="Interactively select repository from suggestions",
-        ),
-    ] = False,
-    year_in_review: Annotated[
-        bool,
-        typer.Option(
-            False,
-            "--year-in-review",
-            "-y",
-            help="Analyze all repositories you contributed to this year and generate a comprehensive annual report",
-        ),
-    ] = False,
-    year: Annotated[
-        Optional[int],
-        typer.Option(
-            None,
-            "--year",
-            help="Specific year for year-in-review (default: current year)",
-        ),
-    ] = None,
+    repo: Optional[str] = typer.Option(
+        None,
+        "--repo",
+        "-r",
+        help="Repository in owner/name format (e.g. microsoft/vscode)",
+    ),
+    output_dir: Path = typer.Option(
+        Path("reports"),
+        "--output",
+        "-o",
+        help="Output directory for reports",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactively select repository from suggestions",
+    ),
+    year_in_review: bool = typer.Option(
+        False,
+        "--year-in-review",
+        "-y",
+        help="Analyze all repositories you contributed to this year and generate a comprehensive annual report",
+    ),
+    year: Optional[int] = typer.Option(
+        None,
+        "--year",
+        help="Specific year for year-in-review (default: current year)",
+    ),
 ) -> None:
     """Analyze repository activity and generate detailed reports with PR feedback.
 
