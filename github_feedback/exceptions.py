@@ -72,6 +72,16 @@ class ApiError(CollectionError):
         self.status_code = status_code
 
 
+class RateLimitError(ApiError):
+    """Raised when GitHub API rate limit is exceeded."""
+    pass
+
+
+class RepositoryAccessError(ApiError):
+    """Raised when unable to access repository (not found or no permission)."""
+    pass
+
+
 # =============================================================================
 # Analysis Errors
 # =============================================================================
@@ -79,6 +89,16 @@ class ApiError(CollectionError):
 
 class AnalysisError(GHFError):
     """Base exception for analysis errors."""
+    pass
+
+
+class InsufficientDataError(AnalysisError):
+    """Raised when insufficient data is available for analysis."""
+    pass
+
+
+class MetricsCalculationError(AnalysisError):
+    """Raised when metrics calculation fails."""
     pass
 
 
@@ -106,6 +126,21 @@ class LLMTimeoutError(LLMAnalysisError):
     pass
 
 
+class LLMResponseError(LLMAnalysisError):
+    """Raised when LLM returns an invalid or malformed response."""
+    pass
+
+
+class LLMValidationError(LLMAnalysisError):
+    """Raised when LLM response fails schema validation."""
+    pass
+
+
+class LLMRateLimitError(LLMAnalysisError):
+    """Raised when LLM rate limit is exceeded."""
+    pass
+
+
 
 
 # =============================================================================
@@ -127,6 +162,26 @@ class ReportGenerationError(GHFError):
 
 class ValidationError(GHFError):
     """Base exception for validation errors."""
+    pass
+
+
+class InvalidInputError(ValidationError):
+    """Raised when user input is invalid."""
+    pass
+
+
+class InvalidPATError(ValidationError):
+    """Raised when the GitHub Personal Access Token is invalid."""
+    pass
+
+
+class InvalidRepositoryError(ValidationError):
+    """Raised when the repository format is invalid."""
+    pass
+
+
+class InvalidDateRangeError(ValidationError):
+    """Raised when date range is invalid."""
     pass
 
 
