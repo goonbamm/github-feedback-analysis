@@ -554,18 +554,20 @@ class ReviewReporter:
     def _render_skill_tree_section(
         self, analysis: PersonalDevelopmentAnalysis, pr_map: dict[int, StoredReview]
     ) -> List[str]:
-        """Render skill tree section with game-style cards."""
+        """Render skill tree section with consolidated table."""
         lines: List[str] = []
         lines.append("## 🎮 스킬 트리")
         lines.append("")
         lines.append("> 획득한 스킬과 습득 가능한 스킬을 확인하세요")
         lines.append("")
 
+        # Collect all skills
+        acquired_skills = []
+        growing_skills = []
+        available_skills = []
+
         # 1. Acquired Skills (from strengths)
         if analysis.strengths:
-            lines.append("### 💎 획득한 스킬 (Acquired Skills)")
-            lines.append("")
-
             for strength in analysis.strengths[:5]:  # Top 5 strengths
                 # Calculate mastery based on impact
                 mastery = {"high": 90, "medium": 75, "low": 60}.get(strength.impact, 70)
@@ -583,20 +585,17 @@ class ReviewReporter:
                 }
                 skill_emoji = next((emoji for key, emoji in category_emojis.items() if key in strength.category), "💎")
 
-                lines.extend(GameRenderer.render_skill_card(
-                    skill_name=strength.category,
-                    skill_type=skill_type,
-                    mastery_level=mastery,
-                    effect_description=strength.description,
-                    evidence=strength.evidence[:5],
-                    skill_emoji=skill_emoji
-                ))
+                acquired_skills.append({
+                    "name": strength.category,
+                    "type": skill_type,
+                    "mastery": mastery,
+                    "effect": strength.description,
+                    "evidence": strength.evidence[:5],
+                    "emoji": skill_emoji
+                })
 
         # 2. Growing Skills (from growth indicators)
         if analysis.growth_indicators:
-            lines.append("### 🌱 성장 중인 스킬 (Growing Skills)")
-            lines.append("")
-
             for growth in analysis.growth_indicators[:3]:  # Top 3 growth areas
                 # 성장 증거 준비
                 growth_evidence = []
@@ -607,20 +606,17 @@ class ReviewReporter:
                 if growth.after_examples:
                     growth_evidence.append(f"After: {growth.after_examples[0]}")
 
-                lines.extend(GameRenderer.render_skill_card(
-                    skill_name=growth.aspect,
-                    skill_type="성장중",
-                    mastery_level=65,  # Growing skills are around 65%
-                    effect_description=growth.description,
-                    evidence=growth_evidence[:5],
-                    skill_emoji="🌱"
-                ))
+                growing_skills.append({
+                    "name": growth.aspect,
+                    "type": "성장중",
+                    "mastery": 65,  # Growing skills are around 65%
+                    "effect": growth.description,
+                    "evidence": growth_evidence[:5],
+                    "emoji": "🌱"
+                })
 
         # 3. Available Skills (from improvement areas)
         if analysis.improvement_areas:
-            lines.append("### 🎯 습득 가능한 스킬 (Available Skills)")
-            lines.append("")
-
             # Sort by priority
             priority_order = {"critical": 0, "important": 1, "nice-to-have": 2}
             sorted_improvements = sorted(
@@ -649,14 +645,21 @@ class ReviewReporter:
                 elif area.evidence:
                     improvement_evidence.extend(area.evidence[:5])
 
-                lines.extend(GameRenderer.render_skill_card(
-                    skill_name=area.category,
-                    skill_type="미습득",
-                    mastery_level=mastery,
-                    effect_description=area.description,
-                    evidence=improvement_evidence,
-                    skill_emoji=skill_emoji
-                ))
+                available_skills.append({
+                    "name": area.category,
+                    "type": "미습득",
+                    "mastery": mastery,
+                    "effect": area.description,
+                    "evidence": improvement_evidence,
+                    "emoji": skill_emoji
+                })
+
+        # Render all skills in one consolidated table
+        lines.extend(GameRenderer.render_skill_tree_table(
+            acquired_skills=acquired_skills,
+            growing_skills=growing_skills,
+            available_skills=available_skills
+        ))
 
         lines.append("---")
         lines.append("")

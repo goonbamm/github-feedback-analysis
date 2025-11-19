@@ -572,47 +572,12 @@ class Reporter:
                     "emoji": "🌱"
                 })
 
-        # Render acquired skills
-        if acquired_skills:
-            lines.append("### 💎 획득한 스킬 (Acquired Skills)")
-            lines.append("")
-            for skill in acquired_skills:
-                lines.extend(GameRenderer.render_skill_card(
-                    skill["name"],
-                    skill["type"],
-                    skill["mastery"],
-                    skill["effect"],
-                    skill["evidence"],
-                    skill["emoji"]
-                ))
-
-        # Render growing skills
-        if growing_skills:
-            lines.append("### 🌱 성장 중인 스킬 (Growing Skills)")
-            lines.append("")
-            for skill in growing_skills:
-                lines.extend(GameRenderer.render_skill_card(
-                    skill["name"],
-                    skill["type"],
-                    skill["mastery"],
-                    skill["effect"],
-                    skill["evidence"],
-                    skill["emoji"]
-                ))
-
-        # Render available skills
-        if available_skills:
-            lines.append("### 🎯 습득 가능한 스킬 (Available Skills)")
-            lines.append("")
-            for skill in available_skills[:3]:  # Limit to top 3
-                lines.extend(GameRenderer.render_skill_card(
-                    skill["name"],
-                    skill["type"],
-                    skill["mastery"],
-                    skill["effect"],
-                    skill["evidence"],
-                    skill["emoji"]
-                ))
+        # Render all skills in one consolidated table
+        lines.extend(GameRenderer.render_skill_tree_table(
+            acquired_skills=acquired_skills,
+            growing_skills=growing_skills,
+            available_skills=available_skills[:3]  # Limit to top 3
+        ))
 
         lines.append("---")
         lines.append("")
