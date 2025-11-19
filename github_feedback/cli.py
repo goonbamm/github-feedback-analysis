@@ -9,7 +9,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 import typer
@@ -2049,6 +2049,63 @@ def _run_year_in_review_analysis(
     console.print("  • Review individual repository reports in: [accent]reports/reviews/[/]")
 
 
+def _get_year_in_review_metrics_dir(output_dir: Path) -> Path:
+    """Return the directory that stores per-repository metrics for Year-in-Review."""
+
+    return output_dir / "year-in-review" / "metrics"
+
+
+def _get_year_in_review_metrics_path(output_dir: Path, repo_name: str) -> Path:
+    """Return the canonical metrics path for the given repository."""
+
+    safe_repo = repo_name.replace("/", "__")
+    return _get_year_in_review_metrics_dir(output_dir) / f"{safe_repo}.json"
+
+
+def _get_legacy_year_in_review_metrics_path(output_dir: Path, repo_name: str) -> Path:
+    """Return the legacy metrics path that stored metrics inside repo-named folders."""
+
+    safe_repo = repo_name.replace("/", "__")
+    return output_dir / safe_repo / "metrics.json"
+
+
+def _load_year_in_review_metrics_data(
+    primary_path: Path, legacy_path: Path
+) -> tuple[dict, bool]:
+    """Load metrics data from the new or legacy path.
+
+    Returns:
+        Tuple containing the loaded metrics (or empty dict) and a flag indicating whether
+        the data originated from the legacy path.
+    """
+
+    import json
+
+    for path, is_legacy in ((primary_path, False), (legacy_path, True)):
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as handle:
+                    return json.load(handle), is_legacy
+            except Exception:
+                return {}, is_legacy
+
+    return {}, False
+
+
+def _cleanup_legacy_metrics_path(legacy_path: Path) -> None:
+    """Remove the legacy metrics file/directory if it exists and is now unused."""
+
+    try:
+        if legacy_path.exists():
+            legacy_path.unlink()
+        parent = legacy_path.parent
+        if parent.exists():
+            parent.rmdir()
+    except OSError:
+        # If the directory isn't empty or can't be removed, ignore silently.
+        pass
+
+
 def _analyze_single_repository_for_year_review(
     config: Config,
     repo_name: str,
@@ -2074,6 +2131,7 @@ def _analyze_single_repository_for_year_review(
         # Get authenticated user
         collector = Collector(config)
         author = collector.get_authenticated_user()
+        safe_repo = repo_name.replace("/", "__")
 
         # Calculate year date range
         since = datetime(year, 1, 1)
@@ -2119,28 +2177,27 @@ def _analyze_single_repository_for_year_review(
         # Save detailed feedback to metrics.json for later retrieval
         if detailed_feedback_snapshot:
             console.print(f"[dim]💾 Saving detailed feedback to metrics.json...[/]")
-            safe_repo = repo_name.replace("/", "__")
-            metrics_dir = output_dir / safe_repo
+            metrics_path = _get_year_in_review_metrics_path(output_dir, repo_name)
+            legacy_metrics_path = _get_legacy_year_in_review_metrics_path(output_dir, repo_name)
+            metrics_dir = metrics_path.parent
             metrics_dir.mkdir(parents=True, exist_ok=True)
 
-            # Load existing metrics.json if it exists
-            metrics_path = metrics_dir / "metrics.json"
-            import json
-            if metrics_path.exists():
-                try:
-                    with open(metrics_path, "r", encoding="utf-8") as f:
-                        metrics_data = json.load(f)
-                except Exception:
-                    metrics_data = {}
-            else:
-                metrics_data = {}
+            metrics_data, loaded_from_legacy = _load_year_in_review_metrics_data(
+                metrics_path, legacy_metrics_path
+            )
 
             # Add detailed_feedback to metrics
             metrics_data["detailed_feedback"] = detailed_feedback_snapshot.to_dict()
 
             # Save updated metrics
-            with open(metrics_path, "w", encoding="utf-8") as f:
+            import json
+
+            with metrics_path.open("w", encoding="utf-8") as f:
                 json.dump(metrics_data, f, indent=2, ensure_ascii=False)
+
+            if loaded_from_legacy:
+                _cleanup_legacy_metrics_path(legacy_metrics_path)
+
             console.print(f"[success]✅ Saved detailed feedback to {metrics_path}[/]")
 
         # Load personal development data
@@ -2171,12 +2228,11 @@ def _analyze_single_repository_for_year_review(
             growth_indicators = personal_dev.get("growth_indicators", [])
 
         # Load metrics.json for detailed feedback (commit message quality, review tone, etc.)
-        metrics_path = output_dir / safe_repo / "metrics.json"
-        if metrics_path.exists():
+        metrics_path = _get_year_in_review_metrics_path(output_dir, repo_name)
+        legacy_metrics_path = _get_legacy_year_in_review_metrics_path(output_dir, repo_name)
+        metrics_data, _ = _load_year_in_review_metrics_data(metrics_path, legacy_metrics_path)
+        if metrics_data:
             try:
-                with open(metrics_path, "r", encoding="utf-8") as f:
-                    metrics_data = json.load(f)
-
                 # Extract detailed feedback
                 detailed_feedback = metrics_data.get("detailed_feedback", {})
 
@@ -2371,35 +2427,50 @@ def _display_final_summary(
 
 @app.command()
 def feedback(
-    repo: Optional[str] = typer.Option(
-        None,
-        "--repo",
-        "-r",
-        help="Repository in owner/name format (e.g. microsoft/vscode)",
-    ),
-    output_dir: Path = typer.Option(
-        Path("reports"),
-        "--output",
-        "-o",
-        help="Output directory for reports",
-    ),
-    interactive: bool = typer.Option(
-        False,
-        "--interactive",
-        "-i",
-        help="Interactively select repository from suggestions",
-    ),
-    year_in_review: bool = typer.Option(
-        False,
-        "--year-in-review",
-        "-y",
-        help="Analyze all repositories you contributed to this year and generate a comprehensive annual report",
-    ),
-    year: Optional[int] = typer.Option(
-        None,
-        "--year",
-        help="Specific year for year-in-review (default: current year)",
-    ),
+    repo: Annotated[
+        Optional[str],
+        typer.Option(
+            None,
+            "--repo",
+            "-r",
+            help="Repository in owner/name format (e.g. microsoft/vscode)",
+        ),
+    ] = None,
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            Path("reports"),
+            "--output",
+            "-o",
+            help="Output directory for reports",
+        ),
+    ] = Path("reports"),
+    interactive: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--interactive",
+            "-i",
+            help="Interactively select repository from suggestions",
+        ),
+    ] = False,
+    year_in_review: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--year-in-review",
+            "-y",
+            help="Analyze all repositories you contributed to this year and generate a comprehensive annual report",
+        ),
+    ] = False,
+    year: Annotated[
+        Optional[int],
+        typer.Option(
+            None,
+            "--year",
+            help="Specific year for year-in-review (default: current year)",
+        ),
+    ] = None,
 ) -> None:
     """Analyze repository activity and generate detailed reports with PR feedback.
 

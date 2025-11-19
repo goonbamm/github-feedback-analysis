@@ -511,7 +511,9 @@ reports/
 │       ├── integrated_report.md     # 综合 PR 评审报告
 │       └── personal_development.json  # 个人成长分析
 └── year-in-review/                  # 🎊 年度回顾（使用 --year-in-review 选项时）
-    └── year_{year}_in_review.md     # 年度综合报告
+    ├── year_{year}_in_review.md     # 年度综合报告
+    └── metrics/                     # 仓库级详细指标
+        └── {owner}__{repo}.json     # 每个仓库的详细快照
 ```
 
 </details>

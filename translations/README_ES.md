@@ -510,7 +510,9 @@ reports/
 │       ├── integrated_report.md     # Informe integrado de revisión de PR
 │       └── personal_development.json  # Análisis de crecimiento personal
 └── year-in-review/                  # 🎊 Revisión Anual (cuando se usa la opción --year-in-review)
-    └── year_{year}_in_review.md     # Informe anual completo
+    ├── year_{year}_in_review.md     # Informe anual completo
+    └── metrics/                     # Métricas detalladas por repositorio
+        └── {owner}__{repo}.json     # Instantánea detallada de cada repositorio
 ```
 
 </details>
