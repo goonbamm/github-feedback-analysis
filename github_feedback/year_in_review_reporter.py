@@ -916,105 +916,29 @@ class YearInReviewReporter:
             categorized_tech[category].append(tech_info)
 
         # ============================================
-        # 📦 장비창 시스템 (상위 10개만 슬롯에 표시)
+        # 📦 장착된 장비 추적 (상위 10개)
         # ============================================
-        lines.append("### 📦 캐릭터 장비창")
-        lines.append("")
-        lines.append("> 현재 장착 중인 최상위 장비들")
-        lines.append("")
-
-        # 카테고리별 최상위 기술 선택
-        equipment_slots = []
+        # 카테고리별 최상위 기술 선택하여 "장착 중" 표시에 사용
+        equipped_tech_names = set()
 
         # 주무기 슬롯 (언어, 최대 3개)
         for tech in categorized_tech["language"][:3]:
-            equipment_slots.append({
-                "slot": "🎯 주무기",
-                "tech": tech,
-                "priority": 1
-            })
+            equipped_tech_names.add(tech["name"])
 
         # 보조무기 슬롯 (프레임워크, 최대 3개)
         for tech in categorized_tech["framework"][:3]:
-            equipment_slots.append({
-                "slot": "🛡️ 보조무기",
-                "tech": tech,
-                "priority": 2
-            })
+            equipped_tech_names.add(tech["name"])
 
         # 장신구 슬롯 (도구, 최대 4개)
         for tech in categorized_tech["tool"][:4]:
-            equipment_slots.append({
-                "slot": "💍 장신구",
-                "tech": tech,
-                "priority": 3
-            })
-
-        if equipment_slots:
-            # 장비창 HTML 박스 생성
-            lines.append('<div style="border: 3px solid #8b5cf6; border-radius: 12px; padding: 25px; margin: 20px 0; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);">')
-            lines.append('  <h3 style="margin: 0 0 20px 0; color: #5b21b6; text-align: center; font-size: 1.5em;">⚔️ 장착 중인 장비 ⚔️</h3>')
-            lines.append('  <div style="display: grid; gap: 12px;">')
-
-            current_slot_type = None
-            slot_count = {"🎯 주무기": 1, "🛡️ 보조무기": 1, "💍 장신구": 1}
-
-            for item in equipment_slots:
-                slot = item["slot"]
-                tech = item["tech"]
-                tier = tech["tier"]
-
-                # 슬롯 타입이 바뀔 때마다 헤더 표시
-                if current_slot_type != slot:
-                    if current_slot_type is not None:
-                        lines.append('    <div style="height: 8px;"></div>')
-                    current_slot_type = slot
-
-                slot_num = slot_count[slot]
-                slot_count[slot] += 1
-
-                # 장비 아이템 박스
-                lines.append(f'    <div style="background: white; border: 2px solid {tier["color"]}; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px {tier["glow"]};">')
-                lines.append(f'      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">')
-                lines.append(f'        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">')
-                lines.append(f'          <span style="font-size: 1.8em;">{tech["icon"]}</span>')
-                lines.append(f'          <div style="flex: 1;">')
-                lines.append(f'            <div style="font-weight: bold; color: #1f2937; font-size: 1.1em;">{slot} #{slot_num - 1}</div>')
-                lines.append(f'            <div style="color: #6b7280; font-size: 0.95em; margin-top: 2px;">{tech["weapon_name"]}</div>')
-                lines.append(f'          </div>')
-                lines.append(f'        </div>')
-                lines.append(f'        <div style="text-align: right;">')
-                lines.append(f'          <div style="background: {tier["color"]}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap;">{tier["prefix"]} {tier["name"]}</div>')
-                lines.append(f'          <div style="color: {tier["color"]}; font-weight: bold; font-size: 1.1em; margin-top: 4px;">{tech["percentage"]:.1f}%</div>')
-                lines.append(f'        </div>')
-                lines.append(f'      </div>')
-
-                # 장비 특성 표시
-                if tech.get("weapon_traits"):
-                    lines.append(f'      <div style="border-top: 1px solid #e5e7eb; padding-top: 10px;">')
-                    lines.append(f'        <div style="font-size: 0.75em; color: #9ca3af; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⚔️ 장비 특성</div>')
-                    for trait in tech["weapon_traits"]:
-                        lines.append(f'        <div style="font-size: 0.85em; color: #4b5563; margin-bottom: 4px; line-height: 1.4;">{trait}</div>')
-                    lines.append(f'      </div>')
-
-                lines.append(f'    </div>')
-
-            lines.append('  </div>')
-            lines.append('</div>')
-            lines.append("")
-        else:
-            lines.append("_장비를 장착하지 않았습니다._")
-            lines.append("")
-
-        # 장비창에 표시된 기술 이름들을 추적 (중복 방지용)
-        equipped_tech_names = {item["tech"]["name"] for item in equipment_slots}
+            equipped_tech_names.add(tech["name"])
 
         # ============================================
         # 📊 전체 무기 목록 (카테고리별 분류)
         # ============================================
-        lines.append("### 📊 무기 및 장비 인벤토리")
+        lines.append("### 📊 장비 및 인벤토리")
         lines.append("")
-        lines.append("> 한 해 동안 사용한 모든 기술의 상세 통계")
+        lines.append("> 한 해 동안 사용한 모든 기술의 상세 통계 (⭐ 표시는 현재 장착 중인 장비)")
         lines.append("")
 
         # 카테고리별 테이블 생성
@@ -1032,15 +956,19 @@ class YearInReviewReporter:
             lines.append("")
 
             # 테이블 데이터 구성
-            headers = ["순위", "아이콘", "장비명 & 특성", "등급", "사용 횟수", "비율", "강화도"]
+            headers = ["순위", "상태", "아이콘", "장비명 & 특성", "등급", "사용 횟수", "비율", "강화도"]
             rows = []
 
-            # 장비창에 이미 표시된 기술 제외
-            filtered_tech_list = [tech for tech in tech_list if tech["name"] not in equipped_tech_names]
-
-            for idx, tech in enumerate(filtered_tech_list[:15], 1):  # 카테고리별 상위 15개 (장비창 제외)
+            for idx, tech in enumerate(tech_list[:15], 1):  # 카테고리별 상위 15개
                 tier = tech["tier"]
                 percentage = tech["percentage"]
+
+                # 장착 상태 배지
+                equipped_badge = ""
+                if tech["name"] in equipped_tech_names:
+                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">⭐ 장착 중</span>'
+                else:
+                    equipped_badge = '<span style="color: #9ca3af; font-size: 0.85em;">-</span>'
 
                 # 강화도 프로그레스 바
                 progress_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 4px; box-shadow: 0 0 10px {tier["glow"]};"></div></div>'
@@ -1058,6 +986,7 @@ class YearInReviewReporter:
 
                 rows.append([
                     f"#{idx}",
+                    equipped_badge,
                     f'<span style="font-size: 1.5em;">{tech["icon"]}</span>',
                     weapon_name_cell,
                     tier_badge,
@@ -1081,18 +1010,26 @@ class YearInReviewReporter:
             lines.append("#### 🔹 기타 기술")
             lines.append("")
 
-            headers = ["순위", "기술명", "등급", "사용 횟수", "비율", "강화도"]
+            headers = ["순위", "상태", "기술명", "등급", "사용 횟수", "비율", "강화도"]
             rows = []
 
             for idx, tech in enumerate(categorized_tech["unknown"][:10], 1):
                 tier = tech["tier"]
                 percentage = tech["percentage"]
 
+                # 장착 상태 배지
+                equipped_badge = ""
+                if tech["name"] in equipped_tech_names:
+                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">⭐ 장착 중</span>'
+                else:
+                    equipped_badge = '<span style="color: #9ca3af; font-size: 0.85em;">-</span>'
+
                 progress_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 4px;"></div></div>'
                 tier_badge = f'<span style="background: {tier["color"]}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">{tier["prefix"]} {tier["name"]}</span>'
 
                 rows.append([
                     f"#{idx}",
+                    equipped_badge,
                     f"**{tech['name']}**",
                     tier_badge,
                     f'{tech["count"]:,}회',
