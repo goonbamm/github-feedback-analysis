@@ -1395,37 +1395,34 @@ class Reporter:
                 border_color="#f59e0b"
             ))
 
-        # Render activity chart
-        monthly_chart_data = []
-        for trend in metrics.monthly_trends:
-            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
-            monthly_chart_data.append({
-                "month": trend.month,
-                "count": total_activity
-            })
-
-        lines.extend(GameRenderer.render_monthly_chart(
-            monthly_data=monthly_chart_data,
-            title="월별 총 활동량",
-            value_key="count",
-            label_key="month"
-        ))
-
-        # Render detailed data table
-        lines.append("### 📊 월별 상세 데이터")
+        # Render detailed data table with visual bars
+        lines.append("### 📊 월별 활동 데이터")
         lines.append("")
 
-        headers = ["월", "커밋", "PR", "리뷰", "이슈", "총 활동"]
+        # Calculate max activity for visual bars
+        max_activity = 0
+        for trend in metrics.monthly_trends:
+            total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+            if total_activity > max_activity:
+                max_activity = total_activity
+
+        headers = ["월", "커밋", "PR", "리뷰", "이슈", "총 활동", "활동량 시각화"]
         rows = []
         for trend in metrics.monthly_trends:
             total_activity = trend.commits + trend.pull_requests + trend.reviews + trend.issues
+
+            # Create visual bar for total activity
+            bar_percentage = int((total_activity / max_activity * 100)) if max_activity > 0 else 0
+            visual_bar = f'<div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 20px; width: {bar_percentage}%; border-radius: 4px; min-width: 2px;"></div>'
+
             rows.append([
                 trend.month,
                 str(trend.commits),
                 str(trend.pull_requests),
                 str(trend.reviews),
                 str(trend.issues),
-                f"<strong>{total_activity}</strong>"
+                f"<strong>{total_activity}</strong>",
+                visual_bar
             ])
 
         lines.extend(GameRenderer.render_html_table(

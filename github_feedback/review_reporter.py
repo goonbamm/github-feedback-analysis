@@ -1023,19 +1023,57 @@ class ReviewReporter:
             striped=True
         ))
 
-        # Add distribution chart using Mermaid (keep as is)
+        # Add distribution chart using HTML table
         lines.append("### 코드 변경량 분포")
         lines.append("")
-        lines.append("```mermaid")
-        lines.append("pie title 전체 코드 변경 구성")
 
         total_additions = sum(r.additions for r in reviews)
         total_deletions = sum(r.deletions for r in reviews)
+        total_changes = total_additions + total_deletions
 
-        lines.append(f'    "코드 추가 (+{total_additions:,}줄)" : {total_additions}')
-        lines.append(f'    "코드 삭제 (-{total_deletions:,}줄)" : {total_deletions}')
-        lines.append("```")
-        lines.append("")
+        # Build table data for code change distribution
+        headers = ["구분", "줄 수", "비율", "시각화"]
+        rows = []
+
+        # Calculate percentages
+        add_percentage = (total_additions / total_changes * 100) if total_changes > 0 else 0
+        del_percentage = (total_deletions / total_changes * 100) if total_changes > 0 else 0
+
+        # Create visual bars
+        add_bar_width = int(add_percentage)
+        del_bar_width = int(del_percentage)
+
+        add_visual = f'<div style="background: linear-gradient(90deg, #10b981 0%, #059669 100%); height: 20px; width: {add_bar_width}%; border-radius: 4px;"></div>'
+        del_visual = f'<div style="background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); height: 20px; width: {del_bar_width}%; border-radius: 4px;"></div>'
+
+        rows.append([
+            "코드 추가",
+            f"<span style='color: #10b981; font-weight: bold;'>+{total_additions:,}줄</span>",
+            f"{add_percentage:.1f}%",
+            add_visual
+        ])
+        rows.append([
+            "코드 삭제",
+            f"<span style='color: #ef4444; font-weight: bold;'>-{total_deletions:,}줄</span>",
+            f"{del_percentage:.1f}%",
+            del_visual
+        ])
+        rows.append([
+            "**전체 변경**",
+            f"**{total_changes:,}줄**",
+            "100%",
+            ""
+        ])
+
+        # Render as HTML table
+        lines.extend(GameRenderer.render_html_table(
+            headers=headers,
+            rows=rows,
+            title="",
+            description="",
+            striped=True
+        ))
+
         lines.append("---")
         lines.append("")
 
