@@ -571,6 +571,46 @@ class TLDRSummary:
 
 
 @dataclass(slots=True)
+class WitchCritiqueItem:
+    """Single harsh but constructive critique from the witch."""
+
+    category: str  # e.g., "코드 리뷰", "커밋 메시지", "PR 크기"
+    severity: str  # "🔥 치명적", "⚡ 심각", "💀 위험", "🕷️ 경고"
+    critique: str  # The harsh but constructive critique
+    evidence: str  # Data-backed evidence
+    consequence: str  # What happens if not fixed
+    remedy: str  # How to fix it
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise witch critique item."""
+        return {
+            "category": self.category,
+            "severity": self.severity,
+            "critique": self.critique,
+            "evidence": self.evidence,
+            "consequence": self.consequence,
+            "remedy": self.remedy,
+        }
+
+
+@dataclass(slots=True)
+class WitchCritique:
+    """The Witch's harsh but constructive critique for improvement."""
+
+    opening_curse: str  # Opening remark from the witch
+    critiques: List[WitchCritiqueItem] = field(default_factory=list)
+    closing_prophecy: str = ""  # Closing remark about future potential
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise witch critique."""
+        return {
+            "opening_curse": self.opening_curse,
+            "critiques": [c.to_dict() for c in self.critiques],
+            "closing_prophecy": self.closing_prophecy,
+        }
+
+
+@dataclass(slots=True)
 class PersonalDevelopmentAnalysis:
     """Comprehensive analysis of personal strengths, areas for improvement, and growth."""
 
@@ -629,5 +669,6 @@ class MetricSnapshot:
     collaboration: Optional[CollaborationNetwork] = None
     year_end_review: Optional[YearEndReview] = None
     retrospective: Optional[RetrospectiveSnapshot] = None  # For deep analysis
+    witch_critique: Optional[WitchCritique] = None  # Harsh but constructive critique
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date

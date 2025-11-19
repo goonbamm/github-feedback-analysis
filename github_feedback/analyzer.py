@@ -35,6 +35,8 @@ from .models import (
     StrengthPoint,
     ImprovementArea,
     GrowthIndicator,
+    WitchCritique,
+    WitchCritiqueItem,
 )
 from .retrospective import RetrospectiveAnalyzer
 
@@ -262,6 +264,9 @@ class Analyzer:
         collaboration = self._build_collaboration_network(collaboration_data)
         year_end_review = self._build_year_end_review(collection, highlights, awards)
 
+        # Generate witch's critique
+        witch_critique = self._generate_witch_critique(collection, detailed_feedback)
+
         # Create initial metrics snapshot
         metrics_snapshot = MetricSnapshot(
             repo=collection.repo,
@@ -281,6 +286,7 @@ class Analyzer:
             tech_stack=tech_stack,
             collaboration=collaboration,
             year_end_review=year_end_review,
+            witch_critique=witch_critique,
             since_date=collection.since_date,
             until_date=collection.until_date,
         )
@@ -440,6 +446,143 @@ class Analyzer:
         """
         calculator = AwardCalculator()
         return calculator.determine_awards(collection)
+
+    def _generate_witch_critique(
+        self,
+        collection: CollectionResult,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot] = None,
+    ) -> Optional[WitchCritique]:
+        """Generate harsh but constructive critique from the witch.
+
+        Args:
+            collection: Collection of repository data
+            detailed_feedback: Optional detailed feedback snapshot
+
+        Returns:
+            WitchCritique with harsh but productive feedback, or None if not enough data
+        """
+        critiques: List[WitchCritiqueItem] = []
+
+        # Check commit message quality
+        if detailed_feedback and detailed_feedback.commit_messages:
+            commit_fb = detailed_feedback.commit_messages
+            if commit_fb.total_commits > 0:
+                poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
+                if poor_ratio > 0.4:  # More than 40% poor messages
+                    critiques.append(
+                        WitchCritiqueItem(
+                            category="커밋 메시지",
+                            severity="🔥 치명적",
+                            critique=f"커밋 메시지의 {poor_ratio*100:.0f}%가 형편없어. '수정', 'fix', 'update' 같은 게 전부야? 6개월 후 너 자신도 뭘 고쳤는지 모를 텐데.",
+                            evidence=f"{commit_fb.total_commits}개 커밋 중 {commit_fb.poor_messages}개가 불량",
+                            consequence="나중에 버그 찾느라 git log 보면서 시간 낭비할 거야. 팀원들도 네 변경사항 이해 못 해.",
+                            remedy="커밋 메시지에 '왜'를 담아. 'fix: 로그인 시 토큰 만료 체크 누락 수정' 이런 식으로."
+                        )
+                    )
+
+        # Check PR size (if we have PR examples)
+        if collection.pull_request_examples:
+            large_prs = [pr for pr in collection.pull_request_examples
+                        if (pr.additions + pr.deletions) > 1000]
+            if len(large_prs) > len(collection.pull_request_examples) * 0.3:
+                avg_size = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples) / len(collection.pull_request_examples)
+                critiques.append(
+                    WitchCritiqueItem(
+                        category="PR 크기",
+                        severity="⚡ 심각",
+                        critique=f"PR 하나에 평균 {avg_size:.0f}줄? 리뷰어들 괴롭히는 게 취미야? 큰 PR은 안 읽힌다는 거 몰라?",
+                        evidence=f"{len(large_prs)}개 PR이 1000줄 이상",
+                        consequence="리뷰 품질 떨어지고, 버그 놓치고, 머지 충돌 지옥에 빠질 거야.",
+                        remedy="PR은 300줄 이하로. 큰 기능은 쪼개서 여러 PR로 나눠. Feature flag 써."
+                    )
+                )
+
+        # Check PR title quality
+        if detailed_feedback and detailed_feedback.pr_titles:
+            pr_fb = detailed_feedback.pr_titles
+            if pr_fb.total_prs > 0:
+                vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
+                if vague_ratio > 0.3:  # More than 30% vague titles
+                    critiques.append(
+                        WitchCritiqueItem(
+                            category="PR 제목",
+                            severity="💀 위험",
+                            critique=f"PR 제목 {vague_ratio*100:.0f}%가 뭔 말인지 모르겠어. '기능 추가', '버그 수정'? 어떤 기능? 어떤 버그?",
+                            evidence=f"{pr_fb.total_prs}개 PR 중 {pr_fb.vague_titles}개가 모호함",
+                            consequence="릴리스 노트 쓸 때 울고, 나중에 찾을 때 삽질하고.",
+                            remedy="'feat: 사용자 프로필에 아바타 업로드 기능 추가' 이런 식으로 구체적으로."
+                        )
+                    )
+
+        # Check review quality/frequency
+        if detailed_feedback and detailed_feedback.review_tone:
+            review_fb = detailed_feedback.review_tone
+            if review_fb.total_reviews > 0:
+                # Check if reviews are too short/neutral (may indicate low quality)
+                low_quality_ratio = review_fb.neutral_reviews / review_fb.total_reviews
+                if low_quality_ratio > 0.6:  # More than 60% neutral
+                    critiques.append(
+                        WitchCritiqueItem(
+                            category="코드 리뷰",
+                            severity="🕷️ 경고",
+                            critique=f"리뷰의 {low_quality_ratio*100:.0f}%가 그냥 'LGTM' 수준이야. 진짜 코드 읽긴 한 거야?",
+                            evidence=f"{review_fb.total_reviews}개 리뷰 중 {review_fb.neutral_reviews}개가 형식적",
+                            consequence="팀 코드 품질 떨어지고, 버그 프로덕션에서 발견되고.",
+                            remedy="구체적인 피드백 줘. '이 함수 복잡도 높은데 테스트 추가하면 어때?' 이런 식으로."
+                        )
+                    )
+        elif collection.reviews < collection.pull_requests * 0.5:
+            # Not enough reviews compared to PRs
+            critiques.append(
+                WitchCritiqueItem(
+                    category="코드 리뷰 참여",
+                    severity="⚡ 심각",
+                    critique=f"PR은 {collection.pull_requests}개인데 리뷰는 {collection.reviews}개? 남의 코드는 안 봐?",
+                    evidence=f"PR 대비 리뷰 비율: {(collection.reviews/max(collection.pull_requests,1))*100:.0f}%",
+                    consequence="팀에서 외톨이 되고, 네 PR도 리뷰 안 받게 될 거야.",
+                    remedy="하루에 최소 2개 PR은 리뷰해. 남의 코드 보는 게 최고의 학습이야."
+                )
+            )
+
+        # Check activity consistency (if commits are very sporadic)
+        if collection.commits > 0 and collection.months > 0:
+            commits_per_month = collection.commits / collection.months
+            # If average is very low, might indicate inconsistency
+            if commits_per_month < 10:
+                critiques.append(
+                    WitchCritiqueItem(
+                        category="활동 일관성",
+                        severity="🕷️ 경고",
+                        critique=f"월평균 {commits_per_month:.1f}개 커밋? 며칠 몰아치고 쉬는 스타일이지? 개발은 마라톤이야, 단거리 달리기가 아니라.",
+                        evidence=f"{collection.months}개월간 {collection.commits}개 커밋",
+                        consequence="코드 품질 들쭉날쭉하고, 팀 협업 타이밍 안 맞고.",
+                        remedy="매일 조금씩 꾸준히. 작은 커밋이라도 매일 하는 게 월말에 몰아치는 것보다 낫다."
+                    )
+                )
+
+        # If no critiques, no need for witch section
+        if not critiques:
+            return None
+
+        # Create witch critique with opening and closing
+        opening_curses = [
+            "🔮 자, 수정 구슬을 들여다보니... 흠, 개선할 게 좀 보이는군.",
+            "🔮 크리스탈 볼이 말하길... 너한테 할 말이 좀 있대.",
+            "🔮 예언의 수정 구슬에 미래가 보여. 이대로면 내년에도 똑같은 실수 반복할 텐데?",
+        ]
+
+        closing_prophecies = [
+            "💫 이 독설들을 무시하면 내년에도 똑같은 얘기 들을 거야. 하지만 하나씩만 고쳐도 훨씬 나아질 거라는 것도 보여. 선택은 네 몫이야.",
+            "💫 마녀의 조언은 여기까지. 듣든 말든 너 맘이지만, 1년 후 더 나은 개발자가 되고 싶다면... 뭐, 알아서 해.",
+            "💫 수정 구슬이 보여주는 미래: 이것들만 고치면 내년엔 꽤 괜찮은 개발자가 될 수 있어. 안 고치면? 그건 네가 더 잘 알겠지.",
+        ]
+
+        import random
+        return WitchCritique(
+            opening_curse=random.choice(opening_curses),
+            critiques=critiques,
+            closing_prophecy=random.choice(closing_prophecies)
+        )
 
     def _build_stats(self, collection: CollectionResult, velocity_score: float) -> Dict[str, Dict[str, float]]:
         return {
