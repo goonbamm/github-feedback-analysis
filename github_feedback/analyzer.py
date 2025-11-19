@@ -13,6 +13,7 @@ from .constants import (
     ACTIVITY_THRESHOLDS,
     COLLECTION_LIMITS,
     CONSISTENCY_THRESHOLDS,
+    CRITIQUE_THRESHOLDS,
     DISPLAY_LIMITS,
     TREND_THRESHOLDS,
 )
@@ -468,7 +469,7 @@ class Analyzer:
             commit_fb = detailed_feedback.commit_feedback
             if commit_fb.total_commits > 0:
                 poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
-                if poor_ratio > 0.4:  # More than 40% poor messages
+                if poor_ratio > CRITIQUE_THRESHOLDS['poor_commit_ratio']:
                     critiques.append(
                         WitchCritiqueItem(
                             category="커밋 메시지",
@@ -483,17 +484,17 @@ class Analyzer:
         # Check PR size (if we have PR examples)
         if collection.pull_request_examples:
             large_prs = [pr for pr in collection.pull_request_examples
-                        if (pr.additions + pr.deletions) > 1000]
-            if len(large_prs) > len(collection.pull_request_examples) * 0.3:
+                        if (pr.additions + pr.deletions) > CRITIQUE_THRESHOLDS['large_pr_lines']]
+            if len(large_prs) > len(collection.pull_request_examples) * CRITIQUE_THRESHOLDS['large_pr_ratio']:
                 avg_size = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples) / len(collection.pull_request_examples)
                 critiques.append(
                     WitchCritiqueItem(
                         category="PR 크기",
                         severity="⚡ 심각",
                         critique=f"PR 하나에 평균 {avg_size:.0f}줄? 리뷰어들 괴롭히는 게 취미야? 큰 PR은 안 읽힌다는 거 몰라?",
-                        evidence=f"{len(large_prs)}개 PR이 1000줄 이상",
+                        evidence=f"{len(large_prs)}개 PR이 {CRITIQUE_THRESHOLDS['large_pr_lines']}줄 이상",
                         consequence="리뷰 품질 떨어지고, 버그 놓치고, 머지 충돌 지옥에 빠질 거야.",
-                        remedy="PR은 300줄 이하로. 큰 기능은 쪼개서 여러 PR로 나눠. Feature flag 써."
+                        remedy=f"PR은 {CRITIQUE_THRESHOLDS['recommended_pr_size']}줄 이하로. 큰 기능은 쪼개서 여러 PR로 나눠. Feature flag 써."
                     )
                 )
 
@@ -502,7 +503,7 @@ class Analyzer:
             pr_fb = detailed_feedback.pr_title_feedback
             if pr_fb.total_prs > 0:
                 vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
-                if vague_ratio > 0.3:  # More than 30% vague titles
+                if vague_ratio > CRITIQUE_THRESHOLDS['vague_title_ratio']:
                     critiques.append(
                         WitchCritiqueItem(
                             category="PR 제목",
@@ -520,7 +521,7 @@ class Analyzer:
             if review_fb.total_reviews > 0:
                 # Check if reviews are too short/neutral (may indicate low quality)
                 low_quality_ratio = review_fb.neutral_reviews / review_fb.total_reviews
-                if low_quality_ratio > 0.6:  # More than 60% neutral
+                if low_quality_ratio > CRITIQUE_THRESHOLDS['neutral_review_ratio']:
                     critiques.append(
                         WitchCritiqueItem(
                             category="코드 리뷰",
@@ -531,7 +532,7 @@ class Analyzer:
                             remedy="구체적인 피드백 줘. '이 함수 복잡도 높은데 테스트 추가하면 어때?' 이런 식으로."
                         )
                     )
-        elif collection.reviews < collection.pull_requests * 0.5:
+        elif collection.reviews < collection.pull_requests * CRITIQUE_THRESHOLDS['review_pr_ratio']:
             # Not enough reviews compared to PRs
             critiques.append(
                 WitchCritiqueItem(
@@ -548,7 +549,7 @@ class Analyzer:
         if collection.commits > 0 and collection.months > 0:
             commits_per_month = collection.commits / collection.months
             # If average is very low, might indicate inconsistency
-            if commits_per_month < 10:
+            if commits_per_month < CRITIQUE_THRESHOLDS['min_commits_per_month']:
                 critiques.append(
                     WitchCritiqueItem(
                         category="활동 일관성",
