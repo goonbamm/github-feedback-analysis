@@ -702,7 +702,7 @@ def init(
     console.print("[success]✓ Configuration saved successfully[/]")
     console.print("[success]✓ GitHub token stored securely in system keyring[/]")
     console.print()
-    show_config()
+    _print_config_summary()
 
 
 def _render_metrics(metrics: MetricSnapshot) -> None:
@@ -2700,6 +2700,12 @@ def show_config() -> None:
     Sensitive values like tokens are masked for security.
     """
 
+    _print_config_summary()
+
+
+def _print_config_summary() -> None:
+    """Render the current configuration in either table or plain format."""
+
     config = _load_config()
     data = config.to_display_dict()
 
@@ -3009,4 +3015,4 @@ def show_config_deprecated() -> None:
     """Display current configuration settings (deprecated: use 'gfa config show')."""
     console.print("[warning]Note:[/] 'gfa show-config' is deprecated. Use 'gfa config show' instead.")
     console.print()
-    show_config()
+    _print_config_summary()
