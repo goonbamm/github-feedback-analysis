@@ -609,3 +609,91 @@ CRITIQUE_THRESHOLDS = {
     # Activity consistency
     'min_commits_per_month': 10,  # Minimum commits per month for consistency
 }
+
+# =============================================================================
+# Skill & Mastery Configuration
+# =============================================================================
+
+# Skill mastery calculation
+SKILL_MASTERY = {
+    # Award-based skill mastery
+    'base_mastery': 100,  # Starting mastery for top awards
+    'mastery_reduction_per_rank': 10,  # Reduction per award rank
+    'highlight_mastery': 80,  # Mastery for skills from highlights
+
+    # Skill name formatting
+    'skill_name_max_length': 60,  # Maximum characters for skill names
+    'max_top_awards_for_skills': 3,  # Number of top awards to convert to skills
+    'max_skills_total': 5,  # Maximum total skills to display
+
+    # Communication skill quality thresholds
+    'excellent_quality_ratio': 0.8,  # >= 80% is excellent
+    'good_quality_ratio': 0.6,  # >= 60% is good
+    'acceptable_quality_ratio': 0.4,  # >= 40% is acceptable
+}
+
+# =============================================================================
+# Stat Calculation Weights
+# =============================================================================
+
+# Code Quality stat calculation weights (review_reporter.py)
+STAT_WEIGHTS_CODE_QUALITY = {
+    'strength_contribution': 50,  # Max points from strength ratio
+    'file_organization': 25,  # Max points from file organization
+    'experience_bonus': 25,  # Max points from PR experience
+    'experience_pr_threshold': 10,  # PRs needed for full experience bonus
+    'optimal_files_per_pr': 10,  # Optimal average files per PR
+}
+
+# Collaboration stat calculation weights
+STAT_WEIGHTS_COLLABORATION = {
+    'review_engagement': 50,  # Max points from review engagement
+    'feedback_quality': 30,  # Max points from feedback quality
+    'participation_bonus': 20,  # Max points from participation
+    'participation_pr_threshold': 5,  # PRs needed for full participation bonus
+    'optimal_feedback_per_pr': 5,  # Optimal average feedback points per PR
+}
+
+# Problem Solving stat calculation weights
+STAT_WEIGHTS_PROBLEM_SOLVING = {
+    'change_complexity': 40,  # Max points from code changes
+    'scope_breadth': 30,  # Max points from file scope
+    'problem_count': 30,  # Max points from PR count
+    'problem_pr_threshold': 8,  # PRs needed for full problem count bonus
+    'optimal_changes_per_pr': 500,  # Optimal average changes per PR
+    'optimal_files_per_pr': 15,  # Optimal average files per PR for scope
+}
+
+# Productivity stat calculation weights
+STAT_WEIGHTS_PRODUCTIVITY = {
+    'pr_count': 40,  # Max points from PR volume
+    'code_output': 35,  # Max points from code additions
+    'file_coverage': 25,  # Max points from file coverage
+    'optimal_pr_count': 20,  # Optimal total PRs
+    'optimal_additions': 5000,  # Optimal total additions
+    'optimal_file_count': 100,  # Optimal total files
+}
+
+# Growth stat calculation weights
+STAT_WEIGHTS_GROWTH = {
+    'base_growth': 50,  # Base growth score
+    'improvement_trend': 30,  # Max points from improvement trend
+    'consistency_bonus': 20,  # Max points from consistency
+    'consistency_pr_threshold': 15,  # PRs needed for full consistency bonus
+    'min_prs_for_trend': 4,  # Minimum PRs to calculate trend
+    'new_developer_base': 40,  # Base score for developers with < 4 PRs
+    'new_developer_multiplier': 60,  # Multiplier for PR count (< 4 PRs)
+}
+
+# =============================================================================
+# Regex Patterns (Compiled)
+# =============================================================================
+
+import re
+
+# Compiled regex patterns for performance
+REGEX_PATTERNS = {
+    'emoji_prefix': re.compile(r'^[\U0001F300-\U0001F9FF\s]+'),  # Remove leading emojis
+    'special_chars_suffix': re.compile(r'[.,!?\s]+$'),  # Remove trailing punctuation
+    'whitespace_normalize': re.compile(r'\s+'),  # Normalize whitespace
+}
