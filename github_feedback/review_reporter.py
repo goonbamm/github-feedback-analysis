@@ -191,22 +191,24 @@ class ReviewReporter:
             if review.html_url:
                 lines.append(f"  URL: {review.html_url}")
 
-            # Include PR body for analyzing description quality (increased limit for better context)
+            # Include PR body for analyzing description quality
+            # Increased from 600 to 1000 chars for richer context
             if review.body:
-                body_preview = review.body[:600] + "..." if len(review.body) > 600 else review.body
+                body_preview = review.body[:1000] + "..." if len(review.body) > 1000 else review.body
                 lines.append(f"  PR 설명: {body_preview}")
 
             if review.overview:
                 lines.append(f"  Overview: {review.overview}")
 
-            # Include review comments for tone analysis (increased count and length for better analysis)
+            # Include review comments for tone analysis
+            # Increased from 10 to 15 comments and from 300 to 500 chars for better analysis
             if review.review_comments:
                 lines.append(f"  리뷰 코멘트 ({len(review.review_comments)}개):")
-                for idx, comment in enumerate(review.review_comments[:10], 1):  # Show first 10 comments
-                    comment_preview = comment[:300] + "..." if len(comment) > 300 else comment
+                for idx, comment in enumerate(review.review_comments[:15], 1):  # Show first 15 comments
+                    comment_preview = comment[:500] + "..." if len(comment) > 500 else comment
                     lines.append(f"    {idx}. {comment_preview}")
-                if len(review.review_comments) > 10:
-                    lines.append(f"    ... 외 {len(review.review_comments) - 10}개 코멘트")
+                if len(review.review_comments) > 15:
+                    lines.append(f"    ... 외 {len(review.review_comments) - 15}개 코멘트")
 
             if review.strengths:
                 lines.append("  Strengths:")
@@ -235,7 +237,9 @@ class ReviewReporter:
             messages = self._build_personal_development_messages(repo, reviews)
             import json as json_module
 
-            content = self.llm.complete(messages, temperature=0.4)
+            # Increased temperature from 0.4 to 0.6 for better response quality
+            # Increased max_retries to 5 for more robust analysis
+            content = self.llm.complete(messages, temperature=0.6, max_retries=5)
             data = json_module.loads(content)
             return self._build_personal_development_analysis(data)
         except Exception as exc:  # pragma: no cover
@@ -1201,7 +1205,9 @@ class ReviewReporter:
                         "content": get_team_report_user_prompt(context),
                     },
                 ]
-                team_report = self.llm.complete(messages, temperature=0.4)
+                # Increased temperature from 0.4 to 0.5 for better response quality
+                # Increased max_retries to 5 for more robust analysis
+                team_report = self.llm.complete(messages, temperature=0.5, max_retries=5)
                 if team_report.strip():
                     lines.append("---")
                     lines.append("")
