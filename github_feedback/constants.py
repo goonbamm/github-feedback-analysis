@@ -584,3 +584,28 @@ BADGE_THRESHOLDS = {
     'repo_multiverse': 10,
     'repo_crawler': 5,
 }
+
+# =============================================================================
+# Critique/Analysis Thresholds
+# =============================================================================
+
+# Thresholds for identifying code quality issues
+CRITIQUE_THRESHOLDS = {
+    # Commit message quality
+    'poor_commit_ratio': 0.4,  # 40% poor messages triggers critique
+
+    # PR size thresholds
+    'large_pr_lines': 1000,  # PRs larger than this are considered large
+    'large_pr_ratio': 0.3,  # 30% large PRs triggers critique
+    'recommended_pr_size': 300,  # Recommended max PR size
+
+    # PR title quality
+    'vague_title_ratio': 0.3,  # 30% vague titles triggers critique
+
+    # Review quality
+    'neutral_review_ratio': 0.6,  # 60% neutral reviews triggers critique
+    'review_pr_ratio': 0.5,  # Reviews should be at least 50% of PRs
+
+    # Activity consistency
+    'min_commits_per_month': 10,  # Minimum commits per month for consistency
+}
