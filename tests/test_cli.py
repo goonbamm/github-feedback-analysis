@@ -113,6 +113,33 @@ def _stub_config(monkeypatch: pytest.MonkeyPatch) -> Config:
     return config
 
 
+def test_init_displays_config_without_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    _silent_console(monkeypatch)
+
+    summary_calls: list[bool] = []
+    monkeypatch.setattr(cli, "_print_config_summary", lambda: summary_calls.append(True))
+
+    config = Config()
+
+    def fake_load(cls, path=None):
+        return config
+
+    monkeypatch.setattr(cli.Config, "load", classmethod(fake_load))
+    monkeypatch.setattr(cli.Config, "dump", lambda self, path=None, backup=True: None)
+    monkeypatch.setattr(cli.Config, "update_auth", lambda self, pat: None)
+
+    cli.init(
+        pat="ghp_1234567890123456789012345",
+        months=6,
+        enterprise_host="https://github.example.com",
+        llm_endpoint="https://llm.example.com/v1",
+        llm_model="example-model",
+        test_connection=False,
+    )
+
+    assert summary_calls == [True]
+
+
 class DummyLLMClient:
     def __init__(self, endpoint: str, model: str) -> None:
         self.endpoint = endpoint
