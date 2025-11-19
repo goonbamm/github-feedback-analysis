@@ -549,6 +549,7 @@ STAT_EMOJIS = {
     "collaboration": "🤝",
     "problem_solving": "🧩",
     "productivity": "⚡",
+    "consistency": "📅",
     "growth": "📈",
 }
 
@@ -558,6 +559,7 @@ STAT_NAMES_KR = {
     "collaboration": "협업력",
     "problem_solving": "문제 해결력",
     "productivity": "생산성",
+    "consistency": "꾸준함",
     "growth": "성장성",
 }
 
