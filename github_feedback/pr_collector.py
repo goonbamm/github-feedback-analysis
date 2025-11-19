@@ -40,6 +40,10 @@ class PullRequestCollector(BaseCollector):
         Returns:
             Tuple of (count, metadata list)
         """
+        # Ensure since is timezone-aware for comparison
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
+
         # If author is specified, use Issues API for efficient filtering
         if author:
             return self._list_pull_requests_by_author(repo, since, filters, author)
@@ -75,7 +79,9 @@ class PullRequestCollector(BaseCollector):
         Returns:
             Tuple of (count, metadata list)
         """
-        from datetime import timezone
+        # Ensure since is timezone-aware for comparison
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
 
         # Use Issues API with creator filter
         params = build_list_params(creator=author)
@@ -206,6 +212,10 @@ class PullRequestCollector(BaseCollector):
         Returns:
             List of PR title dictionaries
         """
+        # Ensure since is timezone-aware for comparison
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
+
         filters = filters or AnalysisFilters()
         pr_titles: List[Dict[str, str]] = []
 
