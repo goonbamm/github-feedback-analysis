@@ -1,6 +1,7 @@
 """Aggregate pull request reviews into an integrated annual report."""
 from __future__ import annotations
 
+import html
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -938,23 +939,28 @@ class ReviewReporter:
 
         for idx, review in enumerate(reviews, 1):
             date_str = review.created_at.strftime("%Y-%m-%d")
-            title_short = review.title[:50] + "..." if len(review.title) > 50 else review.title
+            title_raw = review.title[:50] + "..." if len(review.title) > 50 else review.title
+            title_short = html.escape(title_raw, quote=False)
 
             # Code changes with color indicators
             code_changes = f'<span style="color: #10b981;">+{review.additions}</span> / <span style="color: #ef4444;">-{review.deletions}</span>'
 
             # Author with emoji
-            author_display = f"👤 {review.author}"
+            author_display = f"👤 {html.escape(review.author, quote=False)}"
 
             # Link
-            link = f"[보기]({review.html_url})" if review.html_url else "-"
+            if review.html_url:
+                url = html.escape(review.html_url, quote=True)
+                link = f"[보기]({url})"
+            else:
+                link = "-"
 
             rows.append([
                 str(idx),
                 f"#{review.number}",
                 title_short,
                 author_display,
-                date_str,
+                html.escape(date_str, quote=False),
                 code_changes,
                 link
             ])
@@ -965,7 +971,8 @@ class ReviewReporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         lines.append("---")
@@ -1007,10 +1014,11 @@ class ReviewReporter:
                 del_bar_length = 0
 
             visual_bar = f"{'🟩' * add_bar_length}{'🟥' * del_bar_length}"
-            title_short = review.title[:30] + "..." if len(review.title) > 30 else review.title
+            title_raw = review.title[:30] + "..." if len(review.title) > 30 else review.title
+            title_short = html.escape(title_raw, quote=False)
 
             rows.append([
-                f"[#{review.number}]({review.html_url})",
+                f"[#{review.number}]({html.escape(review.html_url, quote=True)})",
                 title_short,
                 f"+{review.additions:,}",
                 f"-{review.deletions:,}",
@@ -1024,7 +1032,8 @@ class ReviewReporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         # Add distribution chart using HTML table
@@ -1075,7 +1084,8 @@ class ReviewReporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         lines.append("---")

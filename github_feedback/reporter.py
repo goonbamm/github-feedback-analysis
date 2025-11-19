@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -105,8 +106,10 @@ def _escape_table_cell(text: str) -> str:
     Returns:
         Escaped text safe for use in markdown tables
     """
-    if not text:
-        return text
+    if text is None:
+        return ""
+
+    text = html.escape(str(text), quote=False)
 
     # Replace pipe characters that would break table structure
     text = text.replace("|", "\\|")
@@ -328,7 +331,8 @@ class Reporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         lines.append("---")
@@ -683,10 +687,14 @@ class Reporter:
             for skill in communication_skills:
                 mastery_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 150px;"><div style="background: linear-gradient(90deg, #10b981 0%, #059669 100%); height: 100%; width: {skill["mastery"]}%; border-radius: 4px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);"></div></div>'
 
-                skill_name_cell = f'{skill["emoji"]} <strong>{skill["name"]}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill["type"]}]</span>'
+                skill_name = html.escape(skill.get("name", ""), quote=False)
+                skill_type = html.escape(skill.get("type", ""), quote=False)
+                effect_cell = html.escape(skill.get("effect", ""), quote=False)
+                evidence_values = skill.get("evidence", []) or []
+                evidence_cell = "<br>".join(html.escape(ev, quote=False) for ev in evidence_values)
+
+                skill_name_cell = f'{skill.get("emoji", "💬")} <strong>{skill_name}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill_type}]</span>'
                 mastery_cell = f'{mastery_bar}<div style="margin-top: 4px; text-align: center; font-size: 0.85em; color: #4b5563;">{skill["mastery"]}%</div>'
-                effect_cell = skill["effect"]
-                evidence_cell = "<br>".join(skill["evidence"])
 
                 rows.append([skill_name_cell, mastery_cell, effect_cell, evidence_cell])
 
@@ -695,7 +703,8 @@ class Reporter:
                 rows=rows,
                 title="",
                 description="",
-                striped=True
+                striped=True,
+                escape_cells=False
             ))
             lines.append("")
 
@@ -1233,7 +1242,8 @@ class Reporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         return lines
@@ -1720,12 +1730,18 @@ class Reporter:
                 learning.expertise_level, "📖"
             )
             technologies = ', '.join(learning.technologies)
-            growth_indicators = '<br>'.join(f"• {ind}" for ind in learning.growth_indicators[:DISPLAY_LIMITS['growth_indicators']]) if learning.growth_indicators else "-"
+            technologies = html.escape(technologies, quote=False)
+            growth_indicators = '<br>'.join(
+                f"• {html.escape(ind, quote=False)}"
+                for ind in learning.growth_indicators[:DISPLAY_LIMITS['growth_indicators']]
+            ) if learning.growth_indicators else "-"
+            expertise_level = html.escape(learning.expertise_level, quote=False)
+            domain = html.escape(learning.domain, quote=False)
 
             rows.append([
-                f"{expertise_emoji} {learning.domain}",
+                f"{expertise_emoji} {domain}",
                 technologies,
-                learning.expertise_level,
+                expertise_level,
                 growth_indicators
             ])
 
@@ -1735,7 +1751,8 @@ class Reporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         return lines
