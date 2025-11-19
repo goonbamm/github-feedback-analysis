@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tuple, Union
@@ -451,24 +452,40 @@ class Reporter:
             for award in metrics.awards[:3]:
                 # Determine mastery based on award position
                 mastery = 100 - (metrics.awards.index(award) * 10)
+
+                # Extract skill name from award by removing emoji and trimming
+                # Award format: "🏆 Award Name - Description"
+                skill_name = award
+                # Remove leading emoji and spaces
+                skill_name = re.sub(r'^[\U0001F300-\U0001F9FF\s]+', '', skill_name)
+                # Take content before " - " if exists, otherwise use first 60 chars
+                if ' - ' in skill_name:
+                    skill_name = skill_name.split(' - ')[0].strip()
+                # Limit to 60 chars
+                skill_name = skill_name[:60].rstrip('.,!? ') if len(skill_name) > 60 else skill_name
+
                 acquired_skills.append({
-                    "name": award,
+                    "name": skill_name,
                     "type": "패시브",
                     "mastery": mastery,
-                    "effect": "지속적으로 발휘되는 강점",
+                    "effect": award,  # Full award as effect description
                     "evidence": [award],
-                    "emoji": "💎"
+                    "emoji": "🏆"
                 })
 
         # Add skills from highlights
         if metrics.highlights and len(acquired_skills) < 5:
             remaining = 5 - len(acquired_skills)
             for highlight in metrics.highlights[:remaining]:
+                # Extract first sentence and limit to 60 chars
+                first_sentence = highlight.split('.')[0]
+                skill_name = first_sentence[:60].rstrip('.,!? ') if len(first_sentence) > 60 else first_sentence
+
                 acquired_skills.append({
-                    "name": highlight.split('.')[0],
+                    "name": skill_name,
                     "type": "액티브",
                     "mastery": 80,
-                    "effect": "의식적으로 활용하는 능력",
+                    "effect": highlight,  # Full highlight as effect description
                     "evidence": [highlight],
                     "emoji": "✨"
                 })
@@ -594,36 +611,42 @@ class Reporter:
         # 2. Available Skills - from improvement suggestions
         if metrics.detailed_feedback:
             if metrics.detailed_feedback.commit_feedback and hasattr(metrics.detailed_feedback.commit_feedback, 'suggestions'):
-                for suggestion in metrics.detailed_feedback.commit_feedback.suggestions[:2]:
+                for idx, suggestion in enumerate(metrics.detailed_feedback.commit_feedback.suggestions[:2], 1):
+                    # Generate skill name from suggestion content (first 50 chars or meaningful phrase)
+                    skill_name = suggestion[:50].rstrip('.,!? ') if len(suggestion) > 50 else suggestion.rstrip('.,!? ')
                     available_skills.append({
-                        "name": "메시지 장인 수련",
+                        "name": skill_name,
                         "type": "미습득",
                         "mastery": 40,
-                        "effect": suggestion,
+                        "effect": f"커밋 메시지 개선: {suggestion}",
                         "evidence": [suggestion],
-                        "emoji": "🔨"
+                        "emoji": "📝"
                     })
 
             if metrics.detailed_feedback.pr_title_feedback and hasattr(metrics.detailed_feedback.pr_title_feedback, 'suggestions'):
-                for suggestion in metrics.detailed_feedback.pr_title_feedback.suggestions[:2]:
+                for idx, suggestion in enumerate(metrics.detailed_feedback.pr_title_feedback.suggestions[:2], 1):
+                    # Generate skill name from suggestion content
+                    skill_name = suggestion[:50].rstrip('.,!? ') if len(suggestion) > 50 else suggestion.rstrip('.,!? ')
                     available_skills.append({
-                        "name": "타이틀 작명술",
+                        "name": skill_name,
                         "type": "미습득",
                         "mastery": 40,
-                        "effect": suggestion,
+                        "effect": f"PR 제목 개선: {suggestion}",
                         "evidence": [suggestion],
-                        "emoji": "✍️"
+                        "emoji": "🎯"
                     })
 
             if metrics.detailed_feedback.review_tone_feedback and hasattr(metrics.detailed_feedback.review_tone_feedback, 'suggestions'):
-                for suggestion in metrics.detailed_feedback.review_tone_feedback.suggestions[:2]:
+                for idx, suggestion in enumerate(metrics.detailed_feedback.review_tone_feedback.suggestions[:2], 1):
+                    # Generate skill name from suggestion content
+                    skill_name = suggestion[:50].rstrip('.,!? ') if len(suggestion) > 50 else suggestion.rstrip('.,!? ')
                     available_skills.append({
-                        "name": "멘토링의 기술",
+                        "name": skill_name,
                         "type": "미습득",
                         "mastery": 40,
-                        "effect": suggestion,
+                        "effect": f"리뷰 톤 개선: {suggestion}",
                         "evidence": [suggestion],
-                        "emoji": "🎓"
+                        "emoji": "💬"
                     })
 
         # 3. Growing Skills - from retrospective positive patterns
