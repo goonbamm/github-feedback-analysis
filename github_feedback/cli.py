@@ -2112,6 +2112,16 @@ def _analyze_single_repository_for_year_review(
         growth_indicators = []
         tech_stack = {}
 
+        # Communication skills data
+        commit_message_quality = None
+        pr_title_quality = None
+        review_tone_quality = None
+        issue_quality = None
+        commit_stats = {}
+        pr_title_stats = {}
+        review_tone_stats = {}
+        issue_stats = {}
+
         if personal_dev_path.exists():
             import json
 
@@ -2121,6 +2131,83 @@ def _analyze_single_repository_for_year_review(
             strengths = personal_dev.get("strengths", [])
             improvements = personal_dev.get("improvement_areas", [])
             growth_indicators = personal_dev.get("growth_indicators", [])
+
+        # Load metrics.json for detailed feedback (commit message quality, review tone, etc.)
+        metrics_path = output_dir / safe_repo / "metrics.json"
+        if metrics_path.exists():
+            import json
+
+            try:
+                with open(metrics_path, "r", encoding="utf-8") as f:
+                    metrics_data = json.load(f)
+
+                # Extract detailed feedback
+                detailed_feedback = metrics_data.get("detailed_feedback", {})
+
+                # Commit message quality
+                if "commit_feedback" in detailed_feedback:
+                    cf = detailed_feedback["commit_feedback"]
+                    total_commits = cf.get("total_commits", 0)
+                    good_messages = cf.get("good_messages", 0)
+                    poor_messages = cf.get("poor_messages", 0)
+
+                    if total_commits > 0:
+                        commit_message_quality = (good_messages / total_commits) * 100
+                        commit_stats = {
+                            "total": total_commits,
+                            "good": good_messages,
+                            "poor": poor_messages
+                        }
+
+                # PR title quality
+                if "pr_title_feedback" in detailed_feedback:
+                    pf = detailed_feedback["pr_title_feedback"]
+                    total_prs = pf.get("total_prs", 0)
+                    clear_titles = pf.get("clear_titles", 0)
+                    unclear_titles = pf.get("unclear_titles", 0)
+
+                    if total_prs > 0:
+                        pr_title_quality = (clear_titles / total_prs) * 100
+                        pr_title_stats = {
+                            "total": total_prs,
+                            "clear": clear_titles,
+                            "unclear": unclear_titles
+                        }
+
+                # Review tone quality
+                if "review_tone_feedback" in detailed_feedback:
+                    rtf = detailed_feedback["review_tone_feedback"]
+                    constructive = rtf.get("constructive_reviews", 0)
+                    harsh = rtf.get("harsh_reviews", 0)
+                    neutral = rtf.get("neutral_reviews", 0)
+                    total_reviews = constructive + harsh + neutral
+
+                    if total_reviews > 0:
+                        review_tone_quality = (constructive / total_reviews) * 100
+                        review_tone_stats = {
+                            "constructive": constructive,
+                            "harsh": harsh,
+                            "neutral": neutral
+                        }
+
+                # Issue quality
+                if "issue_feedback" in detailed_feedback:
+                    isf = detailed_feedback["issue_feedback"]
+                    total_issues = isf.get("total_issues", 0)
+                    clear_issues = isf.get("clear_issues", 0)
+                    unclear_issues = isf.get("unclear_issues", 0)
+
+                    if total_issues > 0:
+                        issue_quality = (clear_issues / total_issues) * 100
+                        issue_stats = {
+                            "total": total_issues,
+                            "clear": clear_issues,
+                            "unclear": unclear_issues
+                        }
+
+                console.print(f"[success]✅ Loaded communication skills data from metrics.json[/]")
+            except Exception as e:
+                console.print(f"[warning]⚠️  Could not load metrics.json: {e}[/]")
 
         # Collect tech stack data
         try:
@@ -2193,6 +2280,14 @@ def _analyze_single_repository_for_year_review(
             improvements=improvements,
             growth_indicators=growth_indicators,
             tech_stack=tech_stack,
+            commit_message_quality=commit_message_quality,
+            pr_title_quality=pr_title_quality,
+            review_tone_quality=review_tone_quality,
+            issue_quality=issue_quality,
+            commit_stats=commit_stats,
+            pr_title_stats=pr_title_stats,
+            review_tone_stats=review_tone_stats,
+            issue_stats=issue_stats,
         )
 
     except Exception as exc:

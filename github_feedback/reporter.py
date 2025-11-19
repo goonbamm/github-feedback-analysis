@@ -473,56 +473,123 @@ class Reporter:
                     "emoji": "✨"
                 })
 
-        # Add coding habits as acquired skills if quality is high
-        if metrics.detailed_feedback and len(acquired_skills) < 5:
-            # Commit message mastery
+        # Add coding habits as acquired skills (always show, regardless of quality)
+        # These are shown separately in communication skills section
+        communication_skills = []
+        if metrics.detailed_feedback:
+            # Commit message mastery - always show if data exists
             if metrics.detailed_feedback.commit_feedback:
                 cf = metrics.detailed_feedback.commit_feedback
                 if cf.total_commits > 0:
                     quality_ratio = cf.good_messages / cf.total_commits
-                    if quality_ratio >= 0.7:  # 70% or better
-                        mastery = min(100, int(quality_ratio * 100))
-                        acquired_skills.append({
-                            "name": "커밋 스토리텔러",
-                            "type": "패시브",
-                            "mastery": mastery,
-                            "effect": f"전체 커밋의 {int(quality_ratio * 100)}%가 명확하고 의미있는 메시지",
-                            "evidence": [f"{cf.good_messages}/{cf.total_commits} 커밋이 높은 품질"],
-                            "emoji": "📜"
-                        })
+                    mastery = min(100, int(quality_ratio * 100))
 
-            # PR title mastery
-            if metrics.detailed_feedback.pr_title_feedback and len(acquired_skills) < 5:
+                    # Determine skill level and name
+                    if quality_ratio >= 0.8:
+                        skill_name = "커밋 스토리텔링 마스터"
+                        skill_type = "전설"
+                    elif quality_ratio >= 0.6:
+                        skill_name = "커밋 메시지 장인"
+                        skill_type = "숙련"
+                    else:
+                        skill_name = "커밋 작성 견습생"
+                        skill_type = "수련중"
+
+                    communication_skills.append({
+                        "name": skill_name,
+                        "type": skill_type,
+                        "mastery": mastery,
+                        "effect": f"전체 커밋의 {int(quality_ratio * 100)}%가 명확한 메시지",
+                        "evidence": [f"{cf.good_messages}/{cf.total_commits} 커밋"],
+                        "emoji": "📜"
+                    })
+
+            # PR title mastery - always show if data exists
+            if metrics.detailed_feedback.pr_title_feedback:
                 pf = metrics.detailed_feedback.pr_title_feedback
                 if pf.total_prs > 0:
                     quality_ratio = pf.clear_titles / pf.total_prs
-                    if quality_ratio >= 0.7:  # 70% or better
-                        mastery = min(100, int(quality_ratio * 100))
-                        acquired_skills.append({
-                            "name": "PR 타이틀 메이커",
-                            "type": "패시브",
-                            "mastery": mastery,
-                            "effect": f"전체 PR의 {int(quality_ratio * 100)}%가 명확하고 구체적",
-                            "evidence": [f"{pf.clear_titles}/{pf.total_prs} PR이 높은 품질"],
-                            "emoji": "🎯"
-                        })
+                    mastery = min(100, int(quality_ratio * 100))
 
-            # Review tone mastery
-            if metrics.detailed_feedback.review_tone_feedback and len(acquired_skills) < 5:
+                    # Determine skill level and name
+                    if quality_ratio >= 0.8:
+                        skill_name = "PR 타이틀 아티스트"
+                        skill_type = "전설"
+                    elif quality_ratio >= 0.6:
+                        skill_name = "PR 네이밍 전문가"
+                        skill_type = "숙련"
+                    else:
+                        skill_name = "PR 제목 학습자"
+                        skill_type = "수련중"
+
+                    communication_skills.append({
+                        "name": skill_name,
+                        "type": skill_type,
+                        "mastery": mastery,
+                        "effect": f"전체 PR의 {int(quality_ratio * 100)}%가 명확하고 구체적",
+                        "evidence": [f"{pf.clear_titles}/{pf.total_prs} PR"],
+                        "emoji": "🎯"
+                    })
+
+            # Review tone mastery - always show if data exists
+            if metrics.detailed_feedback.review_tone_feedback:
                 rtf = metrics.detailed_feedback.review_tone_feedback
                 total_reviews = rtf.constructive_reviews + rtf.harsh_reviews + rtf.neutral_reviews
                 if total_reviews > 0:
                     quality_ratio = rtf.constructive_reviews / total_reviews
-                    if quality_ratio >= 0.7:  # 70% or better
-                        mastery = min(100, int(quality_ratio * 100))
-                        acquired_skills.append({
-                            "name": "코드 멘토",
-                            "type": "패시브",
-                            "mastery": mastery,
-                            "effect": f"전체 리뷰의 {int(quality_ratio * 100)}%가 건설적이고 도움이 됨",
-                            "evidence": [f"{rtf.constructive_reviews}/{total_reviews} 리뷰가 높은 품질"],
-                            "emoji": "💬"
-                        })
+                    mastery = min(100, int(quality_ratio * 100))
+
+                    # Determine skill level and name
+                    if quality_ratio >= 0.8:
+                        skill_name = "코드 멘토링 거장"
+                        skill_type = "전설"
+                    elif quality_ratio >= 0.6:
+                        skill_name = "건설적 리뷰어"
+                        skill_type = "숙련"
+                    else:
+                        skill_name = "리뷰 커뮤니케이터"
+                        skill_type = "수련중"
+
+                    communication_skills.append({
+                        "name": skill_name,
+                        "type": skill_type,
+                        "mastery": mastery,
+                        "effect": f"전체 리뷰의 {int(quality_ratio * 100)}%가 건설적이고 도움이 됨",
+                        "evidence": [f"{rtf.constructive_reviews}/{total_reviews} 리뷰"],
+                        "emoji": "💬"
+                    })
+
+            # Issue description quality - always show if data exists
+            if metrics.detailed_feedback.issue_feedback:
+                isf = metrics.detailed_feedback.issue_feedback
+                if isf.total_issues > 0:
+                    quality_ratio = isf.clear_issues / isf.total_issues
+                    mastery = min(100, int(quality_ratio * 100))
+
+                    # Determine skill level and name
+                    if quality_ratio >= 0.8:
+                        skill_name = "이슈 문서화 전문가"
+                        skill_type = "전설"
+                    elif quality_ratio >= 0.6:
+                        skill_name = "이슈 작성 숙련자"
+                        skill_type = "숙련"
+                    else:
+                        skill_name = "이슈 보고 학습자"
+                        skill_type = "수련중"
+
+                    communication_skills.append({
+                        "name": skill_name,
+                        "type": skill_type,
+                        "mastery": mastery,
+                        "effect": f"전체 이슈의 {int(quality_ratio * 100)}%가 명확하고 재현 가능",
+                        "evidence": [f"{isf.clear_issues}/{isf.total_issues} 이슈"],
+                        "emoji": "📋"
+                    })
+
+        # Add top communication skills to acquired skills if quality is high (60%+)
+        for comm_skill in communication_skills:
+            if comm_skill["mastery"] >= 60 and len(acquired_skills) < 8:
+                acquired_skills.append(comm_skill)
 
         # 2. Available Skills - from improvement suggestions
         if metrics.detailed_feedback:
@@ -578,6 +645,36 @@ class Reporter:
             growing_skills=growing_skills,
             available_skills=available_skills[:3]  # Limit to top 3
         ))
+
+        # Add Communication Skills section if data exists
+        if communication_skills:
+            lines.append("### 💬 커뮤니케이션 스킬")
+            lines.append("")
+            lines.append("> 커밋, PR, 리뷰, 이슈 등 협업을 위한 커뮤니케이션 능력")
+            lines.append("")
+
+            # Render communication skills as a separate table
+            headers = ["스킬명", "숙련도", "효과", "통계"]
+            rows = []
+
+            for skill in communication_skills:
+                mastery_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 150px;"><div style="background: linear-gradient(90deg, #10b981 0%, #059669 100%); height: 100%; width: {skill["mastery"]}%; border-radius: 4px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);"></div></div>'
+
+                skill_name_cell = f'{skill["emoji"]} <strong>{skill["name"]}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill["type"]}]</span>'
+                mastery_cell = f'{mastery_bar}<div style="margin-top: 4px; text-align: center; font-size: 0.85em; color: #4b5563;">{skill["mastery"]}%</div>'
+                effect_cell = skill["effect"]
+                evidence_cell = "<br>".join(skill["evidence"])
+
+                rows.append([skill_name_cell, mastery_cell, effect_cell, evidence_cell])
+
+            lines.extend(GameRenderer.render_html_table(
+                headers=headers,
+                rows=rows,
+                title="",
+                description="",
+                striped=True
+            ))
+            lines.append("")
 
         lines.append("---")
         lines.append("")
