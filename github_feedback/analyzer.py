@@ -464,8 +464,8 @@ class Analyzer:
         critiques: List[WitchCritiqueItem] = []
 
         # Check commit message quality
-        if detailed_feedback and detailed_feedback.commit_messages:
-            commit_fb = detailed_feedback.commit_messages
+        if detailed_feedback and detailed_feedback.commit_feedback:
+            commit_fb = detailed_feedback.commit_feedback
             if commit_fb.total_commits > 0:
                 poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
                 if poor_ratio > 0.4:  # More than 40% poor messages
@@ -498,8 +498,8 @@ class Analyzer:
                 )
 
         # Check PR title quality
-        if detailed_feedback and detailed_feedback.pr_titles:
-            pr_fb = detailed_feedback.pr_titles
+        if detailed_feedback and detailed_feedback.pr_title_feedback:
+            pr_fb = detailed_feedback.pr_title_feedback
             if pr_fb.total_prs > 0:
                 vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
                 if vague_ratio > 0.3:  # More than 30% vague titles
@@ -515,8 +515,8 @@ class Analyzer:
                     )
 
         # Check review quality/frequency
-        if detailed_feedback and detailed_feedback.review_tone:
-            review_fb = detailed_feedback.review_tone
+        if detailed_feedback and detailed_feedback.review_tone_feedback:
+            review_fb = detailed_feedback.review_tone_feedback
             if review_fb.total_reviews > 0:
                 # Check if reviews are too short/neutral (may indicate low quality)
                 low_quality_ratio = review_fb.neutral_reviews / review_fb.total_reviews
