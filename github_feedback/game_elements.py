@@ -192,92 +192,66 @@ class GameRenderer:
             "미습득": "🔴"
         }
 
-        # 획득한 스킬 추가
+        def _sanitize(text: str) -> str:
+            return html.escape(text, quote=False)
+
+        def _build_evidence(evidence_list: List[str]) -> str:
+            evidence_html = "<br>".join(
+                [
+                    f"• {GameRenderer._convert_markdown_links_to_html(_sanitize(ev))}"
+                    for ev in evidence_list[:5]
+                ]
+            )
+            if len(evidence_list) > 5:
+                evidence_html += f"<br>... 외 {len(evidence_list) - 5}개"
+            return evidence_html
+
+        def _render_row(
+            prefix: str,
+            skill: Dict[str, Any],
+            default_type: str,
+            mastery_default: int,
+            bar_colors: Tuple[str, str]
+        ) -> None:
+            mastery = skill.get("mastery", mastery_default)
+            stars = min(5, mastery // 20)
+            star_display = "★" * stars + "☆" * (5 - stars)
+            level = min(5, (mastery // 20) + 1)
+
+            skill_type_raw = skill.get("type", default_type)
+            skill_type = _sanitize(skill_type_raw)
+            type_emoji = type_emojis.get(skill_type_raw, "⚪")
+            skill_name = _sanitize(skill.get("name", ""))
+
+            mastery_bar = (
+                f'<div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;">'
+                f'<div style="background: linear-gradient(90deg, {bar_colors[0]} 0%, {bar_colors[1]} 100%); height: 100%; width: {mastery}%;"></div>'
+                "</div>"
+            )
+            mastery_display = f'{mastery}%<br>{mastery_bar}'
+
+            evidence_list = skill.get("evidence", []) or []
+            evidence_html = _build_evidence(evidence_list)
+
+            effect_text = _sanitize(skill.get("effect", ""))
+
+            rows.append([
+                prefix,
+                f'{skill.get("emoji", "💠")} <strong>{skill_name}</strong>',
+                f'Lv.{level}<br>{star_display}',
+                mastery_display,
+                f'{type_emoji} {skill_type}<br><span style="color: #6b7280; font-size: 0.9em;">{GameRenderer._convert_markdown_links_to_html(effect_text)}</span>',
+                evidence_html if evidence_html else "-",
+            ])
+
         for skill in acquired_skills:
-            mastery = skill.get("mastery", 0)
-            stars = min(5, mastery // 20)
-            star_display = "★" * stars + "☆" * (5 - stars)
-            level = min(5, (mastery // 20) + 1)
+            _render_row('💎 <strong>획득</strong>', skill, "패시브", 0, ("#4ade80", "#22c55e"))
 
-            skill_type = skill.get("type", "패시브")
-            type_emoji = type_emojis.get(skill_type, "⚪")
-
-            # 마스터리 바
-            mastery_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;"><div style="background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%); height: 100%; width: {mastery}%;"></div></div>'
-            mastery_display = f'{mastery}%<br>{mastery_bar}'
-
-            # 증거 (마크다운 링크를 HTML 링크로 변환)
-            evidence_list = skill.get("evidence", [])
-            evidence_html = "<br>".join([f"• {GameRenderer._convert_markdown_links_to_html(ev)}" for ev in evidence_list[:5]])
-            if len(evidence_list) > 5:
-                evidence_html += f"<br>... 외 {len(evidence_list) - 5}개"
-
-            rows.append([
-                f'💎 <strong>획득</strong>',
-                f'{skill.get("emoji", "💎")} <strong>{skill.get("name", "")}</strong>',
-                f'Lv.{level}<br>{star_display}',
-                mastery_display,
-                f'{type_emoji} {skill_type}<br><span style="color: #6b7280; font-size: 0.9em;">{GameRenderer._convert_markdown_links_to_html(skill.get("effect", ""))}</span>',
-                evidence_html if evidence_html else "-"
-            ])
-
-        # 성장 중인 스킬 추가
         for skill in growing_skills:
-            mastery = skill.get("mastery", 60)
-            stars = min(5, mastery // 20)
-            star_display = "★" * stars + "☆" * (5 - stars)
-            level = min(5, (mastery // 20) + 1)
+            _render_row('🌱 <strong>성장중</strong>', skill, "성장중", 60, ("#fbbf24", "#f59e0b"))
 
-            skill_type = skill.get("type", "성장중")
-            type_emoji = type_emojis.get(skill_type, "🟡")
-
-            # 마스터리 바
-            mastery_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;"><div style="background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%); height: 100%; width: {mastery}%;"></div></div>'
-            mastery_display = f'{mastery}%<br>{mastery_bar}'
-
-            # 증거 (마크다운 링크를 HTML 링크로 변환)
-            evidence_list = skill.get("evidence", [])
-            evidence_html = "<br>".join([f"• {GameRenderer._convert_markdown_links_to_html(ev)}" for ev in evidence_list[:5]])
-            if len(evidence_list) > 5:
-                evidence_html += f"<br>... 외 {len(evidence_list) - 5}개"
-
-            rows.append([
-                f'🌱 <strong>성장중</strong>',
-                f'{skill.get("emoji", "🌱")} <strong>{skill.get("name", "")}</strong>',
-                f'Lv.{level}<br>{star_display}',
-                mastery_display,
-                f'{type_emoji} {skill_type}<br><span style="color: #6b7280; font-size: 0.9em;">{GameRenderer._convert_markdown_links_to_html(skill.get("effect", ""))}</span>',
-                evidence_html if evidence_html else "-"
-            ])
-
-        # 습득 가능한 스킬 추가
         for skill in available_skills:
-            mastery = skill.get("mastery", 40)
-            stars = min(5, mastery // 20)
-            star_display = "★" * stars + "☆" * (5 - stars)
-            level = min(5, (mastery // 20) + 1)
-
-            skill_type = skill.get("type", "미습득")
-            type_emoji = type_emojis.get(skill_type, "🔴")
-
-            # 마스터리 바
-            mastery_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;"><div style="background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); height: 100%; width: {mastery}%;"></div></div>'
-            mastery_display = f'{mastery}%<br>{mastery_bar}'
-
-            # 증거 (마크다운 링크를 HTML 링크로 변환)
-            evidence_list = skill.get("evidence", [])
-            evidence_html = "<br>".join([f"• {GameRenderer._convert_markdown_links_to_html(ev)}" for ev in evidence_list[:5]])
-            if len(evidence_list) > 5:
-                evidence_html += f"<br>... 외 {len(evidence_list) - 5}개"
-
-            rows.append([
-                f'🎯 <strong>습득 가능</strong>',
-                f'{skill.get("emoji", "🎯")} <strong>{skill.get("name", "")}</strong>',
-                f'Lv.{level}<br>{star_display}',
-                mastery_display,
-                f'{type_emoji} {skill_type}<br><span style="color: #6b7280; font-size: 0.9em;">{GameRenderer._convert_markdown_links_to_html(skill.get("effect", ""))}</span>',
-                evidence_html if evidence_html else "-"
-            ])
+            _render_row('🎯 <strong>습득 가능</strong>', skill, "미습득", 40, ("#ef4444", "#dc2626"))
 
         # HTML 테이블 렌더링
         if rows:
@@ -286,7 +260,8 @@ class GameRenderer:
                 rows=rows,
                 title="",
                 description="",
-                striped=True
+                striped=True,
+                escape_cells=False
             ))
 
         return lines
@@ -427,7 +402,8 @@ class GameRenderer:
         rows: List[List[str]],
         title: str = "",
         description: str = "",
-        striped: bool = True
+        striped: bool = True,
+        escape_cells: bool = True
     ) -> List[str]:
         """범용 HTML 테이블 렌더링.
 
@@ -437,6 +413,7 @@ class GameRenderer:
             title: 테이블 제목 (선택)
             description: 테이블 설명 (선택)
             striped: 줄무늬 스타일 적용 여부
+            escape_cells: True면 각 셀을 HTML 이스케이프하여 렌더링
 
         Returns:
             마크다운 라인 리스트
@@ -469,8 +446,10 @@ class GameRenderer:
             bg_color = '#f7fafc' if striped and idx % 2 == 0 else 'white'
             lines.append(f'      <tr style="background: {bg_color}; border-bottom: 1px solid #e2e8f0;">')
             for cell in row:
-                escaped_cell = html.escape(str(cell))
-                cell_with_links = GameRenderer._convert_markdown_links_to_html(escaped_cell)
+                cell_content = str(cell)
+                if escape_cells:
+                    cell_content = html.escape(cell_content)
+                cell_with_links = GameRenderer._convert_markdown_links_to_html(cell_content)
                 lines.append(f'        <td style="padding: 10px; color: #2d3748;">{cell_with_links}</td>')
             lines.append('      </tr>')
         lines.append('    </tbody>')
