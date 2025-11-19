@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
+import html
+
 from .utils import pad_to_width
 
 
@@ -467,7 +469,9 @@ class GameRenderer:
             bg_color = '#f7fafc' if striped and idx % 2 == 0 else 'white'
             lines.append(f'      <tr style="background: {bg_color}; border-bottom: 1px solid #e2e8f0;">')
             for cell in row:
-                lines.append(f'        <td style="padding: 10px; color: #2d3748;">{cell}</td>')
+                escaped_cell = html.escape(str(cell))
+                cell_with_links = GameRenderer._convert_markdown_links_to_html(escaped_cell)
+                lines.append(f'        <td style="padding: 10px; color: #2d3748;">{cell_with_links}</td>')
             lines.append('      </tr>')
         lines.append('    </tbody>')
 
