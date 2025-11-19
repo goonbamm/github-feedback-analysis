@@ -1479,7 +1479,8 @@ class Reporter:
             rows=rows,
             title="",
             description="",
-            striped=True
+            striped=True,
+            escape_cells=False
         ))
 
         lines.append("---")
