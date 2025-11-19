@@ -473,6 +473,57 @@ class Reporter:
                     "emoji": "✨"
                 })
 
+        # Add coding habits as acquired skills if quality is high
+        if metrics.detailed_feedback and len(acquired_skills) < 5:
+            # Commit message mastery
+            if metrics.detailed_feedback.commit_feedback:
+                cf = metrics.detailed_feedback.commit_feedback
+                if cf.total_commits > 0:
+                    quality_ratio = cf.good_messages / cf.total_commits
+                    if quality_ratio >= 0.7:  # 70% or better
+                        mastery = min(100, int(quality_ratio * 100))
+                        acquired_skills.append({
+                            "name": "명확한 커밋 메시지 작성",
+                            "type": "패시브",
+                            "mastery": mastery,
+                            "effect": f"전체 커밋의 {int(quality_ratio * 100)}%가 명확하고 의미있는 메시지",
+                            "evidence": [f"{cf.good_messages}/{cf.total_commits} 커밋이 높은 품질"],
+                            "emoji": "📝"
+                        })
+
+            # PR title mastery
+            if metrics.detailed_feedback.pr_title_feedback and len(acquired_skills) < 5:
+                pf = metrics.detailed_feedback.pr_title_feedback
+                if pf.total_prs > 0:
+                    quality_ratio = pf.clear_titles / pf.total_prs
+                    if quality_ratio >= 0.7:  # 70% or better
+                        mastery = min(100, int(quality_ratio * 100))
+                        acquired_skills.append({
+                            "name": "명확한 PR 제목 작성",
+                            "type": "패시브",
+                            "mastery": mastery,
+                            "effect": f"전체 PR의 {int(quality_ratio * 100)}%가 명확하고 구체적",
+                            "evidence": [f"{pf.clear_titles}/{pf.total_prs} PR이 높은 품질"],
+                            "emoji": "🔀"
+                        })
+
+            # Review tone mastery
+            if metrics.detailed_feedback.review_tone_feedback and len(acquired_skills) < 5:
+                rtf = metrics.detailed_feedback.review_tone_feedback
+                total_reviews = rtf.constructive_reviews + rtf.harsh_reviews + rtf.neutral_reviews
+                if total_reviews > 0:
+                    quality_ratio = rtf.constructive_reviews / total_reviews
+                    if quality_ratio >= 0.7:  # 70% or better
+                        mastery = min(100, int(quality_ratio * 100))
+                        acquired_skills.append({
+                            "name": "건설적인 리뷰 작성",
+                            "type": "패시브",
+                            "mastery": mastery,
+                            "effect": f"전체 리뷰의 {int(quality_ratio * 100)}%가 건설적이고 도움이 됨",
+                            "evidence": [f"{rtf.constructive_reviews}/{total_reviews} 리뷰가 높은 품질"],
+                            "emoji": "👀"
+                        })
+
         # 2. Available Skills - from improvement suggestions
         if metrics.detailed_feedback:
             if metrics.detailed_feedback.commit_feedback and hasattr(metrics.detailed_feedback.commit_feedback, 'suggestions'):
@@ -495,6 +546,17 @@ class Reporter:
                         "effect": suggestion,
                         "evidence": [suggestion],
                         "emoji": "🔀"
+                    })
+
+            if metrics.detailed_feedback.review_tone_feedback and hasattr(metrics.detailed_feedback.review_tone_feedback, 'suggestions'):
+                for suggestion in metrics.detailed_feedback.review_tone_feedback.suggestions[:2]:
+                    available_skills.append({
+                        "name": "건설적인 리뷰 작성",
+                        "type": "미습득",
+                        "mastery": 40,
+                        "effect": suggestion,
+                        "evidence": [suggestion],
+                        "emoji": "👀"
                     })
 
         # 3. Growing Skills - from retrospective positive patterns
@@ -705,24 +767,59 @@ class Reporter:
         total_reviews = reviews.get("total", 0)
         merged_prs = prs.get("merged", 0)
 
-        # Code Quality (0-100): Based on PR merge rate and awards
+        # Code Quality (0-100): Based on PR merge rate, awards, and coding habits
         merge_rate = (merged_prs / total_prs) if total_prs > 0 else 0
         award_count = len(metrics.awards) if metrics.awards else 0
+
+        # Calculate coding habits quality (commit messages + PR titles)
+        coding_habits_score = 0
+        if metrics.detailed_feedback:
+            # Commit message quality
+            if metrics.detailed_feedback.commit_feedback:
+                cf = metrics.detailed_feedback.commit_feedback
+                if cf.total_commits > 0:
+                    commit_quality_ratio = cf.good_messages / cf.total_commits
+                    coding_habits_score += commit_quality_ratio * 50  # 0-50 points
+
+            # PR title quality
+            if metrics.detailed_feedback.pr_title_feedback:
+                pf = metrics.detailed_feedback.pr_title_feedback
+                if pf.total_prs > 0:
+                    pr_title_quality_ratio = pf.clear_titles / pf.total_prs
+                    coding_habits_score += pr_title_quality_ratio * 50  # 0-50 points
+
+            # Normalize to 0-20 range
+            coding_habits_score = min(20, coding_habits_score / 5)
+
         code_quality = min(100, int(
-            (merge_rate * 40) +  # Merge success rate (0-40)
-            (min(award_count / 15, 1) * 30) +  # Award achievement (0-30) - 기준 상향
-            (30 if total_commits >= 100 else (total_commits / 100) * 30)  # Experience (0-30) - 기준 상향
+            (merge_rate * 35) +  # Merge success rate (0-35)
+            (min(award_count / 15, 1) * 25) +  # Award achievement (0-25)
+            (20 if total_commits >= 100 else (total_commits / 100) * 20) +  # Experience (0-20)
+            coding_habits_score  # Coding habits (0-20)
         ))
 
-        # Collaboration (0-100): Based on reviews and PR engagement
+        # Collaboration (0-100): Based on reviews, PR engagement, and review tone
         collab_network = metrics.collaboration
         unique_collaborators = collab_network.unique_collaborators if collab_network else 0
         review_count = collab_network.review_received_count if collab_network else 0
 
+        # Calculate review tone quality
+        review_tone_score = 0
+        if metrics.detailed_feedback and metrics.detailed_feedback.review_tone_feedback:
+            rtf = metrics.detailed_feedback.review_tone_feedback
+            total_tone_reviews = rtf.constructive_reviews + rtf.harsh_reviews + rtf.neutral_reviews
+            if total_tone_reviews > 0:
+                # Constructive reviews contribute positively, harsh reviews reduce score
+                constructive_ratio = rtf.constructive_reviews / total_tone_reviews
+                harsh_ratio = rtf.harsh_reviews / total_tone_reviews
+                review_tone_score = (constructive_ratio - (harsh_ratio * 0.5)) * 20  # 0-20 points
+                review_tone_score = max(0, min(20, review_tone_score))  # Clamp to 0-20
+
         collaboration = min(100, int(
-            (min(total_reviews / 30, 1) * 40) +  # Review activity (0-40) - 기준 상향
-            (min(unique_collaborators / 15, 1) * 35) +  # Network size (0-35) - 기준 상향
-            (25 if review_count >= 50 else (review_count / 50) * 25)  # Review received (0-25) - 기준 상향
+            (min(total_reviews / 30, 1) * 35) +  # Review activity (0-35)
+            (min(unique_collaborators / 15, 1) * 30) +  # Network size (0-30)
+            (15 if review_count >= 50 else (review_count / 50) * 15) +  # Review received (0-15)
+            review_tone_score  # Review tone quality (0-20)
         ))
 
         # Problem Solving (0-100): Based on PR diversity and tech stack
@@ -843,8 +940,8 @@ class Reporter:
         if not has_content:
             return []
 
-        lines = ["## 💡 Detailed Feedback", ""]
-        lines.append("> 코드, PR, 리뷰, 이슈 품질에 대한 상세 분석")
+        lines = ["## 💡 코딩 습관 평가 및 스킬 향상 가이드", ""]
+        lines.append("> 커밋 메시지, PR 제목, 리뷰 톤, 이슈 작성 등 코딩 습관을 분석하고 개선 방향을 제시합니다")
         lines.append("")
 
         # Commit message feedback
