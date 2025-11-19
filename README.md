@@ -389,6 +389,27 @@ gfa config get defaults.months
 </details>
 
 <details>
+<summary><b>🧹 gfa clear-cache - 캐시 초기화</b></summary>
+
+GitHub API 응답을 빠르게 재사용할 수 있도록 CLI는 `~/.cache/github_feedback/api_cache.sqlite`에 결과를 저장합니다. 캐시가 손상되거나 오래된 데이터 때문에 문제가 발생할 경우 이 명령어로 캐시를 제거하고 새 데이터를 받아올 수 있습니다.
+
+#### 기본 사용법
+
+```bash
+gfa clear-cache
+```
+
+#### 사용 시나리오
+
+- `sqlite3.OperationalError` 등 캐시 파일 관련 오류가 발생할 때
+- 최신 활동이 반영되지 않아 강제로 새 데이터를 받고 싶을 때
+- 트러블슈팅 가이드에서 캐시 초기화를 권장할 때
+
+명령어 실행 후 다음 `gfa feedback` 호출 시 GitHub API에서 데이터를 다시 가져옵니다.
+
+</details>
+
+<details>
 <summary><b>🔍 gfa list-repos - 저장소 목록</b></summary>
 
 접근 가능한 저장소 목록을 조회합니다.
@@ -766,6 +787,16 @@ Error: Repository not found
   - LLM 엔드포인트의 응답 속도를 확인하세요
   - 네트워크 연결 상태를 확인하세요
   - GitHub API rate limit을 확인하세요
+
+### 캐시 오류 또는 데이터 손상 경고
+
+```
+Error: Failed to parse cached response
+```
+
+**해결방법**:
+- `gfa clear-cache`를 실행해 `~/.cache/github_feedback/api_cache.sqlite` 파일을 삭제하고 새 데이터를 받아오세요
+- 캐시 초기화 이후에도 문제가 지속되면 `gfa feedback` 실행 로그를 이슈에 첨부하여 공유해주세요
 
 </details>
 

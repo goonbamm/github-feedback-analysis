@@ -382,6 +382,27 @@ gfa config get defaults.months
 </details>
 
 <details>
+<summary><b>🧹 gfa clear-cache - Clear Cached Responses</b></summary>
+
+The CLI stores GitHub API responses in `~/.cache/github_feedback/api_cache.sqlite` to speed up repeated runs. When the cache becomes corrupted or stale, this command deletes the file so the next analysis fetches everything from scratch.
+
+#### Basic Usage
+
+```bash
+gfa clear-cache
+```
+
+#### When to Run
+
+- Cache-related errors such as `sqlite3.OperationalError` or JSON parsing failures appear
+- Recent repository activity does not show up because cached metadata is outdated
+- The troubleshooting guide recommends clearing cached responses before retrying
+
+After running the command, rerun `gfa feedback` to rebuild the cache with fresh responses.
+
+</details>
+
+<details>
 <summary><b>🔍 gfa list-repos - List Repositories</b></summary>
 
 List accessible repositories.
@@ -677,6 +698,16 @@ No activity detected during analysis period.
 **Solution**:
 - Try increasing analysis period: `gfa init --months 24`
 - Verify repository is active
+
+### Cache Errors or Data Corruption Warnings
+
+```
+Error: Failed to parse cached response
+```
+
+**Solution:**
+- Run `gfa clear-cache` to remove `~/.cache/github_feedback/api_cache.sqlite` and fetch fresh responses
+- If the issue persists after clearing, attach your latest `gfa feedback` logs when opening an issue
 
 </details>
 
