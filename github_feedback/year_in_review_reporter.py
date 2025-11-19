@@ -524,8 +524,10 @@ class YearInReviewReporter:
     """Generate comprehensive year-in-review reports."""
 
     def __init__(self, output_dir: Path = Path("reports/year-in-review")) -> None:
+        from .utils import FileSystemManager
+
         self.output_dir = output_dir
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        FileSystemManager.ensure_directory(self.output_dir)
 
     def create_year_in_review_report(
         self,

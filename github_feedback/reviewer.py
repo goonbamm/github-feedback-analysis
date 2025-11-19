@@ -40,14 +40,10 @@ class Reviewer:
 
     def _ensure_target_dir(self, repo: str, number: int) -> Path:
         """Create and return the target directory for PR review files."""
+        from .utils import FileSystemManager
 
         target_dir = self._target_dir(repo, number)
-        try:
-            target_dir.mkdir(parents=True, exist_ok=True)
-        except (OSError, PermissionError) as exc:
-            logger.error(f"Failed to create directory {target_dir}: {exc}")
-            raise
-        return target_dir
+        return FileSystemManager.ensure_directory(target_dir)
 
     def _write_json(self, path: Path, data: dict) -> None:
         """Write JSON data to a file with consistent formatting."""

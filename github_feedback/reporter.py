@@ -140,7 +140,9 @@ class Reporter:
     web_url: str = "https://github.com"  # Base URL for GitHub links (configurable for enterprise)
 
     def ensure_structure(self) -> None:
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        from .utils import FileSystemManager
+
+        FileSystemManager.ensure_directory(self.output_dir)
 
     def _get_repo_from_context(self) -> str:
         """Get the current repository being processed.

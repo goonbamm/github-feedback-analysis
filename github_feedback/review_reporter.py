@@ -1325,8 +1325,10 @@ class ReviewReporter:
         report_text = self._generate_report_text(repo_input, reviews)
 
         # Save report
+        from .utils import FileSystemManager
+
         repo_dir = self._repo_dir(repo_input)
-        repo_dir.mkdir(parents=True, exist_ok=True)
+        FileSystemManager.ensure_directory(repo_dir)
         report_path = repo_dir / "integrated_report.md"
         report_path.write_text(report_text, encoding="utf-8")
 
