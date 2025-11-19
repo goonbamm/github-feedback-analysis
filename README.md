@@ -559,7 +559,9 @@ reports/
 │       ├── integrated_report.md     # 통합 PR 리뷰 보고서
 │       └── personal_development.json  # 개인 성장 분석
 └── year-in-review/                  # 🎊 연간 회고 (--year-in-review 옵션 사용 시)
-    └── year_{year}_in_review.md     # 연간 종합 보고서
+    ├── year_{year}_in_review.md     # 연간 종합 보고서
+    └── metrics/                     # 저장소별 커뮤니케이션/디테일 데이터
+        └── {owner}__{repo}.json     # 각 저장소의 detailed metrics 스냅샷
 ```
 
 ### 📊 통합 보고서 구조 (`integrated_full_report.md`)

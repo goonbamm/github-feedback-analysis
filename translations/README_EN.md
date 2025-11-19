@@ -521,7 +521,9 @@ reports/
 │       ├── integrated_report.md     # Integrated PR review report
 │       └── personal_development.json  # Personal growth analysis
 └── year-in-review/                  # 🎊 Year in Review (when using --year-in-review option)
-    └── year_{year}_in_review.md     # Annual comprehensive report
+    ├── year_{year}_in_review.md     # Annual comprehensive report
+    └── metrics/                     # Per-repo communication/detailed metrics
+        └── {owner}__{repo}.json     # Detailed snapshot for each repository
 ```
 
 </details>
