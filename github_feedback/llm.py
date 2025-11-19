@@ -727,7 +727,7 @@ class LLMClient:
         messages: list[dict[str, str]],
         *,
         temperature: float | None = None,
-        max_retries: int = 3,
+        max_retries: int = 5,
         retry_delay: float = 2.0,
         operation: str = "unknown",
     ) -> str:
@@ -736,7 +736,7 @@ class LLMClient:
         Args:
             messages: Chat messages for the LLM
             temperature: Sampling temperature (default: from HEURISTIC_THRESHOLDS)
-            max_retries: Maximum number of retry attempts (default: 3)
+            max_retries: Maximum number of retry attempts (default: 5)
             retry_delay: Base delay between retries in seconds (default: 2.0)
             operation: Name of the operation for metrics tracking
 
@@ -752,8 +752,9 @@ class LLMClient:
         cache_hit = False
 
         # Use default temperature if not specified
+        # Increased from 0.4 to 0.5 for better response quality and creativity
         if temperature is None:
-            temperature = HEURISTIC_THRESHOLDS['llm_temperature']
+            temperature = 0.5
 
         # Check cache first if enabled
         cached_response, cache_key = self._check_cache(messages, temperature)
@@ -1062,9 +1063,10 @@ class LLMClient:
         context_lines.append("")
 
         # Add PR titles with code change information
+        # Increased from 50 to 100 PRs for better analysis coverage
         if pr_titles:
             context_lines.append("Pull Request 제목 및 코드 변화:")
-            for pr in pr_titles[:50]:  # Limit to 50 PRs
+            for pr in pr_titles[:100]:  # Limit to 100 PRs
                 additions = pr.get('additions', 0)
                 deletions = pr.get('deletions', 0)
                 total_changes = additions + deletions
@@ -1075,12 +1077,13 @@ class LLMClient:
             context_lines.append("")
 
         # Add review comments
+        # Increased from 30 to 50 comments and from 200 to 400 chars for richer context
         if review_comments:
             context_lines.append(f"리뷰 코멘트 ({len(review_comments)}개):")
-            for idx, comment in enumerate(review_comments[:30], 1):  # Limit to 30 comments
+            for idx, comment in enumerate(review_comments[:50], 1):  # Limit to 50 comments
                 pr_num = comment.get("pr_number", "")
                 author = comment.get("author", "")
-                body = comment.get("body", "")[:200]  # Truncate long comments
+                body = comment.get("body", "")[:400]  # Truncate long comments
                 context_lines.append(f"{idx}. PR #{pr_num} ({author}): {body}")
             context_lines.append("")
 
@@ -1108,13 +1111,15 @@ class LLMClient:
             # Execute communication and code quality analyses in parallel
             console.log("Analyzing communication quality and code quality in parallel...")
 
+            # Increased temperature from 0.4 to 0.6 for better response quality
+            # Increased max_retries from 3 to 5 for more robust analysis
             with ThreadPoolExecutor(max_workers=2) as executor:
                 # Submit both tasks with operation names for metrics
                 comm_future = executor.submit(
-                    self.complete, comm_messages, 0.4, 3, 2.0, "personal_dev_communication"
+                    self.complete, comm_messages, 0.6, 5, 2.0, "personal_dev_communication"
                 )
                 code_future = executor.submit(
-                    self.complete, code_messages, 0.4, 3, 2.0, "personal_dev_code_quality"
+                    self.complete, code_messages, 0.6, 5, 2.0, "personal_dev_code_quality"
                 )
 
                 # Wait for both to complete
@@ -1135,8 +1140,10 @@ class LLMClient:
                 {"role": "system", "content": get_growth_assessment_prompt()},
                 {"role": "user", "content": f"다음 PR 데이터와 이전 분석 결과를 바탕으로 평가해주세요:\n\n{context}\n\n{previous_analysis}"},
             ]
+            # Increased temperature from 0.4 to 0.6 for better response quality
+            # Increased max_retries from default to 5
             growth_content = self.complete(
-                growth_messages, temperature=0.4, operation="personal_dev_growth"
+                growth_messages, temperature=0.6, max_retries=5, operation="personal_dev_growth"
             )
             growth_result = json_module.loads(growth_content)
 
