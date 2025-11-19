@@ -561,9 +561,64 @@ class Analyzer:
                     )
                 )
 
-        # If no critiques, no need for witch section
+        # If no specific critiques, add fallback critiques so witch always appears
         if not critiques:
-            return None
+            # Add general improvement suggestions
+            import random
+
+            # Everyone can improve something - pick one general critique
+            general_critiques = [
+                WitchCritiqueItem(
+                    category="개발자 성장",
+                    severity="💫 조언",
+                    critique="겉으로는 괜찮아 보이지만, 안주하면 퇴보하는 법이야. 지금이 딱 다음 레벨로 올라갈 때야.",
+                    evidence=f"총 {collection.commits}개 커밋, {collection.pull_requests}개 PR 분석 완료",
+                    consequence="현상 유지는 곧 뒤처지는 거야. 기술은 매일 발전하는데 너만 그 자리면?",
+                    remedy="새로운 기술 하나 배워봐. 오픈소스 기여하거나, 더 어려운 문제에 도전해봐."
+                ),
+                WitchCritiqueItem(
+                    category="코드 품질",
+                    severity="💫 조언",
+                    critique="코드는 일단 돌아가는데... 그냥 '돌아간다'로 만족할 거야? 아니면 '아름답게 돌아간다'를 목표로 할 거야?",
+                    evidence="커밋 히스토리 전체 분석 완료",
+                    consequence="동작하는 코드와 훌륭한 코드의 차이를 모르면, 영원히 시니어 개발자 못 돼.",
+                    remedy="리팩토링에 시간 투자해. 클린 코드 원칙 공부하고, 코드 리뷰에서 더 많이 배워."
+                ),
+                WitchCritiqueItem(
+                    category="협업 능력",
+                    severity="💫 조언",
+                    critique="혼자서는 잘하는데, 팀워크는 어때? 커뮤니케이션도 기술이야. 코딩만 잘한다고 다가 아니라고.",
+                    evidence=f"PR {collection.pull_requests}개, 리뷰 {collection.reviews}개 활동 확인",
+                    consequence="협업 못 하는 개발자는 혼자 할 수 있는 것만 할 수 있어. 큰 프로젝트는 무리.",
+                    remedy="PR 설명 더 자세히 써. 리뷰 댓글에 이유와 대안 제시해. 팀원들과 더 소통해."
+                ),
+                WitchCritiqueItem(
+                    category="학습 태도",
+                    severity="💫 조언",
+                    critique="익숙한 것만 반복하고 있지 않아? 편안함(comfort zone)에 머무르면 성장 없어.",
+                    evidence="활동 패턴 분석 완료",
+                    consequence="5년차인데 1년차 실력만 있는 개발자 되기 싫으면 변화 필요해.",
+                    remedy="매달 새로운 것 하나씩 시도해. 낯선 라이브러리, 다른 패러다임, 새로운 도구."
+                ),
+                WitchCritiqueItem(
+                    category="문서화",
+                    severity="💫 조언",
+                    critique="코드는 쓰는데 문서는? 6개월 후 네 코드 다시 볼 때 주석 없어서 후회하는 건 너야.",
+                    evidence="커밋 및 PR 패턴 분석",
+                    consequence="문서 없는 코드는 레거시가 되는 순간 아무도 못 건드려. 너도 못 건드리게 돼.",
+                    remedy="복잡한 로직에는 주석 달아. README 업데이트해. API는 문서화해."
+                ),
+                WitchCritiqueItem(
+                    category="테스트 문화",
+                    severity="💫 조언",
+                    critique="테스트 없이 코드 짜고 있는 건 아니겠지? '돌아가니까 됐지'는 초보 마인드야.",
+                    evidence="전체 개발 활동 검토",
+                    consequence="테스트 없는 리팩토링은 자살행위. 언젠가 배포하고 밤새 롤백하는 날 올 거야.",
+                    remedy="TDD는 아니어도, 핵심 로직은 테스트 작성해. Coverage 60% 이상 목표로."
+                ),
+            ]
+
+            critiques.append(random.choice(general_critiques))
 
         # Create witch critique with opening and closing
         opening_curses = [
