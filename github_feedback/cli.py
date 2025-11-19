@@ -2066,6 +2066,7 @@ def _analyze_single_repository_for_year_review(
     Returns:
         RepositoryAnalysis object or None if analysis fails
     """
+    import json
     from datetime import datetime, timedelta
     from .year_in_review_reporter import RepositoryAnalysis
 
@@ -2102,8 +2103,47 @@ def _analyze_single_repository_for_year_review(
             output_dir=output_dir,
         )
 
+        # Collect detailed feedback for communication skills analysis
+        console.print(f"[dim]📊 Collecting detailed feedback for {repo_name}...[/]")
+        analyzer = Analyzer(web_base_url=config.server.web_url)
+        detailed_feedback_snapshot = _collect_detailed_feedback(
+            collector=collector,
+            analyzer=analyzer,
+            config=config,
+            repo=repo_name,
+            since=since,
+            filters=filters,
+            author=author,
+        )
+
+        # Save detailed feedback to metrics.json for later retrieval
+        if detailed_feedback_snapshot:
+            console.print(f"[dim]💾 Saving detailed feedback to metrics.json...[/]")
+            safe_repo = repo_name.replace("/", "__")
+            metrics_dir = output_dir / safe_repo
+            metrics_dir.mkdir(parents=True, exist_ok=True)
+
+            # Load existing metrics.json if it exists
+            metrics_path = metrics_dir / "metrics.json"
+            import json
+            if metrics_path.exists():
+                try:
+                    with open(metrics_path, "r", encoding="utf-8") as f:
+                        metrics_data = json.load(f)
+                except Exception:
+                    metrics_data = {}
+            else:
+                metrics_data = {}
+
+            # Add detailed_feedback to metrics
+            metrics_data["detailed_feedback"] = detailed_feedback_snapshot.to_dict()
+
+            # Save updated metrics
+            with open(metrics_path, "w", encoding="utf-8") as f:
+                json.dump(metrics_data, f, indent=2, ensure_ascii=False)
+            console.print(f"[success]✅ Saved detailed feedback to {metrics_path}[/]")
+
         # Load personal development data
-        safe_repo = repo_name.replace("/", "__")
         reviews_dir = output_dir / "reviews" / safe_repo
         personal_dev_path = reviews_dir / "personal_development.json"
 
@@ -2123,8 +2163,6 @@ def _analyze_single_repository_for_year_review(
         issue_stats = {}
 
         if personal_dev_path.exists():
-            import json
-
             with open(personal_dev_path, "r", encoding="utf-8") as f:
                 personal_dev = json.load(f)
 
@@ -2135,8 +2173,6 @@ def _analyze_single_repository_for_year_review(
         # Load metrics.json for detailed feedback (commit message quality, review tone, etc.)
         metrics_path = output_dir / safe_repo / "metrics.json"
         if metrics_path.exists():
-            import json
-
             try:
                 with open(metrics_path, "r", encoding="utf-8") as f:
                     metrics_data = json.load(f)
