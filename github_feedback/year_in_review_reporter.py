@@ -1006,6 +1006,9 @@ class YearInReviewReporter:
             lines.append("_장비를 장착하지 않았습니다._")
             lines.append("")
 
+        # 장비창에 표시된 기술 이름들을 추적 (중복 방지용)
+        equipped_tech_names = {item["tech"]["name"] for item in equipment_slots}
+
         # ============================================
         # 📊 전체 무기 목록 (카테고리별 분류)
         # ============================================
@@ -1032,7 +1035,10 @@ class YearInReviewReporter:
             headers = ["순위", "아이콘", "장비명 & 특성", "등급", "사용 횟수", "비율", "강화도"]
             rows = []
 
-            for idx, tech in enumerate(tech_list[:15], 1):  # 카테고리별 상위 15개
+            # 장비창에 이미 표시된 기술 제외
+            filtered_tech_list = [tech for tech in tech_list if tech["name"] not in equipped_tech_names]
+
+            for idx, tech in enumerate(filtered_tech_list[:15], 1):  # 카테고리별 상위 15개 (장비창 제외)
                 tier = tech["tier"]
                 percentage = tech["percentage"]
 
