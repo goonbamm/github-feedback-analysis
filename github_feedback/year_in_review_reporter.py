@@ -806,7 +806,8 @@ class YearInReviewReporter:
                     rows=rows,
                     title="",
                     description="",
-                    striped=True
+                    striped=True,
+                    escape_cells=False
                 ))
                 lines.append("")
 
@@ -849,7 +850,8 @@ class YearInReviewReporter:
                     rows=rows,
                     title="",
                     description="",
-                    striped=True
+                    striped=True,
+                    escape_cells=False
                 ))
                 lines.append("")
 
@@ -873,7 +875,8 @@ class YearInReviewReporter:
                     rows=rows,
                     title="",
                     description="",
-                    striped=True
+                    striped=True,
+                    escape_cells=False
                 ))
                 lines.append("")
 
@@ -1021,7 +1024,8 @@ class YearInReviewReporter:
                 rows=rows,
                 title="",
                 description="",
-                striped=True
+                striped=True,
+                escape_cells=False
             ))
             lines.append("")
 
@@ -1062,7 +1066,8 @@ class YearInReviewReporter:
                 rows=rows,
                 title="",
                 description="",
-                striped=True
+                striped=True,
+                escape_cells=False
             ))
             lines.append("")
 
@@ -1351,7 +1356,8 @@ class YearInReviewReporter:
                 rows=rows,
                 title="",
                 description="",
-                striped=True
+                striped=True,
+                escape_cells=False
             ))
             lines.append("")
 
