@@ -1578,6 +1578,7 @@ def _generate_integrated_full_report(
     retrospective_section = _extract_section_content(brief_content, "## 🔍 Deep Retrospective Analysis")
     tech_stack_section = _extract_section_content(brief_content, "## 💻 Tech Stack Analysis")
     collaboration_section = _extract_section_content(brief_content, "## 🤝 PR 활동 요약")
+    witch_section = _extract_section_content(brief_content, "## 🔮 마녀의 독설")
 
     # Extract key sections from feedback
     personal_dev_section = _extract_section_content(feedback_content, "## 👤 개인 성장 분석")
@@ -1619,6 +1620,10 @@ def _generate_integrated_full_report(
 > 구체적인 장점, 보완점, 실행 가능한 제안
 
 {personal_dev_section if personal_dev_section else "_개인 성장 분석 정보가 없습니다._"}
+
+### 🔮 마녀의 독설
+
+{witch_section if witch_section else "_마녀의 독설 인사이트가 없습니다._"}
 
 ### 코드 품질 피드백
 
