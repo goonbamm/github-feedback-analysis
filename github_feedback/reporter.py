@@ -1489,7 +1489,7 @@ class Reporter:
 
     def _build_witch_critique_section(self, metrics: MetricSnapshot) -> List[str]:
         """Build witch's critique section with dark theme."""
-        if not metrics.witch_critique or not metrics.witch_critique.critiques:
+        if not metrics.witch_critique:
             return []
 
         lines = ["## 🔮 마녀의 독설", ""]
