@@ -13,6 +13,7 @@ Español | [한국어](../README.md) | [English](README_EN.md) | [简体中文](
 - 🏆 **Visualización de Logros**: Genera automáticamente premios y destacados basados en tus contribuciones
 - 💡 **Descubrimiento de Repositorios**: Lista repositorios accesibles y sugiere los activos
 - 🎨 **Modo Interactivo**: Interfaz amigable para selección directa de repositorios
+- ⚡ **Optimización de Red**: Cachea solicitudes de la API de GitHub (expiran en 1 hora por defecto) y aplica reintentos automáticos con backoff exponencial para llamadas LLM
 
 ## 📋 Requisitos Previos
 
@@ -149,17 +150,21 @@ Cuando se le solicite, ingrese la siguiente información:
 ### 2️⃣ Analizar Actividad Personal
 
 ```bash
+# Analizar repositorio seleccionado
 gfa feedback
+
+# Analizar automáticamente toda la actividad de este año (Revisión Anual)
+gfa feedback -y
 ```
 
-Puede elegir de una lista de repositorios recomendados o ingresar uno directamente para analizar **tu actividad**.
+Puede elegir de una lista de repositorios recomendados o ingresar uno directamente para analizar **tu actividad**. Con la opción `-y`, puedes generar al instante un informe de Revisión Anual que agrega todos los repositorios en los que estuviste activo este año, sin necesidad de seleccionar repositorios manualmente.
 
 Después de completar el análisis, se generan los siguientes archivos en el directorio `reports/`:
 - `metrics.json` - Datos de análisis
 - `report.md` - Informe en Markdown
-- `report.html` - Informe HTML (con gráficos de visualización)
-- `charts/` - Archivos de gráficos SVG
+- `integrated_full_report.md` - **Informe integrado** (combina análisis de repositorio + revisiones de PR)
 - `prompts/` - Archivos de prompts LLM
+- `reviews/` - Revisiones individuales de PR y análisis de crecimiento personal
 
 ### 3️⃣ Ver Resultados
 
@@ -748,7 +753,7 @@ github_feedback/
   - Solo almacena en caché solicitudes GET/HEAD
   - Mejora de velocidad del 60-70% en ejecuciones repetidas
 - **Recopilación en paralelo**: Recopilación concurrente de datos usando ThreadPoolExecutor
-- **Lógica de reintento**: Retroceso exponencial para solicitudes LLM (máximo 3 intentos)
+- **Lógica de reintento**: Retroceso exponencial para solicitudes LLM (máximo 5 intentos, duplicando desde una base de 2 segundos)
 
 </details>
 

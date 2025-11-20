@@ -13,6 +13,7 @@ English | [한국어](../README.md) | [简体中文](README_ZH.md) | [日本語]
 - 🏆 **Achievement Visualization**: Automatically generate awards and highlights based on your contributions
 - 💡 **Repository Discovery**: List accessible repositories and suggest active ones
 - 🎨 **Interactive Mode**: User-friendly interface for direct repository selection
+- ⚡ **Network Optimization**: Cache GitHub API requests (1-hour expiry by default) and apply automatic retries with exponential backoff for LLM calls
 
 ## 📋 Prerequisites
 
@@ -151,17 +152,21 @@ When prompted, enter the following information:
 ### 2️⃣ Analyze Your Activity
 
 ```bash
+# Analyze selected repository
 gfa feedback
+
+# Automatically analyze all activity this year (Year in Review)
+gfa feedback -y
 ```
 
-You can choose from a list of recommended repositories or enter one directly to analyze **your activity** in that repository.
+You can choose from a list of recommended repositories or enter one directly to analyze **your activity**. With the `-y` option, you can instantly generate a Year in Review report that aggregates all repositories you've been active in this year—no manual repository selection required.
 
 After analysis completes, the following files are generated in the `reports/` directory:
 - `metrics.json` - Analysis data
 - `report.md` - Markdown report
-- `report.html` - HTML report (with visualization charts)
-- `charts/` - SVG chart files
+- `integrated_full_report.md` - **Integrated report** (combines repository analysis + PR reviews)
 - `prompts/` - LLM prompt files
+- `reviews/` - Individual PR reviews and personal growth analysis
 
 ### 3️⃣ View Results
 
@@ -798,7 +803,7 @@ github_feedback/
   - Caches GET/HEAD requests only
   - 60-70% speed improvement on repeated runs
 - **Parallel Collection**: Concurrent data collection using ThreadPoolExecutor
-- **Retry Logic**: Exponential backoff for LLM requests (max 3 attempts)
+- **Retry Logic**: Exponential backoff for LLM requests (max 5 attempts, doubling from a 2-second base)
 
 </details>
 
