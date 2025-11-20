@@ -1238,13 +1238,19 @@ class YearInReviewReporter:
         agg_review_stats = {"constructive": 0, "harsh": 0, "neutral": 0}
         agg_issue_stats = {"total": 0, "clear": 0, "unclear": 0}
 
+        # Track repositories with data for each skill type
         repos_with_data = 0
+        repos_with_commit_data = 0
+        repos_with_pr_data = 0
+        repos_with_review_data = 0
+        repos_with_issue_data = 0
 
         for repo in repository_analyses:
             has_data = False
 
             if repo.commit_message_quality is not None:
                 total_commit_quality.append(repo.commit_message_quality)
+                repos_with_commit_data += 1
                 if repo.commit_stats:
                     agg_commit_stats["total"] += repo.commit_stats.get("total", 0)
                     agg_commit_stats["good"] += repo.commit_stats.get("good", 0)
@@ -1253,6 +1259,7 @@ class YearInReviewReporter:
 
             if repo.pr_title_quality is not None:
                 total_pr_title_quality.append(repo.pr_title_quality)
+                repos_with_pr_data += 1
                 if repo.pr_title_stats:
                     agg_pr_stats["total"] += repo.pr_title_stats.get("total", 0)
                     agg_pr_stats["clear"] += repo.pr_title_stats.get("clear", 0)
@@ -1261,6 +1268,7 @@ class YearInReviewReporter:
 
             if repo.review_tone_quality is not None:
                 total_review_tone_quality.append(repo.review_tone_quality)
+                repos_with_review_data += 1
                 if repo.review_tone_stats:
                     agg_review_stats["constructive"] += repo.review_tone_stats.get("constructive", 0)
                     agg_review_stats["harsh"] += repo.review_tone_stats.get("harsh", 0)
@@ -1269,6 +1277,7 @@ class YearInReviewReporter:
 
             if repo.issue_quality is not None:
                 total_issue_quality.append(repo.issue_quality)
+                repos_with_issue_data += 1
                 if repo.issue_stats:
                     agg_issue_stats["total"] += repo.issue_stats.get("total", 0)
                     agg_issue_stats["clear"] += repo.issue_stats.get("clear", 0)
@@ -1297,7 +1306,7 @@ class YearInReviewReporter:
             skill_level, skill_name, skill_emoji = self._get_skill_level(avg_commit_quality, "커밋")
             mastery_bar = self._create_mastery_bar(avg_commit_quality)
             effect = f"전체 커밋의 {int(avg_commit_quality)}%가 명확하고 의미 있는 메시지"
-            stats = f"{agg_commit_stats['good']:,}/{agg_commit_stats['total']:,} 커밋 ({len(repository_analyses)}개 저장소)"
+            stats = f"{agg_commit_stats['good']:,}/{agg_commit_stats['total']:,} 커밋 ({repos_with_commit_data}개 저장소)"
 
             rows.append([
                 f'{skill_emoji} <strong>{skill_name}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill_level}]</span>',
@@ -1311,7 +1320,7 @@ class YearInReviewReporter:
             skill_level, skill_name, skill_emoji = self._get_skill_level(avg_pr_quality, "PR")
             mastery_bar = self._create_mastery_bar(avg_pr_quality)
             effect = f"전체 PR의 {int(avg_pr_quality)}%가 명확하고 구체적인 제목"
-            stats = f"{agg_pr_stats['clear']:,}/{agg_pr_stats['total']:,} PR ({len(repository_analyses)}개 저장소)"
+            stats = f"{agg_pr_stats['clear']:,}/{agg_pr_stats['total']:,} PR ({repos_with_pr_data}개 저장소)"
 
             rows.append([
                 f'{skill_emoji} <strong>{skill_name}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill_level}]</span>',
@@ -1326,7 +1335,7 @@ class YearInReviewReporter:
             mastery_bar = self._create_mastery_bar(avg_review_quality)
             total_reviews = agg_review_stats['constructive'] + agg_review_stats['harsh'] + agg_review_stats['neutral']
             effect = f"전체 리뷰의 {int(avg_review_quality)}%가 건설적이고 도움이 되는 톤"
-            stats = f"{agg_review_stats['constructive']:,}/{total_reviews:,} 리뷰 ({len(repository_analyses)}개 저장소)"
+            stats = f"{agg_review_stats['constructive']:,}/{total_reviews:,} 리뷰 ({repos_with_review_data}개 저장소)"
 
             rows.append([
                 f'{skill_emoji} <strong>{skill_name}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill_level}]</span>',
@@ -1340,7 +1349,7 @@ class YearInReviewReporter:
             skill_level, skill_name, skill_emoji = self._get_skill_level(avg_issue_quality, "이슈")
             mastery_bar = self._create_mastery_bar(avg_issue_quality)
             effect = f"전체 이슈의 {int(avg_issue_quality)}%가 명확하고 재현 가능"
-            stats = f"{agg_issue_stats['clear']:,}/{agg_issue_stats['total']:,} 이슈 ({len(repository_analyses)}개 저장소)"
+            stats = f"{agg_issue_stats['clear']:,}/{agg_issue_stats['total']:,} 이슈 ({repos_with_issue_data}개 저장소)"
 
             rows.append([
                 f'{skill_emoji} <strong>{skill_name}</strong><br><span style="color: #6b7280; font-size: 0.85em;">[{skill_level}]</span>',
