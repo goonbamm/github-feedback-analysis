@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- API request caching using requests-cache for improved performance
-- Retry logic with exponential backoff for LLM API calls
+- API request caching using requests-cache for improved performance (default 1-hour expiry for reusable GET/HEAD responses)
+- Retry logic with exponential backoff for LLM API calls (default 5 retries with 2s base delay doubling each attempt)
 - Comprehensive tests for retrospective analysis module
 - Additional tests for review reporter module
 - CONTRIBUTING.md with development guidelines
