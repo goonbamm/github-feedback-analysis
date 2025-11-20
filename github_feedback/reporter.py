@@ -600,7 +600,7 @@ class Reporter:
             if metrics.detailed_feedback.issue_feedback:
                 isf = metrics.detailed_feedback.issue_feedback
                 if isf.total_issues > 0:
-                    quality_ratio = isf.clear_issues / isf.total_issues
+                    quality_ratio = isf.well_described / isf.total_issues
                     mastery = min(100, int(quality_ratio * 100))
 
                     # Determine skill level and name
@@ -619,7 +619,7 @@ class Reporter:
                         "type": skill_type,
                         "mastery": mastery,
                         "effect": f"전체 이슈의 {int(quality_ratio * 100)}%가 명확하고 재현 가능",
-                        "evidence": [f"{isf.clear_issues}/{isf.total_issues} 이슈"],
+                        "evidence": [f"{isf.well_described}/{isf.total_issues} 이슈"],
                         "emoji": "📋"
                     })
 
