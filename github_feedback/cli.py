@@ -2295,8 +2295,8 @@ def _analyze_single_repository_for_year_review(
                 if "issue_feedback" in detailed_feedback:
                     isf = detailed_feedback["issue_feedback"]
                     total_issues = isf.get("total_issues", 0)
-                    clear_issues = isf.get("clear_issues", 0)
-                    unclear_issues = isf.get("unclear_issues", 0)
+                    clear_issues = isf.get("well_described", 0)
+                    unclear_issues = isf.get("poorly_described", 0)
 
                     if total_issues > 0:
                         issue_quality = (clear_issues / total_issues) * 100
