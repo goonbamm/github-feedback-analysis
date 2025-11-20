@@ -849,25 +849,46 @@ pytest --cov=github_feedback --cov-report=html
 
 ```
 github_feedback/
-├── cli.py              # 🖥️  CLI 진입점, 인터랙티브 초기 설정과 보고서 워크플로우
-├── llm.py              # 🤖 LLM API 클라이언트, 재시도·배치 처리 및 연결 진단
-├── reporter.py         # 📄 통합 보고서/브리프 생성기
-├── retrospective.py    # 📅 연말 회고 및 행동 패턴 분석 엔진
-├── analyzer.py         # 📊 메트릭 계산, 지표 요약, 어워드 산출
-├── review_reporter.py  # 📝 PR 리뷰 결과를 통합 보고서로 변환
-├── config.py           # ⚙️  설정 로딩/저장, 키링 연동 및 호스트 관리
-├── models.py           # 📦 Pydantic 데이터 모델 정의
-├── pr_collector.py     # 🔍 PR 데이터 수집 및 필터링 로직
-├── award_strategies.py # 🏆 어워드 계산 전략 모음 (100+ 규칙)
-├── api_client.py       # 🌐 GitHub REST API/GraphQL 호출 추상화
-├── reviewer.py         # 🎯 PR 리뷰 분석 및 LLM 프롬프트 구성
-├── collector.py        # 📡 데이터 수집 파사드, 병렬 수집 오케스트레이션
-├── commit_collector.py # 📝 커밋 데이터 수집기
-├── review_collector.py # 👀 리뷰 데이터 수집기
-├── repository_manager.py # 📂 저장소 조회 및 캐싱
-├── filters.py          # 🔍 활동/언어 필터링 유틸리티
-├── exceptions.py       # ⚠️  예외 계층 구조 및 사용자 친화 메시지
-└── utils.py            # 🔧 공통 유틸리티 함수
+├── cli.py                  # 🖥️  CLI 진입점, 인터랙티브 초기 설정과 보고서 워크플로우
+├── console.py              # 🧭 터미널 UI 보조, 메뉴/프로그레스 렌더링
+├── repository_display.py   # 🗂️  저장소/기여 현황 표 렌더링 컴포넌트
+├── christmas_theme.py      # 🎄 시즌 테마 색상·아트 정의
+├── game_elements.py        # 🕹️  배지·점수 등 게이미피케이션 요소
+
+├── config.py               # ⚙️  설정 로딩/저장, 키링 연동 및 호스트 관리
+├── constants.py            # 🧱 전역 상수 (엔드포인트, 한도, 캐시 경로)
+├── exceptions.py           # ⚠️  예외 계층 구조 및 사용자 친화 메시지
+├── utils.py                # 🔧 공통 유틸리티 함수
+├── api_types.py            # 🗃️  GitHub API 타입/스키마 헬퍼
+├── models.py               # 📦 Pydantic 데이터 모델 정의
+├── api_client.py           # 🌐 GitHub REST API/GraphQL 호출 추상화
+├── api_params.py           # 🧾 표준 API 파라미터 빌더 모음
+├── filters.py              # 🔍 활동/언어 필터링 유틸리티
+
+├── collector.py            # 📡 데이터 수집 파사드, 병렬 수집 오케스트레이션
+├── base_collector.py       # 🏗️  수집기 공통 유틸/필터/타임스탬프 파서
+├── commit_collector.py     # 📝 커밋 데이터 수집기
+├── issue_collector.py      # 🐛 이슈 데이터 수집기
+├── pr_collector.py         # 🔍 PR 데이터 수집 및 필터링 로직
+├── review_collector.py     # 👀 리뷰 데이터 수집기
+├── analytics_collector.py  # 📈 활동 로그·메트릭 전용 수집기
+├── repository_manager.py   # 📂 저장소 조회 및 캐싱
+
+├── llm.py                  # 🤖 LLM API 클라이언트, 재시도·배치 처리 및 연결 진단
+├── llm_cache.py            # 🗄️  프롬프트/응답 캐싱 및 만료 관리
+├── llm_metrics.py          # 📊 LLM 호출 지표·비용 추산 집계
+├── llm_heuristics.py       # 🧠 LLM 미사용 시 휴리스틱 기반 분석
+├── llm_validation.py       # ✅ 모델 응답 검증/정규화
+├── prompts.py              # 🗒️  분석/보고서 프롬프트 템플릿
+
+├── analyzer.py             # 📊 메트릭 계산, 지표 요약, 어워드 산출
+├── award_strategies.py     # 🏆 어워드 계산 전략 모음 (100+ 규칙)
+├── reviewer.py             # 🎯 PR 리뷰 분석 및 LLM 프롬프트 구성
+├── hybrid_analysis.py      # 🔀 LLM·휴리스틱을 결합한 혼합 분석 파이프라인
+├── reporter.py             # 📄 통합 보고서/브리프 생성기
+├── review_reporter.py      # 📝 PR 리뷰 결과를 통합 보고서로 변환
+├── retrospective.py        # 📅 연말 회고 및 행동 패턴 분석 엔진
+└── year_in_review_reporter.py # 📆 Year-in-Review 레포트 생성기
 ```
 
 ### 아키텍처 및 디자인 패턴
