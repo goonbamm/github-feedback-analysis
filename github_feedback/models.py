@@ -669,6 +669,6 @@ class MetricSnapshot:
     collaboration: Optional[CollaborationNetwork] = None
     year_end_review: Optional[YearEndReview] = None
     retrospective: Optional[RetrospectiveSnapshot] = None  # For deep analysis
-    witch_critique: Optional[WitchCritique] = None  # Harsh but constructive critique
+    witch_critique: Optional[WitchCritique] = None  # Harsh but constructive critique (always generated since v1.x)
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date
