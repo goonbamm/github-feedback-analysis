@@ -452,15 +452,19 @@ class Analyzer:
         self,
         collection: CollectionResult,
         detailed_feedback: Optional[DetailedFeedbackSnapshot] = None,
-    ) -> Optional[WitchCritique]:
+    ) -> WitchCritique:
         """Generate harsh but constructive critique from the witch.
+
+        This method ALWAYS returns a WitchCritique object. Even when no specific
+        issues are found, it provides general improvement suggestions to ensure
+        the witch's critique is always present in the report.
 
         Args:
             collection: Collection of repository data
             detailed_feedback: Optional detailed feedback snapshot
 
         Returns:
-            WitchCritique with harsh but productive feedback, or None if not enough data
+            WitchCritique with harsh but productive feedback (always returns, never None)
         """
         critiques: List[WitchCritiqueItem] = []
 
