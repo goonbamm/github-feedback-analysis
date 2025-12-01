@@ -70,486 +70,18 @@ from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
 from .utils import validate_pat_format, validate_url, validate_repo_format, validate_months
 
+# Import refactored CLI modules
+from . import cli_helpers
+from . import cli_repository
+from . import cli_metrics
+from . import cli_data_collection
+
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")
 config_app = typer.Typer(help="Manage configuration settings")
 app.add_typer(config_app, name="config")
 
 console = Console()
 logger = logging.getLogger(__name__)
-
-
-@contextmanager
-def handle_user_interruption(message: str = "Operation cancelled by user."):
-    """Context manager to handle user interruptions consistently.
-
-    Args:
-        message: Custom message to display when operation is cancelled
-
-    Yields:
-        None
-
-    Raises:
-        typer.Exit: Always exits with code 0 when interrupted
-    """
-    try:
-        yield
-    except (typer.Abort, KeyboardInterrupt, EOFError):
-        console.print(f"\n[warning]{message}[/]")
-        raise typer.Exit(code=0)
-
-
-def _validate_collected_data(data: Optional[List], data_type: str) -> List:
-    """Validate and log collection results.
-
-    Args:
-        data: Collected data list or None
-        data_type: Type of data being validated (for logging)
-
-    Returns:
-        Empty list if data is None or empty, otherwise the original data
-    """
-    if data is None:
-        logger.warning(
-            "Data collection failed",
-            extra={
-                "component": "feedback_collector",
-                "data_type": data_type,
-                "status": "failed",
-                "count": 0
-            }
-        )
-        return []
-    elif not data:
-        logger.info(
-            "No data found for analysis",
-            extra={
-                "component": "feedback_collector",
-                "data_type": data_type,
-                "status": "empty",
-                "count": 0
-            }
-        )
-        return []
-    else:
-        logger.info(
-            "Data collection completed",
-            extra={
-                "component": "feedback_collector",
-                "data_type": data_type,
-                "status": "success",
-                "count": len(data)
-            }
-        )
-        return data
-
-
-def _handle_task_exception(
-    exception: Exception,
-    key: str,
-    label: str,
-    timeout: int,
-    task_type: TaskType,
-) -> tuple[Exception, Any, str]:
-    """Handle exceptions from parallel tasks with consistent error creation.
-
-    Args:
-        exception: The exception that occurred
-        key: Task identifier
-        label: Human-readable task label
-        timeout: Timeout value in seconds
-        task_type: Type of task (TaskType.COLLECTION or TaskType.ANALYSIS)
-
-    Returns:
-        Tuple of (error, default_result, status_indicator)
-    """
-    # Re-raise keyboard interrupts and system exits
-    if isinstance(exception, (KeyboardInterrupt, SystemExit)):
-        raise exception
-
-    is_timeout = isinstance(exception, TimeoutError)
-    is_analysis = task_type == TaskType.ANALYSIS
-
-    if is_timeout:
-        error = (
-            LLMTimeoutError(f"{label} timed out after {timeout}s", analysis_type=key)
-            if is_analysis
-            else CollectionTimeoutError(f"{label} timed out after {timeout}s", source=key)
-        )
-        status_indicator = "⚠"
-    else:
-        error = (
-            LLMAnalysisError(f"{label} failed: {exception}", analysis_type=key)
-            if is_analysis
-            else CollectionError(f"{label} failed: {exception}", source=key)
-        )
-        status_indicator = "✗"
-
-    default_result = None if is_analysis else []
-    return error, default_result, status_indicator
-
-
-def _run_parallel_tasks(
-    tasks: Dict[str, Tuple[Callable, Tuple, str]],
-    max_workers: int,
-    timeout: int,
-    task_type: TaskType = TaskType.COLLECTION,
-) -> Dict[str, Any]:
-    """Run multiple tasks in parallel with progress indicator and consistent error handling.
-
-    Args:
-        tasks: Dict mapping task keys to (func, args, label) tuples where:
-            - func: Callable to execute
-            - args: Tuple of arguments to pass to func
-            - label: Human-readable task label for progress display
-        max_workers: Maximum number of concurrent workers
-        timeout: Timeout in seconds for each task
-        task_type: Type of task (TaskType.COLLECTION or TaskType.ANALYSIS)
-
-    Returns:
-        Dict mapping task keys to results (None for failed tasks)
-    """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    results = {}
-    total = len(tasks)
-    timeout_occurred = False
-
-    # Use Rich Progress bar if available
-    if Progress is not None:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeRemainingColumn(),
-            console=console.rich_console if hasattr(console, 'rich_console') else None
-        ) as progress:
-            task_id = progress.add_task(
-                f"[cyan]{task_type.capitalize()}...",
-                total=total
-            )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(func, *args): (key, label)
-                    for key, (func, args, label) in tasks.items()
-                }
-
-                for future in as_completed(futures, timeout=timeout):
-                    key, label = futures[future]
-                    try:
-                        results[key] = future.result(timeout=timeout)
-                        progress.update(task_id, advance=1, description=f"[green]✓ {label}")
-                    except Exception as e:
-                        error, default_result, status_indicator = _handle_task_exception(
-                            e, key, label, timeout, task_type
-                        )
-                        console.print(f"[warning]{status_indicator} {error}", style="warning")
-                        results[key] = default_result
-                        color = "yellow" if status_indicator == "⚠" else "red"
-                        progress.update(task_id, advance=1, description=f"[{color}]{status_indicator} {label}")
-
-                        # Track if timeout occurred
-                        if status_indicator == "⚠":
-                            timeout_occurred = True
-    else:
-        # Fallback to simple progress without Rich
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(func, *args): (key, label)
-                for key, (func, args, label) in tasks.items()
-            }
-
-            completed = 0
-            for future in as_completed(futures, timeout=timeout):
-                key, label = futures[future]
-                try:
-                    results[key] = future.result(timeout=timeout)
-                    completed += 1
-                    console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
-                except Exception as e:
-                    error, default_result, status_indicator = _handle_task_exception(
-                        e, key, label, timeout, task_type
-                    )
-                    console.print(f"[warning]{status_indicator} {error}", style="warning")
-                    results[key] = default_result
-
-                    # Track if timeout occurred
-                    if status_indicator == "⚠":
-                        timeout_occurred = True
-
-    # Display guidance if timeout occurred
-    if timeout_occurred:
-        console.print()
-        console.print("[cyan]💡 Timeout이 발생했나요?[/]")
-        console.print("[dim]   걱정하지 마세요! 같은 명령어를 다시 실행하면 이미 수집된 데이터를 활용하여[/]")
-        console.print("[dim]   작업을 이어서 진행합니다. 캐시 덕분에 60-70% 더 빠르게 완료됩니다.[/]")
-        console.print()
-
-    return results
-
-
-def _resolve_output_dir(value: Path | str | object) -> Path:
-    """Normalise CLI path inputs for both Typer and direct function calls."""
-
-    if isinstance(value, Path):
-        return value.expanduser()
-
-    default_candidate = getattr(value, "default", value)
-    if isinstance(default_candidate, Path):
-        return default_candidate.expanduser()
-
-    return Path(str(default_candidate)).expanduser()
-
-
-def _load_config() -> Config:
-    try:
-        config = Config.load()
-        config.validate_required_fields()
-        return config
-    except ValueError as exc:
-        error_msg = str(exc)
-        # Check if it's a multi-line error with bullet points
-        if "\n" in error_msg:
-            lines = error_msg.split("\n")
-            console.print(f"[danger]{lines[0]}[/]")
-            for line in lines[1:]:
-                if line.strip():
-                    console.print(f"  {line}")
-        else:
-            console.print(f"[danger]Configuration error:[/] {error_msg}")
-        console.print()
-        console.print("[info]Run [accent]gfa init[/] to set up your configuration")
-        raise typer.Exit(code=1) from exc
-
-
-def _select_repository_interactive(collector: Collector) -> Optional[str]:
-    """Interactively select a repository from suggestions.
-
-    Args:
-        collector: Collector instance for fetching repositories
-
-    Returns:
-        Selected repository in owner/repo format, or None if cancelled
-    """
-    console.print(f"[info]{INFO_MESSAGES['fetching_repos']}[/]")
-
-    with console.status(f"[accent]{INFO_MESSAGES['analyzing_repos']}", spinner=SPINNERS['bouncing']):
-        try:
-            suggestions = collector.suggest_repositories(limit=10, min_activity_days=90)
-        except KeyboardInterrupt:
-            raise
-        except (requests.RequestException, ValueError) as exc:
-            console.print_error(exc, "Error fetching suggestions:")
-            return None
-
-    if not suggestions:
-        console.print(f"[warning]{ERROR_MESSAGES['no_suggestions']}[/]")
-        console.print(f"[info]{INFO_MESSAGES['try_manual_repo']}[/]")
-        return None
-
-    # Display suggestions in a table
-    if Table:
-        console.print()
-        table = Table(
-            title="Suggested Repositories",
-            box=getattr(box, TABLE_CONFIG['box_style']),
-            show_header=True,
-            header_style=TABLE_CONFIG['header_style'],
-        )
-
-        table.add_column("#", justify="right", style=TABLE_CONFIG['index_style'], width=TABLE_CONFIG['index_width'])
-        table.add_column("Repository", style="cyan", no_wrap=True)
-        table.add_column("Description", style="dim")
-        table.add_column("Your Commits", justify="right", style="bold green")
-        table.add_column("Activity", justify="right", style=TABLE_CONFIG['activity_style'])
-
-        for i, repo in enumerate(suggestions, 1):
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            max_len = TABLE_CONFIG['description_max_length']
-            if len(description) > max_len:
-                description = description[:max_len-3] + "..."
-
-            stars = repo.get("stargazers_count", 0)
-            forks = repo.get("forks_count", 0)
-            user_commits = repo.get("_user_commits", 0)
-
-            # Highlight repos with user contributions
-            commits_display = f"✓ {user_commits}" if user_commits > 0 else "-"
-            activity = f"⭐{stars} 🍴{forks}"
-
-            table.add_row(str(i), full_name, description, commits_display, activity)
-
-        console.print(table)
-    else:
-        # Fallback if rich is not available
-        console.print("\nSuggested Repositories:\n")
-        for i, repo in enumerate(suggestions, 1):
-            full_name = repo.get("full_name", "unknown/repo")
-            description = repo.get("description") or "No description"
-            stars = repo.get("stargazers_count", 0)
-            user_commits = repo.get("_user_commits", 0)
-            commit_info = f" [YOUR COMMITS: {user_commits}]" if user_commits > 0 else ""
-            console.print(f"{i}. {full_name} - {description} (⭐ {stars}){commit_info}")
-    console.print()
-    console.print("[info]Select a repository by number (1-{}) or enter owner/repo format[/]".format(len(suggestions)))
-    console.print("[info]Press Ctrl+C or enter 'q' to quit[/]")
-    console.print()
-
-    # Prompt for selection
-    while True:
-        try:
-            selection = typer.prompt("Repository", default="").strip()
-
-            if not selection or selection.lower() == 'q':
-                return None
-
-            # Check if it's a number selection
-            if selection.isdigit():
-                index = int(selection) - 1
-                if 0 <= index < len(suggestions):
-                    selected_repo = suggestions[index].get("full_name")
-                    console.print(f"[success]Selected:[/] {selected_repo}")
-                    return selected_repo
-                else:
-                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {len(suggestions)}")
-                    continue
-
-            # Otherwise, treat it as owner/repo format
-            try:
-                validate_repo_format(selection)
-                console.print(f"[success]Selected:[/] {selection}")
-                return selection
-            except ValueError as exc:
-                console.print(f"[danger]Invalid format:[/] {exc}")
-                console.print("[info]Enter a number (1-{}) or owner/repo format[/]".format(len(suggestions)))
-                continue
-
-        except (typer.Abort, KeyboardInterrupt, EOFError):
-            console.print("\n[warning]Selection cancelled.[/]")
-            return None
-
-
-def _load_default_hosts() -> list[str]:
-    """Load default hosts from config file.
-
-    Returns:
-        List of default host examples
-    """
-    # Default fallback hosts if config file is not found
-    fallback_hosts = [
-        "github.com (Default)",
-        "github.company.com",
-        "github.enterprise.local",
-        "ghe.example.com",
-    ]
-
-    try:
-        # Get the path to hosts.config.json in the .config directory
-        config_path = Path(__file__).parent.parent / ".config" / "hosts.config.json"
-
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-                return config_data.get("default_hosts", fallback_hosts)
-        else:
-            return fallback_hosts
-    except Exception:
-        # If any error occurs, use fallback
-        return fallback_hosts
-
-
-def _select_enterprise_host_interactive(custom_hosts: list[str]) -> Optional[Tuple[str, bool]]:
-    """Interactive enterprise host selection with preset and custom options.
-
-    Args:
-        custom_hosts: List of user-configured custom enterprise hosts
-
-    Returns:
-        Tuple of (selected_host, should_save) or None if cancelled
-        - selected_host: The enterprise host URL (empty string for github.com)
-        - should_save: Whether to save this host to custom list
-    """
-    # Load default example hosts from config
-    default_hosts = _load_default_hosts()
-
-    console.print("\n[accent]Select GitHub Enterprise Host:[/]")
-    console.print("[info]Choose from the list or enter a custom URL[/]\n")
-
-    # Display options
-    menu_option = 1
-
-    # Show default github.com option
-    console.print(f"  {menu_option}. [success]github.com[/] (Default)")
-    github_com_idx = menu_option
-    menu_option += 1
-
-    # Show example hosts
-    if len(default_hosts) > 1:
-        console.print("\n[dim]Example Enterprise Hosts:[/]")
-        for host in default_hosts[1:]:
-            console.print(f"  {menu_option}. {host}")
-            menu_option += 1
-
-    # Show custom hosts if any
-    if custom_hosts:
-        console.print("\n[dim]Your Saved Hosts:[/]")
-        custom_start_idx = menu_option
-        for host in custom_hosts:
-            console.print(f"  {menu_option}. [accent]{host}[/]")
-            menu_option += 1
-    else:
-        custom_start_idx = menu_option
-
-    console.print(f"\n[info]Or enter a custom host URL (e.g., https://github.example.com)[/]")
-
-    while True:
-        try:
-            selection = typer.prompt("\nEnter number or custom URL", default="1").strip()
-
-            # Check if it's a number selection
-            if selection.isdigit():
-                selection_num = int(selection)
-
-                # GitHub.com selection
-                if selection_num == github_com_idx:
-                    console.print("[success]Selected:[/] github.com (Default)")
-                    return ("", False)
-
-                # Example host selection
-                elif github_com_idx < selection_num < custom_start_idx:
-                    example_idx = selection_num - 2  # -2 because we skip "github.com (Default)" in list
-                    if 0 <= example_idx < len(default_hosts) - 1:
-                        selected = default_hosts[example_idx + 1]
-                        console.print(f"[info]Selected example:[/] {selected}")
-
-                        # Ask if user wants to save this
-                        save = typer.confirm("Save this host to your custom list?", default=True)
-                        return (selected, save)
-
-                # Custom host selection
-                elif custom_hosts and custom_start_idx <= selection_num < custom_start_idx + len(custom_hosts):
-                    custom_idx = selection_num - custom_start_idx
-                    selected = custom_hosts[custom_idx]
-                    console.print(f"[success]Selected:[/] {selected}")
-                    return (selected, False)  # Already saved
-
-                else:
-                    console.print(f"[danger]Invalid selection.[/] Please enter a number between 1 and {menu_option - 1}")
-                    continue
-
-            # Custom URL input
-            else:
-                console.print(f"[info]Custom host:[/] {selection}")
-
-                # Ask if user wants to save this
-                save = typer.confirm("Save this host to your custom list for future use?", default=True)
-                return (selection, save)
-
-        except (typer.Abort, KeyboardInterrupt, EOFError):
-            console.print("\n[warning]Selection cancelled.[/]")
-            return None
 
 
 @app.command()
@@ -598,7 +130,7 @@ def init(
     is_interactive = sys.stdin.isatty()
 
     # Prompt for missing required values only in interactive mode
-    with handle_user_interruption("Configuration cancelled by user."):
+    with cli_helpers.handle_user_interruption("Configuration cancelled by user."):
         if pat is None:
             if is_interactive:
                 pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
@@ -625,7 +157,7 @@ def init(
         if enterprise_host is None and is_interactive:
             # Load config to get custom hosts
             temp_config = Config.load()
-            result = _select_enterprise_host_interactive(temp_config.server.custom_enterprise_hosts)
+            result = cli_repository.select_enterprise_host_interactive(temp_config.server.custom_enterprise_hosts)
             if result is None:
                 # User cancelled
                 console.print("\n[warning]Configuration cancelled by user.[/]")
@@ -693,7 +225,7 @@ def init(
                 raise typer.Exit(code=0)
             except (requests.RequestException, ValueError, ConnectionError) as exc:
                 console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
-                with handle_user_interruption("Configuration cancelled by user."):
+                with cli_helpers.handle_user_interruption("Configuration cancelled by user."):
                     if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
                         console.print("[info]Configuration not saved[/]")
                         raise typer.Exit(code=1)
@@ -703,391 +235,6 @@ def init(
     console.print("[success]✓ GitHub token stored securely in system keyring[/]")
     console.print()
     _print_config_summary()
-
-
-def _render_metrics(metrics: MetricSnapshot) -> None:
-    """Render metrics with a visually rich presentation."""
-
-    if (
-        Table is None
-        or Panel is None
-        or Columns is None
-        or Text is None
-        or Group is None
-        or Align is None
-    ):
-        console.print(f"Analysis complete for {metrics.repo}")
-        console.print(f"Timeframe: {metrics.months} months")
-        console.print(f"Status: {metrics.status.value}")
-        for key, value in metrics.summary.items():
-            console.print(f"- {key.title()}: {value}")
-        if metrics.highlights:
-            console.print("Highlights:")
-            for highlight in metrics.highlights:
-                console.print(f"  • {highlight}")
-        return
-
-    status_styles = {
-        AnalysisStatus.CREATED: "warning",
-        AnalysisStatus.COLLECTED: "accent",
-        AnalysisStatus.ANALYSED: "success",
-        AnalysisStatus.REPORTED: "accent",
-    }
-    status_style = status_styles.get(metrics.status, "accent")
-
-    header = Panel(
-        Group(
-            Align.center(Text("인사이트 준비 완료", style="title")),
-            Align.center(Text(metrics.repo, style="repo")),
-            Align.center(Text(f"{metrics.months}개월 회고", style="muted")),
-        ),
-        border_style="accent",
-        padding=(1, 4),
-    )
-
-    console.print(header)
-    console.print(
-        Rule(
-            title=f"[{status_style}]상태 • {metrics.status.value.upper()}[/]",
-            style="divider",
-            characters="━",
-            align="center",
-        )
-    )
-
-    if metrics.summary:
-        summary_grid = Table.grid(padding=(0, 2))
-        summary_grid.add_column(justify="right", style="label")
-        summary_grid.add_column(style="value")
-        for key, value in metrics.summary.items():
-            summary_grid.add_row(key.title(), str(value))
-
-        summary_panel = Panel(summary_grid, border_style="frame", title="핵심 지표", title_align="left")
-    else:
-        summary_panel = Panel(Text("사용 가능한 요약 지표가 없습니다", style="muted"), border_style="frame")
-
-    stat_panels = []
-    for domain, domain_stats in metrics.stats.items():
-        stat_table = Table(
-            box=box.MINIMAL,
-            show_edge=False,
-            pad_edge=False,
-            expand=True,
-        )
-        stat_table.add_column("지표", style="label")
-        stat_table.add_column("값", style="value")
-        for stat_name, stat_value in domain_stats.items():
-            if isinstance(stat_value, (int, float)):
-                formatted = f"{stat_value:.2f}" if not isinstance(stat_value, int) else f"{stat_value:,}"
-            else:
-                formatted = str(stat_value)
-            stat_table.add_row(stat_name.replace("_", " ").title(), formatted)
-
-        stat_panel = Panel(
-            stat_table,
-            title=domain.replace("_", " ").title(),
-            border_style="accent",
-            padding=(0, 1),
-        )
-        stat_panels.append(stat_panel)
-
-    sections = [summary_panel]
-    if stat_panels:
-        sections.append(Columns(stat_panels, equal=True, expand=True))
-
-    console.print(*sections)
-
-    if metrics.highlights:
-        highlights_text = Text("\n".join(f"• {item}" for item in metrics.highlights), style="value")
-        highlights_panel = Panel(highlights_text, title="주요 하이라이트", border_style="frame")
-        console.print(highlights_panel)
-
-    if metrics.spotlight_examples:
-        spotlight_panels = []
-        for category, entries in metrics.spotlight_examples.items():
-            spotlight_text = Text("\n".join(f"• {entry}" for entry in entries), style="value")
-            spotlight_panels.append(
-                Panel(
-                    spotlight_text,
-                    title=category.replace("_", " ").title(),
-                    border_style="accent",
-                    padding=(1, 2),
-                )
-            )
-        console.print(Columns(spotlight_panels, expand=True))
-
-    if metrics.awards:
-        awards_text = Text("\n".join(f"🏆 {award}" for award in metrics.awards), style="value")
-        console.print(Panel(awards_text, title="수상 내역", border_style="accent"))
-
-    if metrics.evidence:
-        evidence_panels = []
-        for domain, links in metrics.evidence.items():
-            evidence_text = Text("\n".join(f"🔗 {link}" for link in links), style="value")
-            evidence_panels.append(
-                Panel(
-                    evidence_text,
-                    title=domain.replace("_", " ").title(),
-                    border_style="frame",
-                    padding=(1, 2),
-                )
-            )
-        console.print(Columns(evidence_panels, expand=True))
-
-
-def _collect_detailed_feedback(
-    collector: Collector,
-    analyzer: Analyzer,
-    config: Config,
-    repo: str,
-    since: datetime,
-    filters: AnalysisFilters,
-    author: Optional[str] = None,
-) -> Optional[DetailedFeedbackSnapshot]:
-    """Collect and analyze detailed feedback data in parallel.
-
-    This function collects four types of feedback data and analyzes them using LLM:
-    1. Commit messages - for quality analysis
-    2. PR titles - for clarity analysis
-    3. Review comments - for tone analysis
-    4. Issue details - for quality analysis
-
-    Args:
-        collector: Data collector instance
-        analyzer: Metrics analyzer instance
-        config: Configuration with LLM settings
-        repo: Repository name in owner/repo format
-        since: Start date for data collection
-        filters: Analysis filters to apply
-        author: Optional GitHub username to filter by author
-
-    Returns:
-        DetailedFeedbackSnapshot with LLM analysis results,
-        or None if collection/analysis fails
-
-    Raises:
-        KeyboardInterrupt: User interrupted the operation
-    """
-    from .llm import LLMClient
-    import time
-
-    start_time = time.time()
-    console.print("[accent]Collecting detailed feedback data...", style="accent")
-
-    logger.info(
-        "Starting detailed feedback collection",
-        extra={
-            "component": "feedback_collector",
-            "repo": repo,
-            "since": since.isoformat(),
-            "author": author or "all"
-        }
-    )
-
-    try:
-        # Prepare data collection tasks
-        collection_tasks = {
-            "commits": (
-                lambda: collector.collect_commit_messages(
-                    repo, since, filters, COLLECTION_LIMITS['commit_messages'], author
-                ),
-                (),
-                "commit messages"
-            ),
-            "pr_titles": (
-                lambda: collector.collect_pr_titles(
-                    repo, since, filters, COLLECTION_LIMITS['pr_titles'], author
-                ),
-                (),
-                "PR titles"
-            ),
-            "review_comments": (
-                lambda: collector.collect_review_comments_detailed(
-                    repo, since, filters, COLLECTION_LIMITS['review_comments'], author
-                ),
-                (),
-                "review comments"
-            ),
-            "issues": (
-                lambda: collector.collect_issue_details(
-                    repo, since, filters, COLLECTION_LIMITS['issues'], author
-                ),
-                (),
-                "issues"
-            ),
-        }
-
-        # Collect data in parallel
-        collected_data = _run_parallel_tasks(
-            collection_tasks,
-            PARALLEL_CONFIG['max_workers_data_collection'],
-            PARALLEL_CONFIG['collection_timeout'],
-            task_type=TaskType.COLLECTION
-        )
-
-        # Validate and extract collected data
-        commits_data = _validate_collected_data(collected_data.get("commits"), "commits")
-        pr_titles_data = _validate_collected_data(collected_data.get("pr_titles"), "PR titles")
-        review_comments_data = _validate_collected_data(collected_data.get("review_comments"), "review comments")
-        issues_data = _validate_collected_data(collected_data.get("issues"), "issues")
-
-        # Analyze using LLM
-        llm_client = LLMClient(
-            endpoint=config.llm.endpoint,
-            model=config.llm.model,
-            timeout=config.llm.timeout,
-            max_files_in_prompt=config.llm.max_files_in_prompt,
-            max_files_with_patch_snippets=config.llm.max_files_with_patch_snippets,
-            web_url=config.server.web_url,
-        )
-
-        # Parallelize LLM analysis calls
-        console.print("[accent]Analyzing feedback in parallel...", style="accent")
-
-        analysis_tasks = {
-            "commit_messages": (lambda: llm_client.analyze_commit_messages(commits_data, repo), (), "commits"),
-            "pr_titles": (lambda: llm_client.analyze_pr_titles(pr_titles_data), (), "PR titles"),
-            "review_tone": (lambda: llm_client.analyze_review_tone(review_comments_data), (), "review tone"),
-            "issue_quality": (lambda: llm_client.analyze_issue_quality(issues_data, config.server.web_url, repo), (), "issues"),
-            "personal_development": (lambda: llm_client.analyze_personal_development(pr_titles_data, review_comments_data, repo), (), "personal development"),
-        }
-
-        results = _run_parallel_tasks(
-            analysis_tasks,
-            PARALLEL_CONFIG['max_workers_llm_analysis'],
-            PARALLEL_CONFIG['analysis_timeout'],
-            task_type=TaskType.ANALYSIS
-        )
-
-        commit_analysis = results.get("commit_messages")
-        pr_title_analysis = results.get("pr_titles")
-        review_tone_analysis = results.get("review_tone")
-        issue_analysis = results.get("issue_quality")
-        personal_development_analysis = results.get("personal_development")
-
-        # Build detailed feedback snapshot
-        detailed_feedback_snapshot = analyzer.build_detailed_feedback(
-            commit_analysis=commit_analysis,
-            pr_title_analysis=pr_title_analysis,
-            review_tone_analysis=review_tone_analysis,
-            issue_analysis=issue_analysis,
-            personal_development_analysis=personal_development_analysis,
-        )
-
-        elapsed_time = time.time() - start_time
-        logger.info(
-            "Detailed feedback analysis completed successfully",
-            extra={
-                "component": "feedback_collector",
-                "repo": repo,
-                "duration_seconds": round(elapsed_time, 2),
-                "status": "success"
-            }
-        )
-        console.print("[success]✓ Detailed feedback analysis complete", style="success")
-        return detailed_feedback_snapshot
-
-    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as exc:
-        elapsed_time = time.time() - start_time
-        logger.warning(
-            "Detailed feedback analysis failed",
-            extra={
-                "component": "feedback_collector",
-                "repo": repo,
-                "duration_seconds": round(elapsed_time, 2),
-                "error_type": type(exc).__name__,
-                "error_message": str(exc),
-                "status": "failed"
-            },
-            exc_info=True
-        )
-        console.print(
-            f"[warning]Warning: Detailed feedback analysis failed: {exc}", style="warning"
-        )
-
-        # Provide actionable guidance based on exception type
-        if isinstance(exc, requests.RequestException):
-            console.print(
-                "[cyan]💡 해결 방법: 네트워크 연결을 확인하거나 LLM endpoint 설정을 검토하세요.",
-                style="cyan"
-            )
-            console.print(
-                "[dim]  설정 확인: gfa config show",
-                style="dim"
-            )
-        elif isinstance(exc, json.JSONDecodeError):
-            console.print(
-                "[cyan]💡 해결 방법: LLM 응답 형식이 올바르지 않습니다. 모델 설정을 확인하세요.",
-                style="cyan"
-            )
-            console.print(
-                "[dim]  다른 모델을 시도하거나 config.llm.model을 확인하세요.",
-                style="dim"
-            )
-        elif isinstance(exc, (ValueError, KeyError)):
-            console.print(
-                "[cyan]💡 해결 방법: 수집된 데이터 형식에 문제가 있습니다.",
-                style="cyan"
-            )
-            console.print(
-                "[dim]  --debug 플래그로 상세 로그를 확인하거나 이슈를 제출해주세요.",
-                style="dim"
-            )
-
-        console.print("[cyan]Continuing with standard analysis...", style="cyan")
-        return None
-    except KeyboardInterrupt:
-        console.print("\n[warning]Analysis interrupted by user", style="warning")
-        raise
-
-
-def _prepare_metrics_payload(metrics: MetricSnapshot) -> dict:
-    """Prepare metrics data for serialization."""
-    metrics_payload = {
-        "repo": metrics.repo,
-        "months": metrics.months,
-        "generated_at": metrics.generated_at.isoformat(),
-        "status": metrics.status.value,
-        "summary": metrics.summary,
-        "stats": metrics.stats,
-        "evidence": metrics.evidence,
-        "highlights": metrics.highlights,
-        "spotlight_examples": metrics.spotlight_examples,
-        "yearbook_story": metrics.yearbook_story,
-        "awards": metrics.awards,
-    }
-
-    # Add date range if available
-    if metrics.since_date:
-        metrics_payload["since_date"] = metrics.since_date.isoformat()
-    if metrics.until_date:
-        metrics_payload["until_date"] = metrics.until_date.isoformat()
-
-    # Add detailed feedback
-    if metrics.detailed_feedback:
-        metrics_payload["detailed_feedback"] = metrics.detailed_feedback.to_dict()
-
-    # Add monthly trends
-    if metrics.monthly_trends:
-        metrics_payload["monthly_trends"] = [trend.to_dict() for trend in metrics.monthly_trends]
-
-    # Add monthly insights
-    if metrics.monthly_insights:
-        metrics_payload["monthly_insights"] = metrics.monthly_insights.to_dict()
-
-    # Add tech stack analysis
-    if metrics.tech_stack:
-        metrics_payload["tech_stack"] = metrics.tech_stack.to_dict()
-
-    # Add collaboration network
-    if metrics.collaboration:
-        metrics_payload["collaboration"] = metrics.collaboration.to_dict()
-
-    # Add year-end review
-    if metrics.year_end_review:
-        metrics_payload["year_end_review"] = metrics.year_end_review.to_dict()
-
-    return metrics_payload
 
 
 def _generate_artifacts(
@@ -1115,7 +262,7 @@ def _generate_artifacts(
     artifacts = []
 
     # Save metrics
-    metrics_path = persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
+    metrics_path = cli_metrics.persist_metrics(output_dir=output_dir, metrics_data=metrics_payload)
     artifacts.append(("Metrics snapshot", metrics_path))
 
     # Generate markdown report content in memory (no _internal folder needed)
@@ -1128,88 +275,6 @@ def _generate_artifacts(
         artifacts.append(("Markdown report", markdown_path))
 
     return artifacts, brief_content
-
-
-def _check_repository_activity(
-    collection: CollectionResult, repo_input: str, months: int
-) -> None:
-    """Check if repository has any activity and exit if not.
-
-    Args:
-        collection: Collection result to check
-        repo_input: Repository name
-        months: Number of months analyzed
-
-    Raises:
-        typer.Exit: If no activity is found
-    """
-    if not collection.has_activity():
-        console.print("[warning]No activity found in the repository for the specified period.[/]")
-        console.print(f"[info]Repository:[/] {repo_input}")
-        console.print(f"[info]Period:[/] Last {months} months")
-        console.print("[info]Suggestions:[/]")
-        console.print("  • Try increasing the analysis period: [accent]gfa init --months 24[/]")
-        console.print("  • Verify the repository has commits, PRs, or issues")
-        console.print("  • Check if your PAT has access to this repository")
-        raise typer.Exit(code=1)
-
-
-def _collect_yearend_data(
-    collector: Collector,
-    repo_input: str,
-    since: datetime,
-    filters: AnalysisFilters,
-    author: Optional[str] = None,
-) -> tuple[Optional[Any], Optional[Any], Optional[Any]]:
-    """Collect year-end review data in parallel.
-
-    Args:
-        collector: Data collector instance
-        repo_input: Repository name
-        since: Start date for data collection
-        filters: Analysis filters
-        author: Optional GitHub username to filter by author
-
-    Returns:
-        Tuple of (monthly_trends_data, tech_stack_data, collaboration_data)
-    """
-    console.print("[accent]Collecting year-end review data in parallel...", style="accent")
-
-    # Get PR metadata once for reuse
-    _, pr_metadata = collector.list_pull_requests(repo_input, since, filters, author)
-
-    yearend_tasks = {
-        "monthly_trends": (
-            collector.collect_monthly_trends,
-            (repo_input, since, filters),
-            "monthly trends"
-        ),
-        "tech_stack": (
-            collector.collect_tech_stack,
-            (repo_input, pr_metadata),
-            "tech stack"
-        ),
-        "collaboration": (
-            collector.collect_collaboration_network,
-            (repo_input, pr_metadata, filters),
-            "collaboration network"
-        ),
-    }
-
-    # Use common parallel task runner
-    yearend_data = _run_parallel_tasks(
-        tasks=yearend_tasks,
-        max_workers=PARALLEL_CONFIG['max_workers_yearend'],
-        timeout=PARALLEL_CONFIG['yearend_timeout'],
-        task_type="collection"
-    )
-
-    # Convert empty lists to None for consistency with downstream code
-    return (
-        yearend_data.get("monthly_trends") or None,
-        yearend_data.get("tech_stack") or None,
-        yearend_data.get("collaboration") or None,
-    )
 
 
 def _run_feedback_analysis(
@@ -1283,7 +348,7 @@ def _run_feedback_analysis(
         for pr_number in pr_numbers
     }
 
-    review_results = _run_parallel_tasks(
+    review_results = cli_helpers.run_parallel_tasks(
         review_tasks,
         PARALLEL_CONFIG['max_workers_pr_review'],
         PARALLEL_CONFIG['pr_review_timeout'],
@@ -1301,7 +366,7 @@ def _run_feedback_analysis(
             console.print(f"[warning]⚠ PR #{pr_number} review failed or timed out[/]", style="warning")
 
     # Generate integrated report
-    output_dir_resolved = _resolve_output_dir(output_dir)
+    output_dir_resolved = cli_helpers.resolve_output_dir(output_dir)
     reviews_dir = output_dir_resolved / "reviews"
     review_reporter = ReviewReporter(
         output_dir=reviews_dir,
@@ -1732,102 +797,6 @@ def _generate_integrated_full_report(
     return integrated_report_path
 
 
-def _get_authenticated_user(collector: Collector) -> str:
-    """Authenticate and get the current GitHub user.
-
-    Args:
-        collector: Collector instance for authentication
-
-    Returns:
-        GitHub username of authenticated user
-
-    Raises:
-        typer.Exit: If authentication fails
-    """
-    console.print()
-    console.rule("Phase 0: Authentication")
-    with console.status("[accent]Retrieving authenticated user...", spinner="dots"):
-        try:
-            author = collector.get_authenticated_user()
-            console.print(f"[success]✓ Authenticated as: {author}[/]")
-            return author
-        except (ValueError, PermissionError) as exc:
-            console.print(f"[error]Failed to get authenticated user: {exc}[/]")
-            raise typer.Exit(code=1) from exc
-
-
-def _collect_personal_activity(
-    collector: Collector,
-    repo_input: str,
-    months: int,
-    filters: AnalysisFilters,
-    author: str,
-):
-    """Collect personal activity data for a repository.
-
-    Args:
-        collector: Collector instance
-        repo_input: Repository name
-        months: Number of months to collect
-        filters: Analysis filters
-        author: GitHub username
-
-    Returns:
-        Collection result
-
-    Raises:
-        typer.Exit: If no activity found
-    """
-    console.print()
-    console.rule("Phase 1: Personal Activity Collection")
-    console.print(f"[accent]Collecting personal activity for {author}...[/]")
-    with console.status("[accent]Collecting repository data...", spinner="bouncingBar"):
-        collection = collector.collect(repo=repo_input, months=months, filters=filters, author=author)
-
-    _check_repository_activity(collection, repo_input, months)
-    return collection
-
-
-def _compute_and_display_metrics(
-    analyzer: Analyzer,
-    collection,
-    detailed_feedback_snapshot: Optional[DetailedFeedbackSnapshot],
-    monthly_trends_data,
-    tech_stack_data,
-    collaboration_data,
-) -> MetricSnapshot:
-    """Compute metrics and display summary.
-
-    Args:
-        analyzer: Analyzer instance
-        collection: Collection result
-        detailed_feedback_snapshot: Detailed feedback data
-        monthly_trends_data: Monthly trends data
-        tech_stack_data: Tech stack data
-        collaboration_data: Collaboration data
-
-    Returns:
-        Computed metrics snapshot
-    """
-    console.print()
-    console.rule("Phase 3: Metrics Computation")
-    with console.status("[accent]Synthesizing insights...", spinner="dots"):
-        metrics = analyzer.compute_metrics(
-            collection,
-            detailed_feedback=detailed_feedback_snapshot,
-            monthly_trends_data=monthly_trends_data,
-            tech_stack_data=tech_stack_data,
-            collaboration_data=collaboration_data,
-        )
-    console.print("[success]✓ Metrics computed successfully[/]")
-
-    console.print()
-    console.rule("Analysis Summary")
-    _render_metrics(metrics)
-
-    return metrics
-
-
 def _generate_reports_and_artifacts(
     metrics: MetricSnapshot,
     reporter: Reporter,
@@ -1845,7 +814,7 @@ def _generate_reports_and_artifacts(
     """
     console.print()
     console.rule("Phase 4: Report Generation")
-    metrics_payload = _prepare_metrics_payload(metrics)
+    metrics_payload = cli_metrics.prepare_metrics_payload(metrics)
     artifacts, brief_content = _generate_artifacts(
         metrics, reporter, output_dir_resolved, metrics_payload, save_intermediate_report=True
     )
@@ -1955,7 +924,7 @@ def _run_year_in_review_analysis(
         raise typer.Exit(code=1) from exc
 
     # Get authenticated user
-    author = _get_authenticated_user(collector)
+    author = cli_repository.get_authenticated_user(collector)
 
     # Discover repositories
     console.print()
@@ -1988,7 +957,7 @@ def _run_year_in_review_analysis(
     console.rule("Phase 2: Repository Analysis")
     console.print(f"[accent]Analyzing {len(repositories)} repositories in parallel...[/]")
 
-    output_dir_resolved = _resolve_output_dir(output_dir)
+    output_dir_resolved = cli_helpers.resolve_output_dir(output_dir)
 
     # Create analysis tasks
     analysis_tasks = {}
@@ -2005,7 +974,7 @@ def _run_year_in_review_analysis(
         )
 
     # Run analyses in parallel
-    analysis_results = _run_parallel_tasks(
+    analysis_results = cli_helpers.run_parallel_tasks(
         analysis_tasks,
         max_workers=3,  # Limit concurrency to avoid rate limits
         timeout=600,  # 10 minutes per repository
@@ -2171,7 +1140,7 @@ def _analyze_single_repository_for_year_review(
         # Collect detailed feedback for communication skills analysis
         console.print(f"[dim]📊 Collecting detailed feedback for {repo_name}...[/]")
         analyzer = Analyzer(web_base_url=config.server.web_url)
-        detailed_feedback_snapshot = _collect_detailed_feedback(
+        detailed_feedback_snapshot = cli_data_collection.collect_detailed_feedback(
             collector=collector,
             analyzer=analyzer,
             config=config,
@@ -2485,7 +1454,7 @@ def feedback(
     from datetime import datetime, timedelta, timezone
 
     # Initialize configuration and components
-    config = _load_config()
+    config = cli_helpers.load_config()
 
     # Handle year-in-review mode
     if year_in_review:
@@ -2511,7 +1480,7 @@ def feedback(
 
     # Select repository
     if interactive or repo is None:
-        repo_input = _select_repository_interactive(collector)
+        repo_input = cli_repository.select_repository_interactive(collector)
         if not repo_input:
             console.print("[warning]No repository selected.[/]")
             raise typer.Exit(code=0)
@@ -2528,7 +1497,7 @@ def feedback(
 
     # Initialize analyzer and reporter
     analyzer = Analyzer(web_base_url=config.server.web_url)
-    output_dir_resolved = _resolve_output_dir(output_dir)
+    output_dir_resolved = cli_helpers.resolve_output_dir(output_dir)
 
     # Create LLM client for reporter (used for generating summary quotes)
     from .llm import LLMClient
@@ -2541,27 +1510,27 @@ def feedback(
     reporter = Reporter(output_dir=output_dir_resolved, llm_client=llm_client, web_url=config.server.web_url)
 
     # Execute analysis workflow
-    author = _get_authenticated_user(collector)
-    collection = _collect_personal_activity(collector, repo_input, months, filters, author)
+    author = cli_repository.get_authenticated_user(collector)
+    collection = cli_data_collection.collect_personal_activity(collector, repo_input, months, filters, author)
 
     # Collect detailed feedback
     console.print()
     console.rule("Phase 2: Detailed Feedback Analysis")
     from github_feedback.constants import DAYS_PER_MONTH_APPROX
     since = datetime.now(timezone.utc) - timedelta(days=DAYS_PER_MONTH_APPROX * max(months, 1))
-    detailed_feedback_snapshot = _collect_detailed_feedback(
+    detailed_feedback_snapshot = cli_data_collection.collect_detailed_feedback(
         collector, analyzer, config, repo_input, since, filters, author
     )
 
     # Collect year-end data
     console.print()
     console.rule("Phase 2.5: Year-End Review Data")
-    monthly_trends_data, tech_stack_data, collaboration_data = _collect_yearend_data(
+    monthly_trends_data, tech_stack_data, collaboration_data = cli_data_collection.collect_yearend_data(
         collector, repo_input, since, filters, author
     )
 
     # Compute metrics and display
-    metrics = _compute_and_display_metrics(
+    metrics = cli_metrics.compute_and_display_metrics(
         analyzer, collection, detailed_feedback_snapshot,
         monthly_trends_data, tech_stack_data, collaboration_data
     )
@@ -2579,70 +1548,6 @@ def feedback(
 
     # Display summary
     _display_final_summary(author, repo_input, pr_results, integrated_report_path, artifacts)
-
-
-def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metrics.json") -> Path:
-    """Persist raw metrics to disk for later reporting.
-
-    Args:
-        output_dir: Directory to save metrics
-        metrics_data: Metrics data to serialize
-        filename: Output filename
-
-    Returns:
-        Path to saved metrics file
-
-    Raises:
-        RuntimeError: If file operations fail
-    """
-    import json
-
-    output_dir = output_dir.expanduser()
-
-    # Create directory with error handling
-    from .utils import FileSystemManager
-
-    try:
-        FileSystemManager.ensure_directory(output_dir)
-    except PermissionError as exc:
-        raise RuntimeError(
-            f"Permission denied creating directory {output_dir}: {exc}"
-        ) from exc
-    except OSError as exc:
-        raise RuntimeError(
-            f"Failed to create directory {output_dir}: {exc}"
-        ) from exc
-
-    metrics_path = output_dir / filename
-
-    # Validate path before writing
-    if metrics_path.exists() and not metrics_path.is_file():
-        raise RuntimeError(
-            f"Cannot write to {metrics_path}: path exists but is not a file"
-        )
-
-    # Write metrics with error handling
-    try:
-        with metrics_path.open("w", encoding="utf-8") as handle:
-            json.dump(metrics_data, handle, indent=2)
-    except PermissionError as exc:
-        raise RuntimeError(
-            f"Permission denied writing to {metrics_path}: {exc}"
-        ) from exc
-    except OSError as exc:
-        if exc.errno == 28:  # ENOSPC - No space left on device
-            raise RuntimeError(
-                f"No space left on device while writing to {metrics_path}"
-            ) from exc
-        raise RuntimeError(
-            f"Failed to write metrics to {metrics_path}: {exc}"
-        ) from exc
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(
-            f"Failed to serialize metrics data: {exc}"
-        ) from exc
-
-    return metrics_path
 
 
 @app.callback()
@@ -2697,7 +1602,7 @@ def show_config() -> None:
 def _print_config_summary() -> None:
     """Render the current configuration in either table or plain format."""
 
-    config = _load_config()
+    config = cli_helpers.load_config()
     data = config.to_display_dict()
 
     if Table is None:
@@ -2885,7 +1790,7 @@ def list_repos(
         gfa list-repos --sort stars --limit 10
         gfa list-repos --org myorganization
     """
-    config = _load_config()
+    config = cli_helpers.load_config()
 
     try:
         collector = Collector(config)
@@ -2950,7 +1855,7 @@ def suggest_repos(
         gfa suggest-repos --limit 5 --days 30
         gfa suggest-repos --sort stars
     """
-    config = _load_config()
+    config = cli_helpers.load_config()
 
     try:
         collector = Collector(config)
