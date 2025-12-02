@@ -191,7 +191,8 @@ def validate_pat_format(pat: str) -> None:
         raise ValueError("PAT appears to be a placeholder, not a real token")
 
     # Basic format check
-    if not re.match(r'^[a-zA-Z0-9_]+$', pat):
+    from .constants import REGEX_PATTERNS
+    if not REGEX_PATTERNS['pat_format'].match(pat):
         raise ValueError("PAT contains invalid characters")
 
 

@@ -686,6 +686,142 @@ STAT_WEIGHTS_GROWTH = {
 }
 
 # =============================================================================
+# Quality Ratio Thresholds
+# =============================================================================
+
+# Quality assessment thresholds used across the codebase
+QUALITY_THRESHOLDS = {
+    'excellent': 0.8,  # >= 80% quality is excellent
+    'good': 0.7,  # >= 70% quality is good
+    'acceptable': 0.6,  # >= 60% quality is acceptable
+    'needs_improvement': 0.4,  # < 40% quality needs improvement
+    'poor': 0.3,  # < 30% quality is poor
+}
+
+# Validation and evidence thresholds
+VALIDATION_THRESHOLDS = {
+    'strong': 0.7,  # >= 70% validation score is strong
+    'acceptable': 0.6,  # >= 60% validation score is acceptable
+    'weak': 0.4,  # < 40% validation score is weak
+    'poor': 0.3,  # < 30% validation score is poor
+    'min_evidence_count': 2,  # Minimum evidence/suggestions count
+    'min_substantial_length': 20,  # Minimum length for substantial suggestions
+    'max_hybrid_suggestions': 5,  # Maximum suggestions in hybrid analysis
+}
+
+# =============================================================================
+# Collaboration & Review Thresholds
+# =============================================================================
+
+# Collaboration level thresholds
+COLLABORATION_LEVEL_THRESHOLDS = {
+    'high_engagement': 50,  # > 50 reviews is high engagement
+    'moderate_engagement': 20,  # > 20 reviews is moderate engagement
+    'high_collaborators': 10,  # > 10 unique collaborators is high
+    'moderate_collaborators': 5,  # > 5 unique collaborators is moderate
+    'core_collaborator_reviews': 10,  # > 10 reviews makes someone a core collaborator
+}
+
+# Review quality and ratio thresholds
+REVIEW_QUALITY_THRESHOLDS = {
+    'constructive_ratio': 0.8,  # >= 80% constructive reviews is excellent
+    'merge_rate_excellent': 0.9,  # >= 90% merge rate is excellent
+    'merge_rate_good': 0.8,  # >= 80% merge rate is good
+    'optimal_review_to_pr_ratio': 3.0,  # 3:1 review to PR ratio
+    'min_review_to_pr_ratio': 0.5,  # Minimum 50% reviews compared to PRs
+}
+
+# =============================================================================
+# Activity Consistency Thresholds
+# =============================================================================
+
+# Consistency and variance thresholds
+CONSISTENCY_VARIANCE_THRESHOLDS = {
+    'very_consistent': 0.3,  # < 0.3 normalized variance is very consistent
+    'inconsistent': 0.5,  # > 0.5 normalized variance is inconsistent
+    'burnout_indicators_warning': 2,  # >= 2 burnout indicators is a warning
+    'burnout_indicators_risk': 1,  # 1 burnout indicator is at risk
+}
+
+# =============================================================================
+# Tech Stack & Expertise Thresholds
+# =============================================================================
+
+# Tech stack diversity and expertise thresholds
+TECH_STACK_THRESHOLDS = {
+    'high_diversity': 0.6,  # > 0.6 diversity score is high
+    'expert_ratio': 0.7,  # > 70% usage of primary language is expert
+    'proficient_ratio': 0.5,  # > 50% usage of primary language is proficient
+}
+
+# =============================================================================
+# Time & Duration Constants
+# =============================================================================
+
+# Time-related constants (in seconds)
+TIME_CONSTANTS = {
+    'hour_in_seconds': 3600,  # 1 hour = 3600 seconds
+    'quick_merge_threshold': 3600,  # PRs merged within 1 hour are "quick merges"
+}
+
+# =============================================================================
+# Display & Formatting Constants
+# =============================================================================
+
+# Text truncation and display limits
+TEXT_DISPLAY_LIMITS = {
+    'comment_preview_length': 150,  # Truncate comments to 150 chars for preview
+    'improved_version_length': 200,  # Truncate improved versions to 200 chars
+    'title_min_meaningful_length': 10,  # Minimum length for a meaningful title
+}
+
+# Progress reporting intervals
+PROGRESS_REPORTING = {
+    'pr_progress_interval': 10,  # Report progress every 10 PRs
+    'commit_progress_interval': 20,  # Report progress every 20 commits
+}
+
+# =============================================================================
+# Statistical & Mathematical Constants
+# =============================================================================
+
+# Statistical calculation constants
+STATISTICAL_CONSTANTS = {
+    'min_months_for_comparison': 2,  # Need at least 2 months for comparison
+    'min_months_for_trend': 3,  # Need at least 3 months for trend analysis
+    'zero_division_fallback': 0,  # Fallback value when dividing by zero
+}
+
+# =============================================================================
+# Award Specific Thresholds
+# =============================================================================
+
+# Additional award thresholds not covered in AWARD_*_THRESHOLDS
+AWARD_ACHIEVEMENT_THRESHOLDS = {
+    'huge_pr_size': 1000,  # > 1000 lines changed is a huge PR
+    'huge_pr_count': 3,  # >= 3 huge PRs triggers Big Bang award
+    'quick_merge_count': 5,  # >= 5 quick merges triggers Speed Demon award
+    'min_prs_for_merge_rate': 20,  # Need at least 20 PRs to calculate merge rate
+    'doc_pr_count': 5,  # >= 5 documentation PRs triggers Documentarian award
+    'test_pr_count': 5,  # >= 5 test PRs triggers Test Champion award
+    'refactor_pr_count': 5,  # >= 5 refactor PRs triggers Refactoring Master award
+    'bug_pr_count': 10,  # >= 10 bug fix PRs triggers Bug Squasher award
+    'feature_pr_count': 10,  # >= 10 feature PRs triggers Feature Builder award
+}
+
+# =============================================================================
+# HTTP Status Codes
+# =============================================================================
+
+# Additional HTTP status codes
+HTTP_STATUS_CODES = {
+    'no_content': 204,  # No content response
+    'not_modified': 304,  # Not modified (cache hit)
+    'server_error_min': 500,  # Minimum server error code
+    'no_space_errno': 28,  # ENOSPC - No space left on device (errno)
+}
+
+# =============================================================================
 # Regex Patterns (Compiled)
 # =============================================================================
 
@@ -693,7 +829,40 @@ import re
 
 # Compiled regex patterns for performance
 REGEX_PATTERNS = {
+    # Text formatting patterns
     'emoji_prefix': re.compile(r'^[\U0001F300-\U0001F9FF\s]+'),  # Remove leading emojis
     'special_chars_suffix': re.compile(r'[.,!?\s]+$'),  # Remove trailing punctuation
     'whitespace_normalize': re.compile(r'\s+'),  # Normalize whitespace
+    'pr_number': re.compile(r'PR #(\d+)'),  # Extract PR number from text
+
+    # Commit message patterns
+    'conventional_commit': re.compile(r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)', re.IGNORECASE),
+    'imperative_commit': re.compile(r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize)'),
+
+    # Issue patterns
+    'bug_keywords': re.compile(r'\b(bug|error|crash|fail|broken|issue)\b', re.IGNORECASE),
+    'feature_keywords': re.compile(r'\b(feature|enhancement|improve|add|request)\b', re.IGNORECASE),
+    'question_keywords': re.compile(r'\b(question|how|why|documentation|docs)\b', re.IGNORECASE),
+
+    # Review patterns - constructive
+    'suggestion_markers': re.compile(r'어떨까요|고려해|제안|추천', re.IGNORECASE),
+    'example_markers': re.compile(r'예시|예를 들어|이렇게|다음과 같이', re.IGNORECASE),
+    'positive_emojis': re.compile(r'👍|✅|💯|🎉|😊|👏'),
+    'positive_words': re.compile(r'좋|훌륭|멋|잘|감사|고마|수고', re.IGNORECASE),
+
+    # Review patterns - harsh
+    'harsh_words': re.compile(r'잘못|틀렸|오류', re.IGNORECASE),
+    'demanding_words': re.compile(r'다시|반드시|꼭|절대|필수', re.IGNORECASE),
+
+    # Issue patterns - references
+    'issue_reference': re.compile(r'(#\d+|http|related|참고)', re.IGNORECASE),
+    'pr_reference': re.compile(r'PR\s*#\d+', re.IGNORECASE),
+
+    # Markdown patterns
+    'markdown_table_row': re.compile(r'\|\s*[^|]+\s*\|\s*([^|]+)\s*\|'),
+    'quoted_text': re.compile(r'[\'"].*?[\'"]|「.*?」'),
+    'sentence_boundary': re.compile(r'[.!?。]\s+'),
+
+    # Validation patterns (from utils.py)
+    'pat_format': re.compile(r'^[a-zA-Z0-9_]+$'),
 }

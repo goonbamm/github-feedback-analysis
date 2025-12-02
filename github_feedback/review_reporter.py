@@ -38,8 +38,10 @@ from .prompts import (
     get_team_report_user_prompt,
 )
 from .utils import pad_to_width
+from .constants import REGEX_PATTERNS
 
-PR_NUMBER_PATTERN = re.compile(r"PR #(\d+)")
+# Legacy alias for backward compatibility
+PR_NUMBER_PATTERN = REGEX_PATTERNS['pr_number']
 
 console = Console()
 
