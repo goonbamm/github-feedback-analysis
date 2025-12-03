@@ -208,6 +208,10 @@ def prepare_metrics_payload(metrics: MetricSnapshot) -> dict:
     if metrics.year_end_review:
         metrics_payload["year_end_review"] = metrics.year_end_review.to_dict()
 
+    # Add witch critique
+    if metrics.witch_critique:
+        metrics_payload["witch_critique"] = metrics.witch_critique.to_dict()
+
     return metrics_payload
 
 
