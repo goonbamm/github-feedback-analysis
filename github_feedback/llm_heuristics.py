@@ -707,8 +707,8 @@ class IssueQualityAnalyzer:
         )
 
         return {
-            "well_described": well_described,
-            "poorly_described": poorly_described,
+            "well_described_count": well_described,
+            "poorly_described_count": poorly_described,
             "suggestions": [
                 "이슈 본문에 상세한 설명을 포함하세요 (최소 100자 이상).",
                 "Bug Report: 재현 단계, 예상 결과, 실제 결과, 환경 정보를 포함하세요.",
