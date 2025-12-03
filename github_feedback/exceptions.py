@@ -138,7 +138,48 @@ class LLMValidationError(LLMAnalysisError):
 
 class LLMRateLimitError(LLMAnalysisError):
     """Raised when LLM rate limit is exceeded."""
-    pass
+
+    def __init__(self, message: str, retry_after: int | None = None):
+        """Initialize LLM rate limit error.
+
+        Args:
+            message: Error message
+            retry_after: Seconds to wait before retrying (if available)
+        """
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class LLMAPIError(LLMAnalysisError):
+    """Raised when LLM API call fails with specific status code."""
+
+    def __init__(self, message: str, status_code: int | None = None, raw_response: str | None = None):
+        """Initialize LLM API error.
+
+        Args:
+            message: Error message
+            status_code: HTTP status code
+            raw_response: Raw response from API (if available)
+        """
+        super().__init__(message)
+        self.status_code = status_code
+        self.raw_response = raw_response
+
+
+class LLMResponseParseError(LLMAnalysisError):
+    """Raised when unable to parse LLM response (JSON parsing, format issues)."""
+
+    def __init__(self, message: str, raw_response: str | None = None, expected_format: str | None = None):
+        """Initialize LLM response parse error.
+
+        Args:
+            message: Error message
+            raw_response: Raw response that failed to parse
+            expected_format: Description of expected format
+        """
+        super().__init__(message)
+        self.raw_response = raw_response
+        self.expected_format = expected_format
 
 
 
@@ -151,6 +192,48 @@ class LLMRateLimitError(LLMAnalysisError):
 class ReportGenerationError(GHFError):
     """Base exception for report generation errors."""
     pass
+
+
+class ReportWriteError(ReportGenerationError):
+    """Raised when unable to write report to file."""
+
+    def __init__(self, message: str, file_path: str | None = None):
+        """Initialize report write error.
+
+        Args:
+            message: Error message
+            file_path: Path where write failed
+        """
+        super().__init__(message)
+        self.file_path = file_path
+
+
+class TemplateRenderError(ReportGenerationError):
+    """Raised when template rendering fails."""
+
+    def __init__(self, message: str, template_name: str | None = None):
+        """Initialize template render error.
+
+        Args:
+            message: Error message
+            template_name: Name of template that failed to render
+        """
+        super().__init__(message)
+        self.template_name = template_name
+
+
+class SectionBuildError(ReportGenerationError):
+    """Raised when building a report section fails."""
+
+    def __init__(self, message: str, section_name: str | None = None):
+        """Initialize section build error.
+
+        Args:
+            message: Error message
+            section_name: Name of section that failed to build
+        """
+        super().__init__(message)
+        self.section_name = section_name
 
 
 

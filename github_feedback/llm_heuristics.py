@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from .constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS
+from .constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS, REGEX_PATTERNS
 
 
 class HeuristicAnalyzer:
@@ -244,9 +244,9 @@ class CommitMessageAnalyzer:
             first_line, _ = metadata
             reasons = []
             reasons.append(f"적절한 길이({len(first_line)}자)로 가독성이 좋습니다.")
-            if re.match(r'^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)', first_line, re.IGNORECASE):
+            if REGEX_PATTERNS['conventional_commit'].match(first_line):
                 reasons.append("Conventional Commits 형식을 따라 타입이 명확합니다.")
-            if re.match(r'^(Add|Fix|Update|Refactor|Remove|Implement|Improve|Optimize)', first_line):
+            if REGEX_PATTERNS['imperative_commit'].match(first_line):
                 reasons.append("명령형 동사로 시작하여 일관된 스타일을 유지합니다.")
             if '#' in first_line or 'issue' in first_line.lower() or 'pr' in first_line.lower():
                 reasons.append("Issue/PR 참조를 포함하여 맥락을 제공합니다.")
@@ -494,27 +494,27 @@ class ReviewToneAnalyzer:
             constructive_matches = sum(1 for p in constructive_patterns if re.search(p, body, re.IGNORECASE))
             if constructive_matches > 0:
                 score += constructive_matches
-                if re.search(r'어떨까요|고려해|제안|추천', body, re.IGNORECASE):
+                if REGEX_PATTERNS['suggestion_markers'].search(body):
                     strengths.append("제안형 표현을 사용하여 존중하는 톤을 유지합니다")
-                if re.search(r'예시|예를 들어|이렇게|다음과 같이', body, re.IGNORECASE):
+                if REGEX_PATTERNS['example_markers'].search(body):
                     strengths.append("구체적인 예시를 제공하여 이해를 돕습니다")
-                if re.search(r'👍|✅|💯|🎉|😊|👏', body):
+                if REGEX_PATTERNS['positive_emojis'].search(body):
                     strengths.append("이모지를 활용하여 긍정적인 분위기를 조성합니다")
 
             # Check for harsh patterns
             harsh_matches = sum(1 for p in harsh_patterns if re.search(p, body, re.IGNORECASE))
             if harsh_matches > 0:
                 score -= harsh_matches * 2
-                if re.search(r'잘못|틀렸|오류', body, re.IGNORECASE):
+                if REGEX_PATTERNS['harsh_words'].search(body):
                     issues.append("부정적인 직접 지적으로 상대방의 감정을 상하게 할 수 있습니다")
-                if re.search(r'다시|반드시|꼭|절대|필수', body, re.IGNORECASE):
+                if REGEX_PATTERNS['demanding_words'].search(body):
                     issues.append("명령형 표현으로 강압적으로 느껴질 수 있습니다")
 
             # Check for positive indicators
             positive_matches = sum(1 for p in positive_indicators if re.search(p, body, re.IGNORECASE))
             if positive_matches > 0:
                 score += positive_matches
-                if re.search(r'좋|훌륭|멋|잘|감사|고마|수고', body, re.IGNORECASE):
+                if REGEX_PATTERNS['positive_words'].search(body):
                     strengths.append("긍정적인 피드백을 포함하여 동기를 부여합니다")
 
             # Classify based on score
@@ -533,9 +533,9 @@ class ReviewToneAnalyzer:
                 if len(examples_improve) < 3:
                     # Create improved version
                     improved = body
-                    improved = re.sub(r'잘못', '개선이 필요한 부분', improved, flags=re.IGNORECASE)
-                    improved = re.sub(r'다시\s+(\w+)', r'\1하면 어떨까요', improved)
-                    improved = re.sub(r'반드시|꼭', '~하면 좋을 것 같습니다', improved)
+                    improved = REGEX_PATTERNS['harsh_words'].sub('개선이 필요한 부분', improved)
+                    improved = re.sub(r'다시\s+(\w+)', r'\1하면 어떨까요', improved)  # Complex pattern, keep inline
+                    improved = REGEX_PATTERNS['demanding_words'].sub('~하면 좋을 것 같습니다', improved)
 
                     examples_improve.append({
                         "pr_number": review.get("pr_number", ""),
@@ -554,7 +554,7 @@ class ReviewToneAnalyzer:
             suggestions.append("명령형 표현 대신 제안형 표현을 사용하세요 (예: '~하세요' → '~하면 어떨까요?')")
         if constructive_count < len(reviews) * 0.5:
             suggestions.append("구체적인 개선 방안과 예시를 함께 제공하세요")
-        if len([r for r in reviews if re.search(r'👍|✅|💯|🎉|😊|👏', r.get("body", ""))]) < len(reviews) * 0.3:
+        if len([r for r in reviews if REGEX_PATTERNS['positive_emojis'].search(r.get("body", ""))]) < len(reviews) * 0.3:
             suggestions.append("긍정적인 피드백과 함께 이모지를 활용하여 친근한 분위기를 만드세요")
 
         # Default suggestions if none generated
@@ -630,7 +630,7 @@ class IssueQualityAnalyzer:
             strengths.append("코드 예시 포함")
 
         # Check for links/references
-        if re.search(r'(#\\d+|http|related|참고)', body, re.IGNORECASE):
+        if REGEX_PATTERNS['issue_reference'].search(body):
             score += 1
 
         return score, strengths, missing
@@ -648,11 +648,11 @@ class IssueQualityAnalyzer:
         """
         text = (title + " " + body).lower()
 
-        if re.search(r'\b(bug|error|crash|fail|broken|issue)\b', text):
+        if REGEX_PATTERNS['bug_keywords'].search(text):
             return "bug"
-        elif re.search(r'\b(feature|enhancement|improve|add|request)\b', text):
+        elif REGEX_PATTERNS['feature_keywords'].search(text):
             return "feature"
-        elif re.search(r'\b(question|how|why|documentation|docs)\b', text):
+        elif REGEX_PATTERNS['question_keywords'].search(text):
             return "question"
         else:
             return "other"

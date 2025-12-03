@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .constants import VALIDATION_THRESHOLDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,7 @@ class HybridAnalyzer:
         # If LLM evidence is weak, supplement with heuristic evidence
         evidence = enhanced.get("evidence", [])
 
-        if len(evidence) < 2:  # Weak evidence
+        if len(evidence) < VALIDATION_THRESHOLDS['min_evidence_count']:  # Weak evidence
             # Add heuristic examples as evidence
             if "examples_good" in heuristic_data:
                 for example in heuristic_data["examples_good"][:2]:
@@ -62,7 +64,7 @@ class HybridAnalyzer:
         # If LLM suggestions are generic, supplement with heuristic suggestions
         suggestions = enhanced.get("suggestions", [])
 
-        if len(suggestions) < 2:  # Weak suggestions
+        if len(suggestions) < VALIDATION_THRESHOLDS['min_evidence_count']:  # Weak suggestions
             # Add heuristic suggestions
             if "suggestions" in heuristic_data:
                 for sugg in heuristic_data["suggestions"][:3]:
@@ -89,12 +91,12 @@ class HybridAnalyzer:
         Returns:
             Hybrid analysis result
         """
-        if llm_result is None or validation_score < 0.3:
+        if llm_result is None or validation_score < VALIDATION_THRESHOLDS['poor']:
             # LLM failed or very low quality, use pure heuristic
             logger.info("Using pure heuristic analysis (LLM unavailable or low quality)")
             return fallback_result
 
-        if validation_score < 0.6:
+        if validation_score < VALIDATION_THRESHOLDS['acceptable']:
             # LLM quality is low, create hybrid
             logger.info("Creating hybrid analysis (LLM quality below threshold)")
 
@@ -112,21 +114,21 @@ class HybridAnalyzer:
 
             # Add LLM suggestions
             for sugg in llm_suggestions:
-                if len(sugg) > 20:  # Only add substantial suggestions
+                if len(sugg) > VALIDATION_THRESHOLDS['min_substantial_length']:  # Only add substantial suggestions
                     hybrid["suggestions"].append(sugg)
 
             # Fill remaining slots with heuristic suggestions
             for sugg in heuristic_suggestions:
-                if sugg not in hybrid["suggestions"] and len(hybrid["suggestions"]) < 5:
+                if sugg not in hybrid["suggestions"] and len(hybrid["suggestions"]) < VALIDATION_THRESHOLDS['max_hybrid_suggestions']:
                     hybrid["suggestions"].append(sugg)
 
             # If LLM examples are weak, supplement with heuristic
-            if len(hybrid["examples_good"]) < 2:
+            if len(hybrid["examples_good"]) < VALIDATION_THRESHOLDS['min_evidence_count']:
                 for ex in fallback_result.get("examples_good", [])[:3]:
                     if ex not in hybrid["examples_good"]:
                         hybrid["examples_good"].append(ex)
 
-            if len(hybrid["examples_poor"]) < 2:
+            if len(hybrid["examples_poor"]) < VALIDATION_THRESHOLDS['min_evidence_count']:
                 for ex in fallback_result.get("examples_poor", [])[:3]:
                     if ex not in hybrid["examples_poor"]:
                         hybrid["examples_poor"].append(ex)
@@ -153,11 +155,11 @@ class HybridAnalyzer:
         Returns:
             Enhanced or hybrid result
         """
-        if validation_result.score >= 0.7:
+        if validation_result.score >= VALIDATION_THRESHOLDS['strong']:
             # High quality, return as is
             return llm_result
 
-        if validation_result.score < 0.4:
+        if validation_result.score < VALIDATION_THRESHOLDS['weak']:
             # Very low quality, log warning
             logger.warning(
                 f"Personal development analysis quality very low ({validation_result.score:.2f}). "
@@ -170,7 +172,7 @@ class HybridAnalyzer:
         # Ensure minimum suggestions in improvement areas
         for area in enhanced.get("improvement_areas", []):
             suggestions = area.get("suggestions", [])
-            if len(suggestions) < 2:
+            if len(suggestions) < VALIDATION_THRESHOLDS['min_evidence_count']:
                 # Add generic but actionable suggestion
                 category = area.get("category", "")
                 if "PR 제목" in category or "title" in category.lower():

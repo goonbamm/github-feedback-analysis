@@ -13,7 +13,7 @@ import requests_cache
 
 from .config import Config
 from .console import Console
-from .constants import HTTP_STATUS, RETRY_CONFIG
+from .constants import HTTP_STATUS, HTTP_STATUS_CODES, RETRY_CONFIG
 from .exceptions import ApiError, AuthenticationError, ConfigurationError
 
 logger = logging.getLogger(__name__)
@@ -282,12 +282,12 @@ class GitHubApiClient:
                                 logger.warning(f"Failed to clear cache: {cache_exc}")
 
                     # Provide user-friendly error message based on status code
-                    if response.status_code == 204:
+                    if response.status_code == HTTP_STATUS_CODES['no_content']:
                         raise ApiError(
                             f"GitHub API returned no content (204) for {path}. "
                             "This endpoint may not have any data available."
                         )
-                    elif response.status_code == 304:
+                    elif response.status_code == HTTP_STATUS_CODES['not_modified']:
                         raise ApiError(
                             f"GitHub API returned 304 Not Modified for {path} with empty content. "
                             "Try clearing the cache: rm -rf ~/.cache/github_feedback/"
