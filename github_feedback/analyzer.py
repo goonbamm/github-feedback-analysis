@@ -468,58 +468,142 @@ class Analyzer:
         """
         critiques: List[WitchCritiqueItem] = []
 
-        # Check commit message quality
-        if detailed_feedback and detailed_feedback.commit_feedback:
-            commit_fb = detailed_feedback.commit_feedback
-            if commit_fb.total_commits > 0:
-                poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
-                if poor_ratio > CRITIQUE_THRESHOLDS['poor_commit_ratio']:
-                    critiques.append(
-                        WitchCritiqueItem(
-                            category="커밋 메시지",
-                            severity="🔥 치명적",
-                            critique=f"커밋 메시지의 {poor_ratio*100:.0f}%가 형편없어. '수정', 'fix', 'update' 같은 게 전부야? 6개월 후 너 자신도 뭘 고쳤는지 모를 텐데.",
-                            evidence=f"{commit_fb.total_commits}개 커밋 중 {commit_fb.poor_messages}개가 불량",
-                            consequence="나중에 버그 찾느라 git log 보면서 시간 낭비할 거야. 팀원들도 네 변경사항 이해 못 해.",
-                            remedy="커밋 메시지에 '왜'를 담아. 'fix: 로그인 시 토큰 만료 체크 누락 수정' 이런 식으로."
-                        )
-                    )
+        # Check various aspects of development practices
+        self._check_commit_message_quality(detailed_feedback, critiques)
+        self._check_pr_size(collection, critiques)
+        self._check_pr_title_quality(detailed_feedback, critiques)
+        self._check_review_quality(collection, detailed_feedback, critiques)
+        self._check_activity_consistency(collection, critiques)
 
-        # Check PR size (if we have PR examples)
-        if collection.pull_request_examples:
-            large_prs = [pr for pr in collection.pull_request_examples
-                        if (pr.additions + pr.deletions) > CRITIQUE_THRESHOLDS['large_pr_lines']]
-            if len(large_prs) > len(collection.pull_request_examples) * CRITIQUE_THRESHOLDS['large_pr_ratio']:
-                avg_size = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples) / len(collection.pull_request_examples)
-                critiques.append(
-                    WitchCritiqueItem(
-                        category="PR 크기",
-                        severity="⚡ 심각",
-                        critique=f"PR 하나에 평균 {avg_size:.0f}줄? 리뷰어들 괴롭히는 게 취미야? 큰 PR은 안 읽힌다는 거 몰라?",
-                        evidence=f"{len(large_prs)}개 PR이 {CRITIQUE_THRESHOLDS['large_pr_lines']}줄 이상",
-                        consequence="리뷰 품질 떨어지고, 버그 놓치고, 머지 충돌 지옥에 빠질 거야.",
-                        remedy=f"PR은 {CRITIQUE_THRESHOLDS['recommended_pr_size']}줄 이하로. 큰 기능은 쪼개서 여러 PR로 나눠. Feature flag 써."
-                    )
+        # If no specific critiques, add fallback so witch always appears
+        if not critiques:
+            critiques.append(self._get_random_general_critique(collection))
+
+        # Create witch critique with opening and closing
+        import random
+        opening_curses = [
+            "🔮 자, 수정 구슬을 들여다보니... 흠, 개선할 게 좀 보이는군.",
+            "🔮 크리스탈 볼이 말하길... 너한테 할 말이 좀 있대.",
+            "🔮 예언의 수정 구슬에 미래가 보여. 이대로면 내년에도 똑같은 실수 반복할 텐데?",
+        ]
+
+        closing_prophecies = [
+            "💫 이 독설들을 무시하면 내년에도 똑같은 얘기 들을 거야. 하지만 하나씩만 고쳐도 훨씬 나아질 거라는 것도 보여. 선택은 네 몫이야.",
+            "💫 마녀의 조언은 여기까지. 듣든 말든 너 맘이지만, 1년 후 더 나은 개발자가 되고 싶다면... 뭐, 알아서 해.",
+            "💫 수정 구슬이 보여주는 미래: 이것들만 고치면 내년엔 꽤 괜찮은 개발자가 될 수 있어. 안 고치면? 그건 네가 더 잘 알겠지.",
+        ]
+
+        return WitchCritique(
+            opening_curse=random.choice(opening_curses),
+            critiques=critiques,
+            closing_prophecy=random.choice(closing_prophecies)
+        )
+
+    def _check_commit_message_quality(
+        self,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot],
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check commit message quality and add critique if poor.
+
+        Args:
+            detailed_feedback: Optional detailed feedback snapshot
+            critiques: List to append critique to if issues found
+        """
+        if not detailed_feedback or not detailed_feedback.commit_feedback:
+            return
+
+        commit_fb = detailed_feedback.commit_feedback
+        if commit_fb.total_commits == 0:
+            return
+
+        poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
+        if poor_ratio > CRITIQUE_THRESHOLDS['poor_commit_ratio']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="커밋 메시지",
+                    severity="🔥 치명적",
+                    critique=f"커밋 메시지의 {poor_ratio*100:.0f}%가 형편없어. '수정', 'fix', 'update' 같은 게 전부야? 6개월 후 너 자신도 뭘 고쳤는지 모를 텐데.",
+                    evidence=f"{commit_fb.total_commits}개 커밋 중 {commit_fb.poor_messages}개가 불량",
+                    consequence="나중에 버그 찾느라 git log 보면서 시간 낭비할 거야. 팀원들도 네 변경사항 이해 못 해.",
+                    remedy="커밋 메시지에 '왜'를 담아. 'fix: 로그인 시 토큰 만료 체크 누락 수정' 이런 식으로."
                 )
+            )
 
-        # Check PR title quality
-        if detailed_feedback and detailed_feedback.pr_title_feedback:
-            pr_fb = detailed_feedback.pr_title_feedback
-            if pr_fb.total_prs > 0:
-                vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
-                if vague_ratio > CRITIQUE_THRESHOLDS['vague_title_ratio']:
-                    critiques.append(
-                        WitchCritiqueItem(
-                            category="PR 제목",
-                            severity="💀 위험",
-                            critique=f"PR 제목 {vague_ratio*100:.0f}%가 뭔 말인지 모르겠어. '기능 추가', '버그 수정'? 어떤 기능? 어떤 버그?",
-                            evidence=f"{pr_fb.total_prs}개 PR 중 {pr_fb.vague_titles}개가 모호함",
-                            consequence="릴리스 노트 쓸 때 울고, 나중에 찾을 때 삽질하고.",
-                            remedy="'feat: 사용자 프로필에 아바타 업로드 기능 추가' 이런 식으로 구체적으로."
-                        )
-                    )
+    def _check_pr_size(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check PR size and add critique if too large.
 
-        # Check review quality/frequency
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples:
+            return
+
+        large_prs = [pr for pr in collection.pull_request_examples
+                    if (pr.additions + pr.deletions) > CRITIQUE_THRESHOLDS['large_pr_lines']]
+
+        if len(large_prs) > len(collection.pull_request_examples) * CRITIQUE_THRESHOLDS['large_pr_ratio']:
+            avg_size = sum(pr.additions + pr.deletions for pr in collection.pull_request_examples) / len(collection.pull_request_examples)
+            critiques.append(
+                WitchCritiqueItem(
+                    category="PR 크기",
+                    severity="⚡ 심각",
+                    critique=f"PR 하나에 평균 {avg_size:.0f}줄? 리뷰어들 괴롭히는 게 취미야? 큰 PR은 안 읽힌다는 거 몰라?",
+                    evidence=f"{len(large_prs)}개 PR이 {CRITIQUE_THRESHOLDS['large_pr_lines']}줄 이상",
+                    consequence="리뷰 품질 떨어지고, 버그 놓치고, 머지 충돌 지옥에 빠질 거야.",
+                    remedy=f"PR은 {CRITIQUE_THRESHOLDS['recommended_pr_size']}줄 이하로. 큰 기능은 쪼개서 여러 PR로 나눠. Feature flag 써."
+                )
+            )
+
+    def _check_pr_title_quality(
+        self,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot],
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check PR title quality and add critique if vague.
+
+        Args:
+            detailed_feedback: Optional detailed feedback snapshot
+            critiques: List to append critique to if issues found
+        """
+        if not detailed_feedback or not detailed_feedback.pr_title_feedback:
+            return
+
+        pr_fb = detailed_feedback.pr_title_feedback
+        if pr_fb.total_prs == 0:
+            return
+
+        vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
+        if vague_ratio > CRITIQUE_THRESHOLDS['vague_title_ratio']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="PR 제목",
+                    severity="💀 위험",
+                    critique=f"PR 제목 {vague_ratio*100:.0f}%가 뭔 말인지 모르겠어. '기능 추가', '버그 수정'? 어떤 기능? 어떤 버그?",
+                    evidence=f"{pr_fb.total_prs}개 PR 중 {pr_fb.vague_titles}개가 모호함",
+                    consequence="릴리스 노트 쓸 때 울고, 나중에 찾을 때 삽질하고.",
+                    remedy="'feat: 사용자 프로필에 아바타 업로드 기능 추가' 이런 식으로 구체적으로."
+                )
+            )
+
+    def _check_review_quality(
+        self,
+        collection: CollectionResult,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot],
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check review quality and frequency, add critique if insufficient.
+
+        Args:
+            collection: Collection of repository data
+            detailed_feedback: Optional detailed feedback snapshot
+            critiques: List to append critique to if issues found
+        """
         if detailed_feedback and detailed_feedback.review_tone_feedback:
             review_fb = detailed_feedback.review_tone_feedback
             if review_fb.total_reviews > 0:
@@ -549,100 +633,96 @@ class Analyzer:
                 )
             )
 
-        # Check activity consistency (if commits are very sporadic)
-        if collection.commits > 0 and collection.months > 0:
-            commits_per_month = collection.commits / collection.months
-            # If average is very low, might indicate inconsistency
-            if commits_per_month < CRITIQUE_THRESHOLDS['min_commits_per_month']:
-                critiques.append(
-                    WitchCritiqueItem(
-                        category="활동 일관성",
-                        severity="🕷️ 경고",
-                        critique=f"월평균 {commits_per_month:.1f}개 커밋? 며칠 몰아치고 쉬는 스타일이지? 개발은 마라톤이야, 단거리 달리기가 아니라.",
-                        evidence=f"{collection.months}개월간 {collection.commits}개 커밋",
-                        consequence="코드 품질 들쭉날쭉하고, 팀 협업 타이밍 안 맞고.",
-                        remedy="매일 조금씩 꾸준히. 작은 커밋이라도 매일 하는 게 월말에 몰아치는 것보다 낫다."
-                    )
+    def _check_activity_consistency(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check activity consistency and add critique if too sporadic.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if collection.commits == 0 or collection.months == 0:
+            return
+
+        commits_per_month = collection.commits / collection.months
+        if commits_per_month < CRITIQUE_THRESHOLDS['min_commits_per_month']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="활동 일관성",
+                    severity="🕷️ 경고",
+                    critique=f"월평균 {commits_per_month:.1f}개 커밋? 며칠 몰아치고 쉬는 스타일이지? 개발은 마라톤이야, 단거리 달리기가 아니라.",
+                    evidence=f"{collection.months}개월간 {collection.commits}개 커밋",
+                    consequence="코드 품질 들쭉날쭉하고, 팀 협업 타이밍 안 맞고.",
+                    remedy="매일 조금씩 꾸준히. 작은 커밋이라도 매일 하는 게 월말에 몰아치는 것보다 낫다."
                 )
+            )
 
-        # If no specific critiques, add fallback critiques so witch always appears
-        if not critiques:
-            # Add general improvement suggestions
-            import random
+    def _get_random_general_critique(self, collection: CollectionResult) -> WitchCritiqueItem:
+        """Get a random general critique for developers with no specific issues.
 
-            # Everyone can improve something - pick one general critique
-            general_critiques = [
-                WitchCritiqueItem(
-                    category="개발자 성장",
-                    severity="💫 조언",
-                    critique="겉으로는 괜찮아 보이지만, 안주하면 퇴보하는 법이야. 지금이 딱 다음 레벨로 올라갈 때야.",
-                    evidence=f"총 {collection.commits}개 커밋, {collection.pull_requests}개 PR 분석 완료",
-                    consequence="현상 유지는 곧 뒤처지는 거야. 기술은 매일 발전하는데 너만 그 자리면?",
-                    remedy="새로운 기술 하나 배워봐. 오픈소스 기여하거나, 더 어려운 문제에 도전해봐."
-                ),
-                WitchCritiqueItem(
-                    category="코드 품질",
-                    severity="💫 조언",
-                    critique="코드는 일단 돌아가는데... 그냥 '돌아간다'로 만족할 거야? 아니면 '아름답게 돌아간다'를 목표로 할 거야?",
-                    evidence="커밋 히스토리 전체 분석 완료",
-                    consequence="동작하는 코드와 훌륭한 코드의 차이를 모르면, 영원히 시니어 개발자 못 돼.",
-                    remedy="리팩토링에 시간 투자해. 클린 코드 원칙 공부하고, 코드 리뷰에서 더 많이 배워."
-                ),
-                WitchCritiqueItem(
-                    category="협업 능력",
-                    severity="💫 조언",
-                    critique="혼자서는 잘하는데, 팀워크는 어때? 커뮤니케이션도 기술이야. 코딩만 잘한다고 다가 아니라고.",
-                    evidence=f"PR {collection.pull_requests}개, 리뷰 {collection.reviews}개 활동 확인",
-                    consequence="협업 못 하는 개발자는 혼자 할 수 있는 것만 할 수 있어. 큰 프로젝트는 무리.",
-                    remedy="PR 설명 더 자세히 써. 리뷰 댓글에 이유와 대안 제시해. 팀원들과 더 소통해."
-                ),
-                WitchCritiqueItem(
-                    category="학습 태도",
-                    severity="💫 조언",
-                    critique="익숙한 것만 반복하고 있지 않아? 편안함(comfort zone)에 머무르면 성장 없어.",
-                    evidence="활동 패턴 분석 완료",
-                    consequence="5년차인데 1년차 실력만 있는 개발자 되기 싫으면 변화 필요해.",
-                    remedy="매달 새로운 것 하나씩 시도해. 낯선 라이브러리, 다른 패러다임, 새로운 도구."
-                ),
-                WitchCritiqueItem(
-                    category="문서화",
-                    severity="💫 조언",
-                    critique="코드는 쓰는데 문서는? 6개월 후 네 코드 다시 볼 때 주석 없어서 후회하는 건 너야.",
-                    evidence="커밋 및 PR 패턴 분석",
-                    consequence="문서 없는 코드는 레거시가 되는 순간 아무도 못 건드려. 너도 못 건드리게 돼.",
-                    remedy="복잡한 로직에는 주석 달아. README 업데이트해. API는 문서화해."
-                ),
-                WitchCritiqueItem(
-                    category="테스트 문화",
-                    severity="💫 조언",
-                    critique="테스트 없이 코드 짜고 있는 건 아니겠지? '돌아가니까 됐지'는 초보 마인드야.",
-                    evidence="전체 개발 활동 검토",
-                    consequence="테스트 없는 리팩토링은 자살행위. 언젠가 배포하고 밤새 롤백하는 날 올 거야.",
-                    remedy="TDD는 아니어도, 핵심 로직은 테스트 작성해. Coverage 60% 이상 목표로."
-                ),
-            ]
+        Args:
+            collection: Collection of repository data for evidence text
 
-            critiques.append(random.choice(general_critiques))
-
-        # Create witch critique with opening and closing
-        opening_curses = [
-            "🔮 자, 수정 구슬을 들여다보니... 흠, 개선할 게 좀 보이는군.",
-            "🔮 크리스탈 볼이 말하길... 너한테 할 말이 좀 있대.",
-            "🔮 예언의 수정 구슬에 미래가 보여. 이대로면 내년에도 똑같은 실수 반복할 텐데?",
-        ]
-
-        closing_prophecies = [
-            "💫 이 독설들을 무시하면 내년에도 똑같은 얘기 들을 거야. 하지만 하나씩만 고쳐도 훨씬 나아질 거라는 것도 보여. 선택은 네 몫이야.",
-            "💫 마녀의 조언은 여기까지. 듣든 말든 너 맘이지만, 1년 후 더 나은 개발자가 되고 싶다면... 뭐, 알아서 해.",
-            "💫 수정 구슬이 보여주는 미래: 이것들만 고치면 내년엔 꽤 괜찮은 개발자가 될 수 있어. 안 고치면? 그건 네가 더 잘 알겠지.",
-        ]
-
+        Returns:
+            A randomly selected general improvement critique
+        """
         import random
-        return WitchCritique(
-            opening_curse=random.choice(opening_curses),
-            critiques=critiques,
-            closing_prophecy=random.choice(closing_prophecies)
-        )
+
+        general_critiques = [
+            WitchCritiqueItem(
+                category="개발자 성장",
+                severity="💫 조언",
+                critique="겉으로는 괜찮아 보이지만, 안주하면 퇴보하는 법이야. 지금이 딱 다음 레벨로 올라갈 때야.",
+                evidence=f"총 {collection.commits}개 커밋, {collection.pull_requests}개 PR 분석 완료",
+                consequence="현상 유지는 곧 뒤처지는 거야. 기술은 매일 발전하는데 너만 그 자리면?",
+                remedy="새로운 기술 하나 배워봐. 오픈소스 기여하거나, 더 어려운 문제에 도전해봐."
+            ),
+            WitchCritiqueItem(
+                category="코드 품질",
+                severity="💫 조언",
+                critique="코드는 일단 돌아가는데... 그냥 '돌아간다'로 만족할 거야? 아니면 '아름답게 돌아간다'를 목표로 할 거야?",
+                evidence="커밋 히스토리 전체 분석 완료",
+                consequence="동작하는 코드와 훌륭한 코드의 차이를 모르면, 영원히 시니어 개발자 못 돼.",
+                remedy="리팩토링에 시간 투자해. 클린 코드 원칙 공부하고, 코드 리뷰에서 더 많이 배워."
+            ),
+            WitchCritiqueItem(
+                category="협업 능력",
+                severity="💫 조언",
+                critique="혼자서는 잘하는데, 팀워크는 어때? 커뮤니케이션도 기술이야. 코딩만 잘한다고 다가 아니라고.",
+                evidence=f"PR {collection.pull_requests}개, 리뷰 {collection.reviews}개 활동 확인",
+                consequence="협업 못 하는 개발자는 혼자 할 수 있는 것만 할 수 있어. 큰 프로젝트는 무리.",
+                remedy="PR 설명 더 자세히 써. 리뷰 댓글에 이유와 대안 제시해. 팀원들과 더 소통해."
+            ),
+            WitchCritiqueItem(
+                category="학습 태도",
+                severity="💫 조언",
+                critique="익숙한 것만 반복하고 있지 않아? 편안함(comfort zone)에 머무르면 성장 없어.",
+                evidence="활동 패턴 분석 완료",
+                consequence="5년차인데 1년차 실력만 있는 개발자 되기 싫으면 변화 필요해.",
+                remedy="매달 새로운 것 하나씩 시도해. 낯선 라이브러리, 다른 패러다임, 새로운 도구."
+            ),
+            WitchCritiqueItem(
+                category="문서화",
+                severity="💫 조언",
+                critique="코드는 쓰는데 문서는? 6개월 후 네 코드 다시 볼 때 주석 없어서 후회하는 건 너야.",
+                evidence="커밋 및 PR 패턴 분석",
+                consequence="문서 없는 코드는 레거시가 되는 순간 아무도 못 건드려. 너도 못 건드리게 돼.",
+                remedy="복잡한 로직에는 주석 달아. README 업데이트해. API는 문서화해."
+            ),
+            WitchCritiqueItem(
+                category="테스트 문화",
+                severity="💫 조언",
+                critique="테스트 없이 코드 짜고 있는 건 아니겠지? '돌아가니까 됐지'는 초보 마인드야.",
+                evidence="전체 개발 활동 검토",
+                consequence="테스트 없는 리팩토링은 자살행위. 언젠가 배포하고 밤새 롤백하는 날 올 거야.",
+                remedy="TDD는 아니어도, 핵심 로직은 테스트 작성해. Coverage 60% 이상 목표로."
+            ),
+        ]
+
+        return random.choice(general_critiques)
 
     def _build_stats(self, collection: CollectionResult, velocity_score: float) -> Dict[str, Dict[str, float]]:
         return {
