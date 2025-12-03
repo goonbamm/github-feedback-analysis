@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .console import Console
-from .game_elements import GameRenderer, LevelCalculator
+from .game_elements import GameRenderer, LevelCalculator, get_animation_styles
 from .utils import pad_to_width
 
 console = Console()
@@ -572,7 +572,7 @@ class YearInReviewReporter:
 
         console.log(f"[dim]Tech stack aggregation: {repos_with_tech_stack}/{total_repos} repos with data, {len(sorted_tech_stack)} total technologies[/]")
 
-        # Add font styles at the beginning
+        # Add font styles and animations at the beginning
         font_styles = [
             '<style>',
             '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
@@ -583,8 +583,12 @@ class YearInReviewReporter:
             ''
         ]
 
+        # Add animation styles
+        animation_styles = get_animation_styles()
+
         # Generate report with game character theme
         lines = font_styles[:]  # Start with font styles
+        lines.append(animation_styles)  # Add animation styles
         lines.extend(self._generate_header(year, username, total_repos, total_prs, total_commits))
         lines.extend(self._generate_character_stats(year, total_repos, total_prs, total_commits, repository_analyses))
         lines.extend(self._generate_executive_summary(repository_analyses, sorted_tech_stack))
@@ -986,18 +990,19 @@ class YearInReviewReporter:
                 tier = tech["tier"]
                 percentage = tech["percentage"]
 
-                # 장착 상태 배지
+                # 장착 상태 배지 (애니메이션 효과 추가)
                 equipped_badge = ""
                 if tech["name"] in equipped_tech_names:
-                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">⭐ 장착 중</span>'
+                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5), 0 0 20px rgba(251, 191, 36, 0.3); animation: glow 2s ease-in-out infinite;">⭐ 장착 중</span>'
                 else:
                     equipped_badge = '<span style="color: #9ca3af; font-size: 0.85em;">-</span>'
 
-                # 강화도 프로그레스 바
-                progress_bar = f'<div style="background: #e5e7eb; border-radius: 4px; height: 20px; width: 100%; max-width: 200px;"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 4px; box-shadow: 0 0 10px {tier["glow"]};"></div></div>'
+                # 강화도 프로그레스 바 (애니메이션 및 shimmer 효과)
+                progress_bar = f'<div style="background: #e5e7eb; border-radius: 6px; height: 22px; width: 100%; max-width: 200px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);"><div style="background: {tier["color"]}; height: 100%; width: {percentage}%; border-radius: 6px; box-shadow: 0 0 15px {tier["glow"]}; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;"><div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%); animation: shimmer 2s infinite;"></div></div></div>'
 
-                # 등급 배지
-                tier_badge = f'<span style="background: {tier["color"]}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap;">{tier["prefix"]} {tier["name"]}</span>'
+                # 등급 배지 (등급에 따른 빛나는 효과)
+                glow_intensity = "0 0 10px" if tier["name"] in ["신화", "전설"] else "0 0 5px"
+                tier_badge = f'<span style="background: {tier["color"]}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: {glow_intensity} {tier["glow"]};">{tier["prefix"]} {tier["name"]}</span>'
 
                 # 장비명과 특성 구성
                 weapon_name_cell = f'<strong>{tech["weapon_name"]}</strong><br><span style="color: #6b7280; font-size: 0.9em;">({tech["name"]})</span>'
@@ -1041,10 +1046,10 @@ class YearInReviewReporter:
                 tier = tech["tier"]
                 percentage = tech["percentage"]
 
-                # 장착 상태 배지
+                # 장착 상태 배지 (애니메이션 효과 추가)
                 equipped_badge = ""
                 if tech["name"] in equipped_tech_names:
-                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">⭐ 장착 중</span>'
+                    equipped_badge = '<span style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5), 0 0 20px rgba(251, 191, 36, 0.3); animation: glow 2s ease-in-out infinite;">⭐ 장착 중</span>'
                 else:
                     equipped_badge = '<span style="color: #9ca3af; font-size: 0.85em;">-</span>'
 
