@@ -797,8 +797,8 @@ class LLMClient:
             system_prompt=get_issue_quality_analysis_system_prompt(web_url=web_url, repo=repo),
             user_prompt_template=get_issue_quality_analysis_user_prompt(),
             empty_result={
-                "well_described": 0,
-                "poorly_described": 0,
+                "well_described_count": 0,
+                "poorly_described_count": 0,
                 "suggestions": ["이슈를 분석할 데이터가 없습니다."],
                 "examples_good": [],
                 "examples_poor": [],
