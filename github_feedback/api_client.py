@@ -289,14 +289,21 @@ class GitHubApiClient:
                         )
                     elif response.status_code == HTTP_STATUS_CODES['not_modified']:
                         raise ApiError(
-                            f"GitHub API returned 304 Not Modified for {path} with empty content. "
-                            "Try clearing the cache: rm -rf ~/.cache/github_feedback/"
+                            f"GitHub API returned 304 Not Modified for {path} with empty content.\n"
+                            "💡 해결 방법:\n"
+                            "  1. 캐시 초기화: gfa clear-cache\n"
+                            "  2. 명령어 다시 실행"
                         )
                     else:
                         raise ApiError(
-                            f"Empty response from GitHub API {path} (status: {response.status_code}). "
-                            "This may indicate an API issue or network problem. "
-                            "Try clearing the cache: rm -rf ~/.cache/github_feedback/"
+                            f"Empty response from GitHub API {path} (status: {response.status_code}).\n"
+                            "💡 가능한 원인 및 해결 방법:\n"
+                            "  1. 캐시 손상 (가장 가능성 높음)\n"
+                            "     → 해결: gfa clear-cache\n"
+                            "  2. GitHub API 일시적 문제\n"
+                            "     → 해결: 잠시 후 다시 시도\n"
+                            "  3. 네트워크 연결 문제\n"
+                            "     → 해결: 네트워크 연결 확인"
                         )
 
                 try:
