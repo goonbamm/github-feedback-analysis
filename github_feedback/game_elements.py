@@ -14,6 +14,149 @@ import html
 from .utils import pad_to_width
 
 
+# ============================================
+# 🎨 중앙 색상 팔레트 시스템
+# ============================================
+COLOR_PALETTE = {
+    # Primary Colors
+    "primary": "#667eea",
+    "primary_dark": "#5568d3",
+    "primary_light": "#818cf8",
+    "secondary": "#764ba2",
+    "secondary_dark": "#6b4193",
+    "secondary_light": "#8b5cf6",
+
+    # Status Colors
+    "success": "#10b981",
+    "success_dark": "#059669",
+    "success_light": "#34d399",
+    "warning": "#f59e0b",
+    "warning_dark": "#d97706",
+    "warning_light": "#fbbf24",
+    "danger": "#ef4444",
+    "danger_dark": "#dc2626",
+    "danger_light": "#f87171",
+    "info": "#3b82f6",
+    "info_dark": "#2563eb",
+    "info_light": "#60a5fa",
+
+    # Neutral Colors
+    "gray_50": "#f9fafb",
+    "gray_100": "#f3f4f6",
+    "gray_200": "#e5e7eb",
+    "gray_300": "#d1d5db",
+    "gray_400": "#9ca3af",
+    "gray_500": "#6b7280",
+    "gray_600": "#4b5563",
+    "gray_700": "#374151",
+    "gray_800": "#1f2937",
+    "gray_900": "#111827",
+
+    # Special Colors
+    "gold": "#fbbf24",
+    "gold_dark": "#f59e0b",
+    "gold_light": "#fcd34d",
+    "pink": "#ec4899",
+    "pink_dark": "#db2777",
+    "pink_light": "#f472b6",
+    "purple": "#8b5cf6",
+    "purple_dark": "#7c3aed",
+    "purple_light": "#a78bfa",
+    "orange": "#f97316",
+    "orange_dark": "#ea580c",
+    "orange_light": "#fb923c",
+
+    # RPG Stat Colors
+    "stat_code_quality": "#3b82f6",
+    "stat_collaboration": "#8b5cf6",
+    "stat_problem_solving": "#ec4899",
+    "stat_productivity": "#f59e0b",
+    "stat_consistency": "#f97316",
+    "stat_growth": "#10b981",
+
+    # Background Colors
+    "bg_gradient_purple_start": "#667eea",
+    "bg_gradient_purple_end": "#764ba2",
+    "bg_gradient_gold_start": "#fef3c7",
+    "bg_gradient_gold_end": "#fde68a",
+    "bg_gradient_dark_start": "#1a202c",
+    "bg_gradient_dark_end": "#2d3748",
+}
+
+
+# ============================================
+# 🎨 CSS 애니메이션 및 스타일 헬퍼
+# ============================================
+def get_animation_styles() -> str:
+    """Return CSS animation styles for enhanced UI."""
+    return """
+<style>
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fillBar {
+    from { width: 0%; }
+    to { width: var(--target-width); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(102, 126, 234, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.8), 0 0 30px rgba(118, 75, 162, 0.6); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.6s ease-out;
+}
+
+.animate-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-glow {
+    animation: glow 2s ease-in-out infinite;
+}
+
+/* Hover effects */
+.hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Loading skeleton */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+</style>
+"""
+
+
 class GameRenderer:
     """게임 스타일 시각화 렌더러."""
 
@@ -120,14 +263,16 @@ class GameRenderer:
         lines.append(f'    <div style="opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.6;">{effect_description}</div>')
         lines.append(f'  </div>')
 
-        # 마스터리 바
+        # 마스터리 바 (개선된 버전 with 애니메이션)
         lines.append(f'  <div style="margin-bottom: 12px;">')
-        lines.append(f'    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">')
-        lines.append(f'      <span style="font-weight: bold;">마스터리</span>')
-        lines.append(f'      <span style="font-weight: bold;">{mastery_percentage}%</span>')
+        lines.append(f'    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">')
+        lines.append(f'      <span style="font-weight: bold; font-size: 0.95em;">마스터리</span>')
+        lines.append(f'      <span style="font-weight: bold; color: {COLOR_PALETTE["success_light"]}; font-size: 0.95em;">{mastery_percentage}%</span>')
         lines.append(f'    </div>')
-        lines.append(f'    <div style="background: rgba(0,0,0,0.3); border-radius: 10px; height: 20px; overflow: hidden;">')
-        lines.append(f'      <div style="background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%); height: 100%; width: {bar_filled_width}%; transition: width 0.3s ease;"></div>')
+        lines.append(f'    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; height: 24px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">')
+        lines.append(f'      <div style="background: linear-gradient(90deg, {COLOR_PALETTE["success"]} 0%, {COLOR_PALETTE["success_dark"]} 100%); height: 100%; width: {bar_filled_width}%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);">')
+        lines.append(f'        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%); animation: shimmer 2s infinite;"></div>')
+        lines.append(f'      </div>')
         lines.append(f'    </div>')
         lines.append(f'  </div>')
 
@@ -224,11 +369,11 @@ class GameRenderer:
             skill_name = _sanitize(skill.get("name", ""))
 
             mastery_bar = (
-                f'<div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;">'
-                f'<div style="background: linear-gradient(90deg, {bar_colors[0]} 0%, {bar_colors[1]} 100%); height: 100%; width: {mastery}%;"></div>'
+                f'<div style="background: {COLOR_PALETTE["gray_200"]}; border-radius: 6px; height: 10px; overflow: hidden; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">'
+                f'<div style="background: linear-gradient(90deg, {bar_colors[0]} 0%, {bar_colors[1]} 100%); height: 100%; width: {mastery}%; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>'
                 "</div>"
             )
-            mastery_display = f'{mastery}%<br>{mastery_bar}'
+            mastery_display = f'<span style="font-weight: bold; color: {bar_colors[1]};">{mastery}%</span><br>{mastery_bar}'
 
             evidence_list = skill.get("evidence", []) or []
             evidence_html = _build_evidence(evidence_list)
@@ -349,13 +494,15 @@ class GameRenderer:
             emoji = stat_emojis.get(stat_key, "📊")
             color = stat_colors.get(stat_key, "#6b7280")
 
-            lines.append(f'    <div style="margin-bottom: 12px;">')
-            lines.append(f'      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">')
-            lines.append(f'        <span style="font-weight: bold;">{emoji} {stat_name}</span>')
-            lines.append(f'        <span style="font-weight: bold; color: {color};">{stat_value}/100</span>')
+            lines.append(f'    <div style="margin-bottom: 14px;">')
+            lines.append(f'      <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">')
+            lines.append(f'        <span style="font-weight: bold; font-size: 0.95em;">{emoji} {stat_name}</span>')
+            lines.append(f'        <span style="font-weight: bold; color: {color}; font-size: 0.95em;">{stat_value}/100</span>')
             lines.append(f'      </div>')
-            lines.append(f'      <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 16px; overflow: hidden;">')
-            lines.append(f'        <div style="background: {color}; height: 100%; width: {stat_value}%; transition: width 0.3s ease;"></div>')
+            lines.append(f'      <div style="background: rgba(255,255,255,0.1); border-radius: 12px; height: 18px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">')
+            lines.append(f'        <div style="background: linear-gradient(90deg, {color} 0%, {color}dd 100%); height: 100%; width: {stat_value}%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 12px {color}80;">')
+            lines.append(f'          <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%); animation: shimmer 2.5s infinite;"></div>')
+            lines.append(f'        </div>')
             lines.append(f'      </div>')
             lines.append(f'    </div>')
 
@@ -624,6 +771,498 @@ class GameRenderer:
 
         return lines
 
+    @staticmethod
+    def render_line_chart(
+        data_points: List[Dict[str, Any]],
+        title: str = "추세 분석",
+        x_key: str = "label",
+        y_key: str = "value",
+        color: str = None
+    ) -> List[str]:
+        """라인 차트 렌더링 (월별 트렌드 등에 사용).
+
+        Args:
+            data_points: 데이터 포인트 리스트 [{"label": "Jan", "value": 10}, ...]
+            title: 차트 제목
+            x_key: X축 데이터 키
+            y_key: Y축 데이터 키
+            color: 라인 색상 (기본값: primary)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not data_points:
+            return []
+
+        lines = []
+        line_color = color or COLOR_PALETTE["primary"]
+
+        # 최대값 찾기
+        max_value = max((item.get(y_key, 0) for item in data_points), default=1)
+        if max_value == 0:
+            max_value = 1
+
+        # 차트 컨테이너
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
+
+        # SVG 라인 차트
+        width = 800
+        height = 300
+        padding = 40
+        chart_width = width - 2 * padding
+        chart_height = height - 2 * padding
+
+        lines.append(f'  <svg width="100%" height="{height}" viewBox="0 0 {width} {height}" style="overflow: visible;">')
+
+        # 배경 그리드
+        for i in range(5):
+            y = padding + (chart_height / 4) * i
+            lines.append(f'    <line x1="{padding}" y1="{y}" x2="{width - padding}" y2="{y}" stroke="{COLOR_PALETTE["gray_200"]}" stroke-width="1" stroke-dasharray="5,5"/>')
+
+        # 데이터 포인트 계산
+        num_points = len(data_points)
+        x_step = chart_width / (num_points - 1) if num_points > 1 else 0
+
+        # 라인 패스 생성
+        path_points = []
+        for idx, item in enumerate(data_points):
+            value = item.get(y_key, 0)
+            x = padding + idx * x_step
+            y = padding + chart_height - (value / max_value * chart_height)
+            path_points.append(f"{x},{y}")
+
+        path_d = "M " + " L ".join(path_points)
+
+        # 그라데이션 영역
+        area_points = path_points + [
+            f"{width - padding},{padding + chart_height}",
+            f"{padding},{padding + chart_height}"
+        ]
+        area_d = "M " + " L ".join(area_points) + " Z"
+
+        # 그라데이션 정의
+        lines.append(f'    <defs>')
+        lines.append(f'      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">')
+        lines.append(f'        <stop offset="0%" style="stop-color:{line_color};stop-opacity:0.3" />')
+        lines.append(f'        <stop offset="100%" style="stop-color:{line_color};stop-opacity:0.05" />')
+        lines.append(f'      </linearGradient>')
+        lines.append(f'    </defs>')
+
+        # 영역 채우기
+        lines.append(f'    <path d="{area_d}" fill="url(#lineGradient)"/>')
+
+        # 라인 그리기
+        lines.append(f'    <path d="{path_d}" fill="none" stroke="{line_color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>')
+
+        # 데이터 포인트 및 레이블
+        for idx, item in enumerate(data_points):
+            value = item.get(y_key, 0)
+            label = item.get(x_key, "")
+            x = padding + idx * x_step
+            y = padding + chart_height - (value / max_value * chart_height)
+
+            # 포인트
+            lines.append(f'    <circle cx="{x}" cy="{y}" r="5" fill="white" stroke="{line_color}" stroke-width="3"/>')
+
+            # X축 레이블
+            lines.append(f'    <text x="{x}" y="{height - 10}" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="12">{label}</text>')
+
+        lines.append('  </svg>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_donut_chart(
+        segments: List[Dict[str, Any]],
+        title: str = "분포 현황",
+        label_key: str = "label",
+        value_key: str = "value",
+        color_key: str = "color"
+    ) -> List[str]:
+        """도넛 차트 렌더링 (비율 데이터 시각화).
+
+        Args:
+            segments: 세그먼트 리스트 [{"label": "Python", "value": 45, "color": "#3b82f6"}, ...]
+            title: 차트 제목
+            label_key: 레이블 키
+            value_key: 값 키
+            color_key: 색상 키
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not segments:
+            return []
+
+        lines = []
+
+        # 총합 계산
+        total = sum(seg.get(value_key, 0) for seg in segments)
+        if total == 0:
+            return []
+
+        # 차트 컨테이너
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
+        lines.append('  <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap;">')
+
+        # SVG 도넛 차트
+        size = 300
+        center = size / 2
+        radius = 100
+        inner_radius = 60
+
+        lines.append(f'    <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">')
+
+        # 세그먼트 그리기
+        current_angle = -90  # 12시 방향부터 시작
+
+        for seg in segments:
+            value = seg.get(value_key, 0)
+            percentage = (value / total) * 100
+            angle = (value / total) * 360
+
+            # 색상 (기본값 사용)
+            seg_color = seg.get(color_key, COLOR_PALETTE["primary"])
+
+            # 시작 각도와 끝 각도 계산 (라디안)
+            start_angle_rad = current_angle * 3.14159 / 180
+            end_angle_rad = (current_angle + angle) * 3.14159 / 180
+
+            # 호의 좌표 계산
+            x1 = center + radius * __import__('math').cos(start_angle_rad)
+            y1 = center + radius * __import__('math').sin(start_angle_rad)
+            x2 = center + radius * __import__('math').cos(end_angle_rad)
+            y2 = center + radius * __import__('math').sin(end_angle_rad)
+
+            x3 = center + inner_radius * __import__('math').cos(end_angle_rad)
+            y3 = center + inner_radius * __import__('math').sin(end_angle_rad)
+            x4 = center + inner_radius * __import__('math').cos(start_angle_rad)
+            y4 = center + inner_radius * __import__('math').sin(start_angle_rad)
+
+            # 큰 호 플래그
+            large_arc = 1 if angle > 180 else 0
+
+            # 패스 생성
+            path_d = f"M {x1},{y1} A {radius},{radius} 0 {large_arc},1 {x2},{y2} L {x3},{y3} A {inner_radius},{inner_radius} 0 {large_arc},0 {x4},{y4} Z"
+
+            lines.append(f'      <path d="{path_d}" fill="{seg_color}" stroke="white" stroke-width="2" opacity="0.9">')
+            lines.append(f'        <title>{seg.get(label_key, "")}: {percentage:.1f}%</title>')
+            lines.append(f'      </path>')
+
+            current_angle += angle
+
+        # 중앙 텍스트
+        lines.append(f'      <text x="{center}" y="{center - 10}" text-anchor="middle" fill="{COLOR_PALETTE["gray_800"]}" font-size="24" font-weight="bold">{total}</text>')
+        lines.append(f'      <text x="{center}" y="{center + 15}" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="14">Total</text>')
+
+        lines.append('    </svg>')
+
+        # 범례
+        lines.append('    <div style="display: flex; flex-direction: column; gap: 12px;">')
+        for seg in segments:
+            value = seg.get(value_key, 0)
+            label = seg.get(label_key, "")
+            seg_color = seg.get(color_key, COLOR_PALETTE["primary"])
+            percentage = (value / total) * 100
+
+            lines.append('      <div style="display: flex; align-items: center; gap: 12px;">')
+            lines.append(f'        <div style="width: 20px; height: 20px; background: {seg_color}; border-radius: 4px;"></div>')
+            lines.append(f'        <div style="flex: 1;">')
+            lines.append(f'          <div style="font-weight: bold; color: {COLOR_PALETTE["gray_800"]};">{label}</div>')
+            lines.append(f'          <div style="color: {COLOR_PALETTE["gray_600"]}; font-size: 0.9em;">{value} ({percentage:.1f}%)</div>')
+            lines.append(f'        </div>')
+            lines.append('      </div>')
+
+        lines.append('    </div>')
+        lines.append('  </div>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_collapsible_section(
+        section_id: str,
+        title: str,
+        content: List[str],
+        collapsed: bool = False,
+        icon: str = "📋"
+    ) -> List[str]:
+        """접을 수 있는 섹션 렌더링.
+
+        Args:
+            section_id: 고유 섹션 ID
+            title: 섹션 제목
+            content: 섹션 내용 (마크다운 라인 리스트)
+            collapsed: 초기 접힌 상태 여부
+            icon: 아이콘 이모지
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        display_style = "none" if collapsed else "block"
+        arrow_icon = "▶" if collapsed else "▼"
+
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["gray_200"]}; border-radius: 12px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">')
+
+        # 헤더 (클릭 가능)
+        lines.append(f'  <div onclick="toggleSection(\'{section_id}\')" style="padding: 16px 20px; background: linear-gradient(135deg, {COLOR_PALETTE["bg_gradient_purple_start"]} 0%, {COLOR_PALETTE["bg_gradient_purple_end"]} 100%); color: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: opacity 0.2s;">')
+        lines.append(f'    <div style="display: flex; align-items: center; gap: 12px;">')
+        lines.append(f'      <span style="font-size: 1.5em;">{icon}</span>')
+        lines.append(f'      <h3 style="margin: 0; font-size: 1.3em;">{title}</h3>')
+        lines.append(f'    </div>')
+        lines.append(f'    <span id="{section_id}-arrow" style="font-size: 1.2em; transition: transform 0.3s;">{arrow_icon}</span>')
+        lines.append(f'  </div>')
+
+        # 내용
+        lines.append(f'  <div id="{section_id}-content" style="display: {display_style}; padding: 20px; animation: fadeIn 0.3s ease-out;">')
+        lines.extend(content)
+        lines.append(f'  </div>')
+
+        lines.append('</div>')
+
+        # JavaScript for toggle
+        lines.append('<script>')
+        lines.append('function toggleSection(sectionId) {')
+        lines.append('  const content = document.getElementById(sectionId + "-content");')
+        lines.append('  const arrow = document.getElementById(sectionId + "-arrow");')
+        lines.append('  if (content.style.display === "none") {')
+        lines.append('    content.style.display = "block";')
+        lines.append('    arrow.textContent = "▼";')
+        lines.append('  } else {')
+        lines.append('    content.style.display = "none";')
+        lines.append('    arrow.textContent = "▶";')
+        lines.append('  }')
+        lines.append('}')
+        lines.append('</script>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_filterable_list(
+        items: List[Dict[str, Any]],
+        title: str = "필터링 가능한 리스트",
+        filter_key: str = "category",
+        display_key: str = "name",
+        description_key: str = "description"
+    ) -> List[str]:
+        """필터링 가능한 리스트 렌더링.
+
+        Args:
+            items: 아이템 리스트 [{"category": "언어", "name": "Python", "description": "..."}, ...]
+            title: 리스트 제목
+            filter_key: 필터링할 키
+            display_key: 표시할 이름 키
+            description_key: 설명 키
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not items:
+            return []
+
+        lines = []
+
+        # 카테고리 추출
+        categories = list(set(item.get(filter_key, "기타") for item in items))
+        categories.sort()
+
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["gray_200"]}; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
+
+        # 필터 버튼
+        lines.append('  <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">')
+        lines.append(f'    <button onclick="filterItems(\'all\')" class="filter-btn active" data-filter="all" style="padding: 8px 16px; border: 2px solid {COLOR_PALETTE["primary"]}; background: {COLOR_PALETTE["primary"]}; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">전체</button>')
+
+        for cat in categories:
+            lines.append(f'    <button onclick="filterItems(\'{cat}\')" class="filter-btn" data-filter="{cat}" style="padding: 8px 16px; border: 2px solid {COLOR_PALETTE["gray_300"]}; background: white; color: {COLOR_PALETTE["gray_700"]}; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s;">{cat}</button>')
+
+        lines.append('  </div>')
+
+        # 아이템 리스트
+        lines.append('  <div id="items-container">')
+
+        for idx, item in enumerate(items):
+            cat = item.get(filter_key, "기타")
+            name = item.get(display_key, "")
+            desc = item.get(description_key, "")
+
+            lines.append(f'    <div class="list-item" data-category="{cat}" style="padding: 16px; margin-bottom: 12px; background: {COLOR_PALETTE["gray_50"]}; border-radius: 8px; border-left: 4px solid {COLOR_PALETTE["primary"]}; transition: all 0.3s;">')
+            lines.append(f'      <div style="font-weight: bold; color: {COLOR_PALETTE["gray_800"]}; margin-bottom: 4px;">{name}</div>')
+            lines.append(f'      <div style="color: {COLOR_PALETTE["gray_600"]}; font-size: 0.9em;">{desc}</div>')
+            lines.append(f'      <div style="margin-top: 8px; color: {COLOR_PALETTE["gray_500"]}; font-size: 0.85em;">카테고리: {cat}</div>')
+            lines.append('    </div>')
+
+        lines.append('  </div>')
+        lines.append('</div>')
+
+        # JavaScript for filtering
+        lines.append('<script>')
+        lines.append('function filterItems(category) {')
+        lines.append('  const items = document.querySelectorAll(".list-item");')
+        lines.append('  const buttons = document.querySelectorAll(".filter-btn");')
+        lines.append('  ')
+        lines.append('  // Update button styles')
+        lines.append('  buttons.forEach(btn => {')
+        lines.append('    if (btn.dataset.filter === category) {')
+        lines.append(f'      btn.style.background = "{COLOR_PALETTE["primary"]}";')
+        lines.append('      btn.style.color = "white";')
+        lines.append(f'      btn.style.borderColor = "{COLOR_PALETTE["primary"]}";')
+        lines.append('    } else {')
+        lines.append('      btn.style.background = "white";')
+        lines.append(f'      btn.style.color = "{COLOR_PALETTE["gray_700"]}";')
+        lines.append(f'      btn.style.borderColor = "{COLOR_PALETTE["gray_300"]}";')
+        lines.append('    }')
+        lines.append('  });')
+        lines.append('  ')
+        lines.append('  // Filter items')
+        lines.append('  items.forEach(item => {')
+        lines.append('    if (category === "all" || item.dataset.category === category) {')
+        lines.append('      item.style.display = "block";')
+        lines.append('    } else {')
+        lines.append('      item.style.display = "none";')
+        lines.append('    }')
+        lines.append('  });')
+        lines.append('}')
+        lines.append('</script>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_loading_skeleton(
+        num_rows: int = 3,
+        title: str = "로딩 중..."
+    ) -> List[str]:
+        """스켈레톤 로딩 UI 렌더링.
+
+        Args:
+            num_rows: 스켈레톤 행 개수
+            title: 로딩 메시지
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["gray_200"]}; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">')
+        lines.append(f'    <div class="skeleton" style="width: 40px; height: 40px; border-radius: 50%;"></div>')
+        lines.append(f'    <div style="flex: 1;">')
+        lines.append(f'      <div style="font-weight: bold; color: {COLOR_PALETTE["gray_600"]};">{title}</div>')
+        lines.append(f'    </div>')
+        lines.append(f'  </div>')
+
+        for _ in range(num_rows):
+            lines.append(f'  <div class="skeleton" style="height: 20px; margin-bottom: 12px; border-radius: 4px;"></div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_progress_indicator(
+        current: int,
+        total: int,
+        label: str = "진행 중...",
+        show_percentage: bool = True
+    ) -> List[str]:
+        """프로그레스 인디케이터 렌더링 (보고서 생성 진행 상황 표시).
+
+        Args:
+            current: 현재 진행 값
+            total: 전체 값
+            label: 진행 레이블
+            show_percentage: 백분율 표시 여부
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        percentage = (current / total * 100) if total > 0 else 0
+
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["primary"]}; border-radius: 12px; padding: 24px; margin: 16px 0; background: linear-gradient(135deg, {COLOR_PALETTE["bg_gradient_purple_start"]}15 0%, {COLOR_PALETTE["bg_gradient_purple_end"]}15 100%); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+
+        # 레이블 및 카운터
+        lines.append(f'  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">')
+        lines.append(f'    <div style="font-weight: bold; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.1em;">{label}</div>')
+        if show_percentage:
+            lines.append(f'    <div style="font-weight: bold; color: {COLOR_PALETTE["primary"]}; font-size: 1.2em;">{int(percentage)}%</div>')
+        else:
+            lines.append(f'    <div style="color: {COLOR_PALETTE["gray_600"]}; font-size: 0.95em;">{current} / {total}</div>')
+        lines.append(f'  </div>')
+
+        # 프로그레스 바
+        lines.append(f'  <div style="background: {COLOR_PALETTE["gray_200"]}; border-radius: 12px; height: 24px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">')
+        lines.append(f'    <div style="background: linear-gradient(90deg, {COLOR_PALETTE["primary"]} 0%, {COLOR_PALETTE["secondary"]} 100%); height: 100%; width: {percentage}%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 15px {COLOR_PALETTE["primary"]}60;">')
+        lines.append(f'      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%); animation: shimmer 1.5s infinite;"></div>')
+        lines.append(f'    </div>')
+        lines.append(f'  </div>')
+
+        # 상세 정보
+        lines.append(f'  <div style="margin-top: 12px; text-align: center; color: {COLOR_PALETTE["gray_600"]}; font-size: 0.9em;">')
+        lines.append(f'    처리 중: {current} / {total} 항목 완료')
+        lines.append(f'  </div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_spinner(
+        message: str = "처리 중...",
+        size: int = 40
+    ) -> List[str]:
+        """스피너 애니메이션 렌더링.
+
+        Args:
+            message: 스피너와 함께 표시할 메시지
+            size: 스피너 크기 (픽셀)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        lines.append('<div style="display: flex; align-items: center; justify-content: center; padding: 40px; margin: 20px 0;">')
+        lines.append(f'  <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">')
+
+        # SVG 스피너
+        lines.append(f'    <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">')
+        lines.append(f'      <circle cx="{size/2}" cy="{size/2}" r="{size/2 - 4}" stroke="{COLOR_PALETTE["gray_200"]}" stroke-width="4" fill="none"/>')
+        lines.append(f'      <circle cx="{size/2}" cy="{size/2}" r="{size/2 - 4}" stroke="{COLOR_PALETTE["primary"]}" stroke-width="4" fill="none" stroke-dasharray="{size * 1.5} {size * 3}" stroke-linecap="round" style="animation: spin 1s linear infinite; transform-origin: center;">')
+        lines.append('        <animateTransform attributeName="transform" type="rotate" from="0 20 20" to="360 20 20" dur="1s" repeatCount="indefinite"/>')
+        lines.append('      </circle>')
+        lines.append('    </svg>')
+
+        # 메시지
+        lines.append(f'    <div style="font-weight: 500; color: {COLOR_PALETTE["gray_700"]}; font-size: 1.1em;">{message}</div>')
+
+        lines.append('  </div>')
+        lines.append('</div>')
+        lines.append("")
+
+        # CSS for spin animation
+        lines.append('<style>')
+        lines.append('@keyframes spin {')
+        lines.append('  from { transform: rotate(0deg); }')
+        lines.append('  to { transform: rotate(360deg); }')
+        lines.append('}')
+        lines.append('</style>')
+        lines.append("")
+
+        return lines
+
 
 class LevelCalculator:
     """레벨 및 타이틀 계산 유틸리티."""
@@ -786,4 +1425,4 @@ class LevelCalculator:
         return badges
 
 
-__all__ = ["GameRenderer", "LevelCalculator"]
+__all__ = ["GameRenderer", "LevelCalculator", "COLOR_PALETTE", "get_animation_styles"]
