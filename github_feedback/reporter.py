@@ -10,10 +10,8 @@ from .console import Console
 from .feedback_builders import FeedbackBuilder
 from .models import MetricSnapshot
 from .retrospective_builders import RetrospectiveBuilder
-from .section_builders.activity_pattern_builder import ActivityPatternBuilder
 from .section_builders.awards_builder import AwardsBuilder
 from .section_builders.character_stats_builder import CharacterStatsBuilder
-from .section_builders.collaboration_network_builder import CollaborationNetworkBuilder
 from .section_builders.dashboard_builder import DashboardBuilder
 from .section_builders.highlights_builder import HighlightsBuilder
 from .section_builders.monthly_trends_builder import MonthlyTrendsBuilder
@@ -104,7 +102,7 @@ class Reporter:
             SummaryBuilder(metrics, self.llm_client).build(),
             # 2. Table of Contents - Easy navigation
             TOCBuilder(metrics).build(),
-            # 3. Dashboard - Key metrics at a glance with visualizations
+            # 3. Dashboard - Key metrics at a glance
             DashboardBuilder(metrics).build(),
             # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
@@ -114,21 +112,17 @@ class Reporter:
             AwardsBuilder(metrics).build(),
             # 7. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 8. Monthly Trends - Show patterns with line charts
+            # 8. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 9. Activity Pattern - Heatmap visualization
-            ActivityPatternBuilder(metrics).build(),
-            # 10. Collaboration Network - Network graph and bubble chart
-            CollaborationNetworkBuilder(metrics).build(),
-            # 11. Detailed Feedback - Actionable insights
+            # 9. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 12. Deep Retrospective - Comprehensive analysis
+            # 10. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 13. Witch's Critique - Harsh but constructive feedback
+            # 11. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 14. Spotlight Examples - Concrete evidence
+            # 12. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 15. Tech Stack - Technical breadth
+            # 13. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 
@@ -189,7 +183,7 @@ class Reporter:
             SummaryBuilder(metrics, self.llm_client).build(),
             # 2. Table of Contents - Easy navigation
             TOCBuilder(metrics).build(),
-            # 3. Dashboard - Key metrics at a glance with visualizations
+            # 3. Dashboard - Key metrics at a glance
             DashboardBuilder(metrics).build(),
             # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
@@ -199,21 +193,17 @@ class Reporter:
             AwardsBuilder(metrics).build(),
             # 7. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 8. Monthly Trends - Show patterns with line charts
+            # 8. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 9. Activity Pattern - Heatmap visualization
-            ActivityPatternBuilder(metrics).build(),
-            # 10. Collaboration Network - Network graph and bubble chart
-            CollaborationNetworkBuilder(metrics).build(),
-            # 11. Detailed Feedback - Actionable insights
+            # 9. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 12. Deep Retrospective - Comprehensive analysis
+            # 10. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 13. Witch's Critique - Harsh but constructive feedback
+            # 11. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 14. Spotlight Examples - Concrete evidence
+            # 12. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 15. Tech Stack - Technical breadth
+            # 13. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 

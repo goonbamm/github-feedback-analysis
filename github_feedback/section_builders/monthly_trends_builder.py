@@ -34,45 +34,6 @@ class MonthlyTrendsBuilder(SectionBuilder):
                 border_color="#f59e0b"
             ))
 
-        # Render line chart for trends
-        lines.append("### 📈 월별 활동 추세")
-        lines.append("")
-
-        # Prepare data for line chart
-        months_labels = [trend.month for trend in self.metrics.monthly_trends]
-
-        # Create datasets for multi-line chart
-        datasets = [
-            {
-                "label": "커밋",
-                "data": [trend.commits for trend in self.metrics.monthly_trends],
-                "color": "#3b82f6"
-            },
-            {
-                "label": "PR",
-                "data": [trend.pull_requests for trend in self.metrics.monthly_trends],
-                "color": "#8b5cf6"
-            },
-            {
-                "label": "리뷰",
-                "data": [trend.reviews for trend in self.metrics.monthly_trends],
-                "color": "#10b981"
-            },
-            {
-                "label": "이슈",
-                "data": [trend.issues for trend in self.metrics.monthly_trends],
-                "color": "#f59e0b"
-            }
-        ]
-
-        lines.extend(GameRenderer.render_line_chart(
-            labels=months_labels,
-            datasets=datasets,
-            title="월별 활동 추세",
-            x_label="월",
-            y_label="활동 수"
-        ))
-
         # Render detailed data table with visual bars
         lines.append("### 📊 월별 활동 데이터")
         lines.append("")
