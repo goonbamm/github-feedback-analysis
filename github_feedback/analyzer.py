@@ -474,6 +474,11 @@ class Analyzer:
         self._check_pr_title_quality(detailed_feedback, critiques)
         self._check_review_quality(collection, detailed_feedback, critiques)
         self._check_activity_consistency(collection, critiques)
+        self._check_documentation_culture(collection, critiques)
+        self._check_test_coverage(collection, critiques)
+        self._check_branch_management(collection, critiques)
+        self._check_issue_tracking(collection, critiques)
+        self._check_collaboration_diversity(collection, critiques)
 
         # If no specific critiques, add fallback so witch always appears
         if not critiques:
@@ -657,6 +662,159 @@ class Analyzer:
                     evidence=f"{collection.months}개월간 {collection.commits}개 커밋",
                     consequence="코드 품질 들쭉날쭉하고, 팀 협업 타이밍 안 맞고.",
                     remedy="매일 조금씩 꾸준히. 작은 커밋이라도 매일 하는 게 월말에 몰아치는 것보다 낫다."
+                )
+            )
+
+    def _check_documentation_culture(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check documentation practices and add critique if insufficient.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples:
+            return
+
+        # Count documentation-related PRs
+        doc_keywords = ['doc', 'readme', '문서', 'documentation', 'guide']
+        doc_prs = [pr for pr in collection.pull_request_examples
+                   if any(kw in pr.title.lower() for kw in doc_keywords)]
+
+        doc_ratio = len(doc_prs) / len(collection.pull_request_examples)
+        if doc_ratio < CRITIQUE_THRESHOLDS['min_doc_pr_ratio']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="문서화",
+                    severity="🕷️ 경고",
+                    critique=f"문서 관련 PR이 전체의 {doc_ratio*100:.0f}%밖에 안 돼? 6개월 후 네 코드 이해 못 하는 건 너 자신이야.",
+                    evidence=f"{len(collection.pull_request_examples)}개 PR 중 {len(doc_prs)}개만 문서 관련",
+                    consequence="신규 팀원 온보딩 지옥, API 사용법 물어보는 슬랙 메시지 폭탄, 레거시 코드화 가속.",
+                    remedy="README 업데이트, API 문서화, 아키텍처 다이어그램 추가. 코드만큼 문서도 중요해."
+                )
+            )
+
+    def _check_test_coverage(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check test-related activity and add critique if insufficient.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples:
+            return
+
+        # Count test-related PRs
+        test_keywords = ['test', '테스트', 'spec', 'unittest', 'integration']
+        test_prs = [pr for pr in collection.pull_request_examples
+                    if any(kw in pr.title.lower() for kw in test_keywords)]
+
+        test_ratio = len(test_prs) / len(collection.pull_request_examples)
+        if test_ratio < CRITIQUE_THRESHOLDS['min_test_pr_ratio']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="테스트",
+                    severity="⚡ 심각",
+                    critique=f"테스트 관련 PR이 {test_ratio*100:.0f}%? 프로덕션이 네 테스트 환경이야? 대담한데?",
+                    evidence=f"{len(collection.pull_request_examples)}개 PR 중 {len(test_prs)}개만 테스트 관련",
+                    consequence="프로덕션 버그, 새벽 3시 긴급 배포, 사용자 이탈, 팀 신뢰도 추락.",
+                    remedy="핵심 로직 테스트 작성, CI에 테스트 필수화, 커버리지 60% 목표. '돌아간다'로 만족하지 마."
+                )
+            )
+
+    def _check_branch_management(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check branch management practices and add critique if messy.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples or collection.pull_requests == 0:
+            return
+
+        # Calculate average commits per PR
+        avg_commits_per_pr = collection.commits / collection.pull_requests
+        if avg_commits_per_pr > CRITIQUE_THRESHOLDS['max_commits_per_pr']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="브랜치 관리",
+                    severity="🕷️ 경고",
+                    critique=f"PR당 평균 {avg_commits_per_pr:.1f}개 커밋? 브랜치에서 무슨 일이 벌어지는 거야? 정리 좀 해.",
+                    evidence=f"{collection.commits}개 커밋 / {collection.pull_requests}개 PR",
+                    consequence="리뷰어 혼란, 머지 충돌 지옥, Git 히스토리 난장판.",
+                    remedy="기능별로 브랜치 분리, 작은 단위로 자주 PR, 리베이스로 커밋 정리. 깔끔한 히스토리가 프로야."
+                )
+            )
+
+    def _check_issue_tracking(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check issue tracking practices and add critique if insufficient.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if collection.commits == 0 and collection.pull_requests == 0:
+            return
+
+        total_activity = collection.commits + collection.pull_requests + collection.reviews
+        if total_activity == 0:
+            return
+
+        issue_ratio = collection.issues / total_activity
+        if issue_ratio < CRITIQUE_THRESHOLDS['min_issue_ratio']:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="이슈 추적",
+                    severity="🕷️ 경고",
+                    critique=f"전체 활동의 {issue_ratio*100:.0f}%만 이슈? 버그는 없어? 아니면 그냥 추적 안 하는 거야?",
+                    evidence=f"총 {total_activity}건 활동 중 {collection.issues}건만 이슈",
+                    consequence="버그 재발, 요구사항 추적 불가, 프로젝트 관리 실패, 우선순위 혼란.",
+                    remedy="버그 발견하면 이슈 생성, 기능 요청도 이슈로 관리, 라벨링 체계화. 체계적인 추적이 프로젝트 성공의 열쇠야."
+                )
+            )
+
+    def _check_collaboration_diversity(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check collaboration diversity and add critique if too isolated.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        # This check would ideally use collaboration data, but we can infer from PR/review ratio
+        if collection.pull_requests == 0:
+            return
+
+        # If someone has many PRs but very few reviews, they might be working in isolation
+        review_to_pr_ratio = collection.reviews / collection.pull_requests if collection.pull_requests > 0 else 0
+
+        if review_to_pr_ratio < 0.3 and collection.pull_requests > 5:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="협업 다양성",
+                    severity="🕷️ 경고",
+                    critique=f"PR은 {collection.pull_requests}개인데 리뷰는 {collection.reviews}개? 혼자 섬에서 코딩하는 기분이야?",
+                    evidence=f"PR 대비 리뷰 비율: {review_to_pr_ratio*100:.0f}%",
+                    consequence="팀 내 지식 사일로, 코드 품질 저하, 버스 팩터 1, 외톨이 개발자.",
+                    remedy="다양한 팀원과 협업, 정기적 코드 리뷰 참여, 페어 프로그래밍 시도. 혼자 잘해봤자 한계 있어."
                 )
             )
 
