@@ -195,6 +195,79 @@ class GameRenderer:
         return lines if lines else [text[:max_width]]
 
     @staticmethod
+    def get_trend_indicator(
+        direction: str,
+        percentage: float,
+        size: str = "medium"
+    ) -> str:
+        """Get HTML for trend indicator with arrow and color.
+
+        Args:
+            direction: "up" or "down"
+            percentage: Percentage value (positive number)
+            size: "small", "medium", or "large"
+
+        Returns:
+            HTML string for trend indicator
+        """
+        # Size mappings
+        sizes = {
+            "small": {"font": "12px", "icon": "14px"},
+            "medium": {"font": "14px", "icon": "16px"},
+            "large": {"font": "16px", "icon": "20px"}
+        }
+
+        size_config = sizes.get(size, sizes["medium"])
+
+        if direction == "up":
+            color = COLOR_PALETTE["success"]
+            arrow = "↑"
+        else:
+            color = COLOR_PALETTE["danger"]
+            arrow = "↓"
+
+        return f'<span style="color: {color}; font-size: {size_config["icon"]}; font-weight: 600;">{arrow} {percentage:.1f}%</span>'
+
+    @staticmethod
+    def get_trend_badge(
+        label: str,
+        value: float,
+        trend_direction: str = None,
+        trend_percentage: float = None
+    ) -> str:
+        """Get HTML for metric badge with optional trend.
+
+        Args:
+            label: Metric label
+            value: Metric value
+            trend_direction: Optional "up" or "down"
+            trend_percentage: Optional percentage value
+
+        Returns:
+            HTML string for metric badge
+        """
+        trend_html = ""
+        if trend_direction and trend_percentage is not None:
+            if trend_direction == "up":
+                color = COLOR_PALETTE["success"]
+                arrow = "↑"
+            else:
+                color = COLOR_PALETTE["danger"]
+                arrow = "↓"
+            trend_html = f' <span style="color: {color}; font-size: 12px;">({arrow}{trend_percentage:.0f}%)</span>'
+
+        return f'''<span style="
+            display: inline-block;
+            padding: 6px 12px;
+            background: {COLOR_PALETTE["gray_100"]};
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: {COLOR_PALETTE["gray_800"]};
+            margin: 4px;
+        ">{label}: <strong>{value}</strong>{trend_html}</span>'''
+
+    @staticmethod
     def render_skill_card(
         skill_name: str,
         skill_type: str,
@@ -978,6 +1051,134 @@ class GameRenderer:
             lines.append('      </div>')
 
         lines.append('    </div>')
+        lines.append('  </div>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_radar_chart(
+        stats: Dict[str, int],
+        title: str = "능력치 레이더",
+        size: int = 400
+    ) -> List[str]:
+        """레이더 차트 렌더링 (RPG 스타일 스탯 시각화).
+
+        Args:
+            stats: 스탯 딕셔너리 {"stat_name": value, ...} (0-100 범위)
+            title: 차트 제목
+            size: 차트 크기 (픽셀)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not stats:
+            return []
+
+        lines = []
+
+        # 스탯 이름 매핑 (영문 -> 한글)
+        stat_labels = {
+            "code_quality": "코드 품질",
+            "collaboration": "협업",
+            "problem_solving": "문제해결",
+            "productivity": "생산성",
+            "consistency": "일관성",
+            "growth": "성장"
+        }
+
+        # 스탯 색상 매핑
+        stat_colors = {
+            "code_quality": COLOR_PALETTE["stat_code_quality"],
+            "collaboration": COLOR_PALETTE["stat_collaboration"],
+            "problem_solving": COLOR_PALETTE["stat_problem_solving"],
+            "productivity": COLOR_PALETTE["stat_productivity"],
+            "consistency": COLOR_PALETTE["stat_consistency"],
+            "growth": COLOR_PALETTE["stat_growth"]
+        }
+
+        # 차트 컨테이너
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
+        lines.append('  <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 40px;">')
+
+        # SVG 레이더 차트
+        center = size / 2
+        max_radius = (size / 2) - 80  # 여백 확보
+
+        lines.append(f'    <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">')
+
+        # 배경 동심원 (20%, 40%, 60%, 80%, 100%)
+        for i in range(5, 0, -1):
+            radius = max_radius * (i / 5)
+            opacity = 0.1 if i % 2 == 0 else 0.05
+            lines.append(f'      <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{COLOR_PALETTE["gray_300"]}" stroke-width="1" opacity="{opacity}"/>')
+            # 레이블 (20, 40, 60, 80, 100)
+            if i > 0:
+                label_y = center - radius + 5
+                lines.append(f'      <text x="{center + 5}" y="{label_y}" fill="{COLOR_PALETTE["gray_400"]}" font-size="10">{i * 20}</text>')
+
+        # 스탯 축 그리기
+        stat_items = list(stats.items())
+        num_stats = len(stat_items)
+        angle_step = 360 / num_stats
+
+        # 축선 및 레이블
+        for i, (stat_key, stat_value) in enumerate(stat_items):
+            angle = (angle_step * i - 90) * 3.14159 / 180  # -90도로 12시 방향 시작
+
+            # 축선
+            end_x = center + max_radius * __import__('math').cos(angle)
+            end_y = center + max_radius * __import__('math').sin(angle)
+            lines.append(f'      <line x1="{center}" y1="{center}" x2="{end_x}" y2="{end_y}" stroke="{COLOR_PALETTE["gray_300"]}" stroke-width="1"/>')
+
+            # 레이블 위치 (축선 바깥)
+            label_radius = max_radius + 40
+            label_x = center + label_radius * __import__('math').cos(angle)
+            label_y = center + label_radius * __import__('math').sin(angle)
+
+            # 레이블 정렬 조정
+            text_anchor = "middle"
+            if label_x < center - 5:
+                text_anchor = "end"
+            elif label_x > center + 5:
+                text_anchor = "start"
+
+            stat_label = stat_labels.get(stat_key, stat_key)
+            stat_color = stat_colors.get(stat_key, COLOR_PALETTE["primary"])
+
+            lines.append(f'      <text x="{label_x}" y="{label_y}" text-anchor="{text_anchor}" fill="{stat_color}" font-size="14" font-weight="600">{stat_label}</text>')
+            lines.append(f'      <text x="{label_x}" y="{label_y + 14}" text-anchor="{text_anchor}" fill="{COLOR_PALETTE["gray_600"]}" font-size="11">({stat_value})</text>')
+
+        # 스탯 폴리곤 (실제 값)
+        polygon_points = []
+        for i, (stat_key, stat_value) in enumerate(stat_items):
+            angle = (angle_step * i - 90) * 3.14159 / 180
+            # 값을 0-100 범위로 정규화하여 반지름 계산
+            normalized_value = min(100, max(0, stat_value))
+            radius = max_radius * (normalized_value / 100)
+            point_x = center + radius * __import__('math').cos(angle)
+            point_y = center + radius * __import__('math').sin(angle)
+            polygon_points.append(f"{point_x},{point_y}")
+
+        # 폴리곤 그리기
+        polygon_str = " ".join(polygon_points)
+        lines.append(f'      <polygon points="{polygon_str}" fill="{COLOR_PALETTE["primary"]}" fill-opacity="0.3" stroke="{COLOR_PALETTE["primary"]}" stroke-width="2"/>')
+
+        # 스탯 포인트 표시
+        for i, (stat_key, stat_value) in enumerate(stat_items):
+            angle = (angle_step * i - 90) * 3.14159 / 180
+            normalized_value = min(100, max(0, stat_value))
+            radius = max_radius * (normalized_value / 100)
+            point_x = center + radius * __import__('math').cos(angle)
+            point_y = center + radius * __import__('math').sin(angle)
+
+            stat_color = stat_colors.get(stat_key, COLOR_PALETTE["primary"])
+            lines.append(f'      <circle cx="{point_x}" cy="{point_y}" r="5" fill="{stat_color}" stroke="white" stroke-width="2"/>')
+
+        lines.append('    </svg>')
+
         lines.append('  </div>')
         lines.append('</div>')
         lines.append("")

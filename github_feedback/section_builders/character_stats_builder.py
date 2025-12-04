@@ -62,6 +62,16 @@ class CharacterStatsBuilder(SectionBuilder):
         )
 
         lines.extend(character_lines)
+
+        # Add radar chart visualization for stats
+        lines.append("### 📊 능력치 시각화")
+        lines.append("")
+        lines.extend(GameRenderer.render_radar_chart(
+            stats=stats,
+            title="스탯 레이더 차트",
+            size=400
+        ))
+
         lines.append("---")
         lines.append("")
         return lines
