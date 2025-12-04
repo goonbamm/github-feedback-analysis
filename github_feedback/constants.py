@@ -592,22 +592,37 @@ BADGE_THRESHOLDS = {
 # Thresholds for identifying code quality issues
 CRITIQUE_THRESHOLDS = {
     # Commit message quality
-    'poor_commit_ratio': 0.4,  # 40% poor messages triggers critique
+    'poor_commit_ratio': 0.25,  # 25% poor messages triggers critique (lowered from 0.4)
 
     # PR size thresholds
-    'large_pr_lines': 1000,  # PRs larger than this are considered large
-    'large_pr_ratio': 0.3,  # 30% large PRs triggers critique
+    'large_pr_lines': 500,  # PRs larger than this are considered large (lowered from 1000)
+    'large_pr_ratio': 0.2,  # 20% large PRs triggers critique (lowered from 0.3)
     'recommended_pr_size': 300,  # Recommended max PR size
 
     # PR title quality
-    'vague_title_ratio': 0.3,  # 30% vague titles triggers critique
+    'vague_title_ratio': 0.2,  # 20% vague titles triggers critique (lowered from 0.3)
 
     # Review quality
-    'neutral_review_ratio': 0.6,  # 60% neutral reviews triggers critique
+    'neutral_review_ratio': 0.4,  # 40% neutral reviews triggers critique (lowered from 0.6)
     'review_pr_ratio': 0.5,  # Reviews should be at least 50% of PRs
 
     # Activity consistency
-    'min_commits_per_month': 10,  # Minimum commits per month for consistency
+    'min_commits_per_month': 5,  # Minimum commits per month for consistency (lowered from 10)
+
+    # Documentation thresholds
+    'min_doc_pr_ratio': 0.05,  # At least 5% of PRs should be documentation
+
+    # Test coverage thresholds
+    'min_test_pr_ratio': 0.1,  # At least 10% of PRs should include tests
+
+    # Branch management
+    'max_commits_per_pr': 15,  # PRs with more than 15 commits may need better branch management
+
+    # Issue tracking
+    'min_issue_ratio': 0.1,  # Issues should be at least 10% of total activity
+
+    # Collaboration diversity
+    'min_unique_reviewers': 2,  # Should have at least 2 unique reviewers
 }
 
 # =============================================================================
