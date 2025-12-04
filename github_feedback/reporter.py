@@ -12,12 +12,14 @@ from .models import MetricSnapshot
 from .retrospective_builders import RetrospectiveBuilder
 from .section_builders.awards_builder import AwardsBuilder
 from .section_builders.character_stats_builder import CharacterStatsBuilder
+from .section_builders.dashboard_builder import DashboardBuilder
 from .section_builders.highlights_builder import HighlightsBuilder
 from .section_builders.monthly_trends_builder import MonthlyTrendsBuilder
 from .section_builders.skill_tree_builder import SkillTreeBuilder
 from .section_builders.spotlight_builder import SpotlightBuilder
 from .section_builders.summary_builder import SummaryBuilder
 from .section_builders.tech_stack_builder import TechStackBuilder
+from .section_builders.toc_builder import TOCBuilder
 from .section_builders.witch_critique_builder import WitchCritiqueBuilder
 
 console = Console()
@@ -50,15 +52,17 @@ class Reporter:
 
         Improved report structure for better user experience:
         1. Header with basic info
-        2. Summary Overview Table - Quick glance at strengths, improvements, and growth
-        3. Character Stats - Gamified visualization of repository metrics
-        4. Awards Cabinet to celebrate achievements
-        5. Growth Highlights to show progress
-        6. Monthly Trends for pattern analysis
-        7. Detailed Feedback for actionable insights
-        8. Deep Retrospective for comprehensive analysis
-        9. Spotlight Examples for concrete evidence
-        10. Tech Stack to show technical breadth
+        2. Table of Contents - Easy navigation
+        3. Summary Overview Table - Quick glance at strengths, improvements, and growth
+        4. Dashboard - Key metrics at a glance
+        5. Character Stats - Gamified visualization of repository metrics
+        6. Awards Cabinet to celebrate achievements
+        7. Growth Highlights to show progress
+        8. Monthly Trends for pattern analysis
+        9. Detailed Feedback for actionable insights
+        10. Deep Retrospective for comprehensive analysis
+        11. Spotlight Examples for concrete evidence
+        12. Tech Stack to show technical breadth
         """
         self.ensure_structure()
         report_path = self.output_dir / "report.md"
@@ -83,25 +87,29 @@ class Reporter:
         sections = [
             # 1. Header with basic info & Summary Overview Table
             SummaryBuilder(metrics, self.llm_client).build(),
-            # 2. Character Stats - Gamified visualization
+            # 2. Table of Contents - Easy navigation
+            TOCBuilder(metrics).build(),
+            # 3. Dashboard - Key metrics at a glance
+            DashboardBuilder(metrics).build(),
+            # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
-            # 3. Skill Tree - Game-style skill representation
+            # 5. Skill Tree - Game-style skill representation
             SkillTreeBuilder(metrics).build(),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 6. Awards Cabinet - Celebrate achievements first!
             AwardsBuilder(metrics).build(),
-            # 5. Growth Highlights - Show the story
+            # 7. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 6. Monthly Trends - Show patterns
+            # 8. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 7. Detailed Feedback - Actionable insights
+            # 9. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 8. Deep Retrospective - Comprehensive analysis
+            # 10. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 9. Witch's Critique - Harsh but constructive feedback
+            # 11. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 10. Spotlight Examples - Concrete evidence
+            # 12. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 11. Tech Stack - Technical breadth
+            # 13. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 
@@ -147,25 +155,29 @@ class Reporter:
         sections = [
             # 1. Header with basic info & Summary Overview Table
             SummaryBuilder(metrics, self.llm_client).build(),
-            # 2. Character Stats - Gamified visualization
+            # 2. Table of Contents - Easy navigation
+            TOCBuilder(metrics).build(),
+            # 3. Dashboard - Key metrics at a glance
+            DashboardBuilder(metrics).build(),
+            # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
-            # 3. Skill Tree - Game-style skill representation
+            # 5. Skill Tree - Game-style skill representation
             SkillTreeBuilder(metrics).build(),
-            # 4. Awards Cabinet - Celebrate achievements first!
+            # 6. Awards Cabinet - Celebrate achievements first!
             AwardsBuilder(metrics).build(),
-            # 5. Growth Highlights - Show the story
+            # 7. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 6. Monthly Trends - Show patterns
+            # 8. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 7. Detailed Feedback - Actionable insights
+            # 9. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 8. Deep Retrospective - Comprehensive analysis
+            # 10. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 9. Witch's Critique - Harsh but constructive feedback
+            # 11. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 10. Spotlight Examples - Concrete evidence
+            # 12. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 11. Tech Stack - Technical breadth
+            # 13. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 
