@@ -1463,6 +1463,329 @@ class GameRenderer:
 
         return lines
 
+    @staticmethod
+    def render_gauge(
+        value: float,
+        max_value: float = 100,
+        title: str = "진행률",
+        unit: str = "%",
+        color: str = None,
+        size: int = 200
+    ) -> List[str]:
+        """게이지 차트 렌더링 (진행률 시각화).
+
+        Args:
+            value: 현재 값
+            max_value: 최대 값
+            title: 게이지 제목
+            unit: 단위
+            color: 게이지 색상 (기본값: primary)
+            size: 게이지 크기 (픽셀)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        lines = []
+
+        # 퍼센트 계산
+        percentage = min(100, (value / max_value * 100)) if max_value > 0 else 0
+
+        # 색상 결정
+        if color is None:
+            if percentage >= 80:
+                color = COLOR_PALETTE["success"]
+            elif percentage >= 50:
+                color = COLOR_PALETTE["warning"]
+            else:
+                color = COLOR_PALETTE["danger"]
+
+        # SVG 게이지
+        center = size / 2
+        radius = size / 2 - 20
+        circumference = 2 * 3.14159 * radius
+        offset = circumference - (percentage / 100) * circumference
+
+        lines.append('<div class="chart-container" style="text-align: center;">')
+        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append(f'  <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">')
+
+        # 배경 원
+        lines.append(f'    <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{COLOR_PALETTE["gray_200"]}" stroke-width="20"/>')
+
+        # 진행 원
+        lines.append(f'    <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="{color}" stroke-width="20" stroke-dasharray="{circumference}" stroke-dashoffset="{offset}" stroke-linecap="round" transform="rotate(-90 {center} {center})" style="transition: stroke-dashoffset 0.5s ease;"/>')
+
+        # 중앙 텍스트
+        lines.append(f'    <text x="{center}" y="{center - 10}" text-anchor="middle" fill="{COLOR_PALETTE["gray_800"]}" font-size="{size/5}" font-weight="bold">{percentage:.1f}{unit}</text>')
+        lines.append(f'    <text x="{center}" y="{center + 20}" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="{size/10}">{value:.0f} / {max_value:.0f}</text>')
+
+        lines.append('  </svg>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_heatmap(
+        data: List[List[int]],
+        x_labels: List[str],
+        y_labels: List[str],
+        title: str = "활동 히트맵",
+        cell_size: int = 30
+    ) -> List[str]:
+        """히트맵 차트 렌더링 (시간/요일별 활동 패턴).
+
+        Args:
+            data: 2D 데이터 배열 (행x열)
+            x_labels: X축 레이블 (예: 월~일)
+            y_labels: Y축 레이블 (예: 00:00~23:00)
+            title: 차트 제목
+            cell_size: 셀 크기 (픽셀)
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not data or not x_labels or not y_labels:
+            return []
+
+        lines = []
+
+        # 최대값 찾기 (색상 정규화용)
+        max_value = max(max(row) for row in data) if data else 1
+
+        # 차트 크기 계산
+        width = len(x_labels) * cell_size + 80
+        height = len(y_labels) * cell_size + 80
+
+        lines.append('<div class="chart-container">')
+        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append(f'  <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">')
+
+        # Y축 레이블
+        for i, label in enumerate(y_labels):
+            y = 60 + i * cell_size
+            lines.append(f'    <text x="60" y="{y + cell_size/2 + 4}" text-anchor="end" fill="{COLOR_PALETTE["gray_600"]}" font-size="11">{label}</text>')
+
+        # X축 레이블
+        for i, label in enumerate(x_labels):
+            x = 70 + i * cell_size
+            lines.append(f'    <text x="{x + cell_size/2}" y="40" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="11">{label}</text>')
+
+        # 히트맵 셀
+        for i, row in enumerate(data):
+            for j, value in enumerate(row):
+                x = 70 + j * cell_size
+                y = 50 + i * cell_size
+
+                # 값에 따른 색상 강도 계산
+                intensity = (value / max_value) if max_value > 0 else 0
+
+                # 색상 그라데이션 (연한 파랑 -> 진한 보라)
+                if intensity == 0:
+                    color = COLOR_PALETTE["gray_100"]
+                elif intensity < 0.2:
+                    color = "#e0e7ff"
+                elif intensity < 0.4:
+                    color = "#c7d2fe"
+                elif intensity < 0.6:
+                    color = "#a5b4fc"
+                elif intensity < 0.8:
+                    color = "#818cf8"
+                else:
+                    color = COLOR_PALETTE["primary"]
+
+                lines.append(f'    <rect x="{x}" y="{y}" width="{cell_size-2}" height="{cell_size-2}" fill="{color}" rx="3">')
+                lines.append(f'      <title>{y_labels[i]} - {x_labels[j]}: {value}개</title>')
+                lines.append('    </rect>')
+
+        lines.append('  </svg>')
+
+        # 범례
+        lines.append('  <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; font-size: 0.85em; color: ' + COLOR_PALETTE["gray_600"] + ';">')
+        lines.append('    <span>적음</span>')
+        for intensity_val, color_val in [(0, COLOR_PALETTE["gray_100"]), (0.25, "#c7d2fe"), (0.5, "#a5b4fc"), (0.75, "#818cf8"), (1, COLOR_PALETTE["primary"])]:
+            lines.append(f'    <div style="width: 20px; height: 20px; background: {color_val}; border-radius: 3px;"></div>')
+        lines.append('    <span>많음</span>')
+        lines.append('  </div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_bubble_chart(
+        bubbles: List[Dict[str, Any]],
+        title: str = "활동 버블 차트",
+        x_label: str = "X축",
+        y_label: str = "Y축",
+        width: int = 600,
+        height: int = 400
+    ) -> List[str]:
+        """버블 차트 렌더링 (3차원 데이터 시각화).
+
+        Args:
+            bubbles: 버블 데이터 [{"x": 10, "y": 20, "size": 30, "label": "A", "color": "#fff"}, ...]
+            title: 차트 제목
+            x_label: X축 레이블
+            y_label: Y축 레이블
+            width: 차트 너비
+            height: 차트 높이
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not bubbles:
+            return []
+
+        lines = []
+
+        # 데이터 범위 계산
+        x_values = [b.get("x", 0) for b in bubbles]
+        y_values = [b.get("y", 0) for b in bubbles]
+        size_values = [b.get("size", 1) for b in bubbles]
+
+        x_min, x_max = min(x_values), max(x_values)
+        y_min, y_max = min(y_values), max(y_values)
+        size_max = max(size_values) if size_values else 1
+
+        # 차트 영역 (여백 포함)
+        margin = 60
+        chart_width = width - 2 * margin
+        chart_height = height - 2 * margin
+
+        lines.append('<div class="chart-container">')
+        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append(f'  <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">')
+
+        # 축 그리기
+        lines.append(f'    <line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="{COLOR_PALETTE["gray_300"]}" stroke-width="2"/>')
+        lines.append(f'    <line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="{COLOR_PALETTE["gray_300"]}" stroke-width="2"/>')
+
+        # 축 레이블
+        lines.append(f'    <text x="{width/2}" y="{height - 10}" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="14">{x_label}</text>')
+        lines.append(f'    <text x="20" y="{height/2}" text-anchor="middle" fill="{COLOR_PALETTE["gray_600"]}" font-size="14" transform="rotate(-90 20 {height/2})">{y_label}</text>')
+
+        # 버블 그리기
+        for bubble in bubbles:
+            x = bubble.get("x", 0)
+            y = bubble.get("y", 0)
+            size = bubble.get("size", 1)
+            label = bubble.get("label", "")
+            color = bubble.get("color", COLOR_PALETTE["primary"])
+
+            # 좌표 정규화
+            if x_max > x_min:
+                norm_x = margin + ((x - x_min) / (x_max - x_min)) * chart_width
+            else:
+                norm_x = margin + chart_width / 2
+
+            if y_max > y_min:
+                norm_y = height - margin - ((y - y_min) / (y_max - y_min)) * chart_height
+            else:
+                norm_y = height - margin - chart_height / 2
+
+            # 버블 크기 정규화 (5~40 픽셀)
+            bubble_radius = 5 + (size / size_max) * 35 if size_max > 0 else 10
+
+            lines.append(f'    <circle cx="{norm_x}" cy="{norm_y}" r="{bubble_radius}" fill="{color}" opacity="0.7" stroke="white" stroke-width="2">')
+            lines.append(f'      <title>{label}: X={x}, Y={y}, Size={size}</title>')
+            lines.append('    </circle>')
+
+            # 레이블 (작은 버블은 생략)
+            if bubble_radius > 15:
+                lines.append(f'    <text x="{norm_x}" y="{norm_y + 4}" text-anchor="middle" fill="white" font-size="11" font-weight="bold">{label}</text>')
+
+        lines.append('  </svg>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
+    @staticmethod
+    def render_network_graph(
+        nodes: List[Dict[str, Any]],
+        edges: List[Dict[str, Any]],
+        title: str = "협업 네트워크",
+        width: int = 600,
+        height: int = 400
+    ) -> List[str]:
+        """네트워크 그래프 렌더링 (협업 관계 시각화).
+
+        Args:
+            nodes: 노드 데이터 [{"id": "user1", "label": "User 1", "size": 10, "color": "#fff"}, ...]
+            edges: 엣지 데이터 [{"from": "user1", "to": "user2", "weight": 5}, ...]
+            title: 차트 제목
+            width: 차트 너비
+            height: 차트 높이
+
+        Returns:
+            마크다운 라인 리스트
+        """
+        if not nodes:
+            return []
+
+        lines = []
+
+        # 원형 레이아웃으로 노드 배치
+        import math
+        center_x = width / 2
+        center_y = height / 2
+        radius = min(width, height) / 3
+
+        node_positions = {}
+        for i, node in enumerate(nodes):
+            angle = (2 * math.pi * i) / len(nodes)
+            x = center_x + radius * math.cos(angle)
+            y = center_y + radius * math.sin(angle)
+            node_positions[node["id"]] = (x, y)
+
+        lines.append('<div class="chart-container">')
+        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append(f'  <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">')
+
+        # 엣지 그리기 (먼저)
+        max_weight = max([e.get("weight", 1) for e in edges]) if edges else 1
+        for edge in edges:
+            from_id = edge.get("from")
+            to_id = edge.get("to")
+            weight = edge.get("weight", 1)
+
+            if from_id in node_positions and to_id in node_positions:
+                x1, y1 = node_positions[from_id]
+                x2, y2 = node_positions[to_id]
+
+                # 가중치에 따른 선 두께
+                stroke_width = 1 + (weight / max_weight) * 4 if max_weight > 0 else 2
+                opacity = 0.3 + (weight / max_weight) * 0.5 if max_weight > 0 else 0.5
+
+                lines.append(f'    <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{COLOR_PALETTE["gray_400"]}" stroke-width="{stroke_width}" opacity="{opacity}"/>')
+
+        # 노드 그리기
+        max_size = max([n.get("size", 1) for n in nodes]) if nodes else 1
+        for node in nodes:
+            node_id = node["id"]
+            x, y = node_positions[node_id]
+            label = node.get("label", node_id)
+            size = node.get("size", 1)
+            color = node.get("color", COLOR_PALETTE["primary"])
+
+            # 노드 크기 정규화
+            node_radius = 15 + (size / max_size) * 25 if max_size > 0 else 20
+
+            lines.append(f'    <circle cx="{x}" cy="{y}" r="{node_radius}" fill="{color}" stroke="white" stroke-width="3" opacity="0.9">')
+            lines.append(f'      <title>{label}: {size}개 활동</title>')
+            lines.append('    </circle>')
+
+            # 레이블
+            lines.append(f'    <text x="{x}" y="{y + node_radius + 15}" text-anchor="middle" fill="{COLOR_PALETTE["gray_800"]}" font-size="12" font-weight="bold">{label}</text>')
+
+        lines.append('  </svg>')
+        lines.append('</div>')
+        lines.append("")
+
+        return lines
+
 
 class LevelCalculator:
     """레벨 및 타이틀 계산 유틸리티."""

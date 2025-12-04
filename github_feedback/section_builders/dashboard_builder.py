@@ -83,6 +83,60 @@ class DashboardBuilder(SectionBuilder):
         # Render cards using HTML
         lines.extend(self._render_metric_cards(cards))
 
+        # Add visualizations section
+        lines.append("### 📊 활동 분포 시각화")
+        lines.append("")
+
+        # Create a grid for donut chart and gauge
+        lines.append('<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 24px 0;">')
+
+        # PR Status Donut Chart
+        if total_prs > 0:
+            pr_segments = [
+                {"label": "병합됨", "value": merged_prs, "color": COLOR_PALETTE["success"]},
+                {"label": "열림", "value": prs_data.get("open", 0), "color": COLOR_PALETTE["info"]},
+                {"label": "닫힘", "value": prs_data.get("closed", 0) - merged_prs, "color": COLOR_PALETTE["gray_400"]}
+            ]
+            # Filter out zero values
+            pr_segments = [seg for seg in pr_segments if seg["value"] > 0]
+
+            donut_lines = GameRenderer.render_donut_chart(
+                segments=pr_segments,
+                title="PR 상태 분포"
+            )
+            lines.append('<div>')
+            lines.extend(donut_lines)
+            lines.append('</div>')
+
+        # Merge Rate Gauge
+        if total_prs > 0:
+            gauge_lines = GameRenderer.render_gauge(
+                value=merge_rate,
+                max_value=100,
+                title="병합 성공률",
+                unit="%",
+                size=250
+            )
+            lines.append('<div>')
+            lines.extend(gauge_lines)
+            lines.append('</div>')
+
+        lines.append('</div>')
+        lines.append("")
+
+        # Tech Stack Donut Chart (if available)
+        if self.metrics.tech_stack and self.metrics.tech_stack.top_languages:
+            languages = self.metrics.tech_stack.top_languages[:5]  # Top 5 languages
+            lang_segments = [
+                {"label": lang.name, "value": lang.percentage, "color": self._get_language_color(i)}
+                for i, lang in enumerate(languages)
+            ]
+
+            lines.extend(GameRenderer.render_donut_chart(
+                segments=lang_segments,
+                title="기술 스택 분포 (상위 5개)"
+            ))
+
         lines.append("---")
         lines.append("")
         return lines
@@ -164,3 +218,24 @@ class DashboardBuilder(SectionBuilder):
         lines.append('</div>')
         lines.append("")
         return lines
+
+    def _get_language_color(self, index: int) -> str:
+        """Get color for language by index.
+
+        Args:
+            index: Language index
+
+        Returns:
+            Color hex code
+        """
+        colors = [
+            COLOR_PALETTE["primary"],
+            COLOR_PALETTE["secondary"],
+            COLOR_PALETTE["info"],
+            COLOR_PALETTE["warning"],
+            COLOR_PALETTE["success"],
+            COLOR_PALETTE["purple"],
+            COLOR_PALETTE["pink"],
+            COLOR_PALETTE["orange"]
+        ]
+        return colors[index % len(colors)]
