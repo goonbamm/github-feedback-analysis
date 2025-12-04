@@ -127,116 +127,17 @@ def init(
     Interactive mode: Run without options to be prompted for each value.
     Non-interactive mode: Provide all required options for scripting.
     """
+    from .cli.commands.init_command import InitCommand
 
-    # Determine if we're in interactive mode
-    is_interactive = sys.stdin.isatty()
-
-    # Prompt for missing required values only in interactive mode
-    with cli_helpers.handle_user_interruption("Configuration cancelled by user."):
-        if pat is None:
-            if is_interactive:
-                pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
-            else:
-                console.print("[danger]Error:[/] --pat is required in non-interactive mode")
-                raise typer.Exit(code=1)
-
-        if llm_endpoint is None:
-            if is_interactive:
-                llm_endpoint = typer.prompt("LLM API endpoint (OpenAI-compatible format)")
-            else:
-                console.print("[danger]Error:[/] --llm-endpoint is required in non-interactive mode")
-                raise typer.Exit(code=1)
-
-        if llm_model is None:
-            if is_interactive:
-                llm_model = typer.prompt("LLM model name (e.g. gpt-4, claude-3-5-sonnet-20241022)")
-            else:
-                console.print("[danger]Error:[/] --llm-model is required in non-interactive mode")
-                raise typer.Exit(code=1)
-
-        # Enterprise host selection with interactive menu
-        should_save_host = False
-        if enterprise_host is None and is_interactive:
-            # Load config to get custom hosts
-            temp_config = Config.load()
-            result = cli_repository.select_enterprise_host_interactive(temp_config.server.custom_enterprise_hosts)
-            if result is None:
-                # User cancelled
-                console.print("\n[warning]Configuration cancelled by user.[/]")
-                raise typer.Exit(code=0)
-            enterprise_host, should_save_host = result
-
-    # Validate inputs
-    try:
-        validate_pat_format(pat)
-        validate_months(months)
-        validate_url(llm_endpoint, "LLM endpoint")
-    except ValueError as exc:
-        console.print_validation_error(str(exc))
-        raise typer.Exit(code=1) from exc
-
-    host_input = (enterprise_host or "").strip()
-    if host_input:
-        try:
-            # Add scheme if missing
-            if not host_input.startswith(("http://", "https://")):
-                host_input = f"https://{host_input}"
-            validate_url(host_input, "Enterprise host")
-            host = host_input.rstrip("/")
-        except ValueError as exc:
-            console.print_validation_error(str(exc))
-            raise typer.Exit(code=1) from exc
-
-        api_url = f"{host}/api/v3"
-        graphql_url = f"{host}/api/graphql"
-        web_url = host
-    else:
-        api_url = "https://api.github.com"
-        graphql_url = "https://api.github.com/graphql"
-        web_url = "https://github.com"
-
-    config = Config.load()
-    config.update_auth(pat)
-    config.server.api_url = api_url
-    config.server.graphql_url = graphql_url
-    config.server.web_url = web_url
-    config.llm.endpoint = llm_endpoint
-    config.llm.model = llm_model
-    config.defaults.months = months
-
-    # Save custom enterprise host if requested
-    if should_save_host and host_input and host_input not in config.server.custom_enterprise_hosts:
-        config.server.custom_enterprise_hosts.append(host_input)
-        console.print(f"[success]✓ Saved '{host_input}' to your custom host list[/]")
-
-    # Test LLM connection if requested
-    if test_connection:
-        console.print()
-        with console.status("[accent]Testing LLM connection...", spinner="dots"):
-            try:
-                from .llm import LLMClient
-                test_client = LLMClient(
-                    endpoint=llm_endpoint,
-                    model=llm_model,
-                    timeout=10,
-                )
-                test_client.test_connection()
-                console.print("[success]✓ LLM connection successful[/]")
-            except KeyboardInterrupt:
-                console.print("\n[warning]Configuration cancelled by user.[/]")
-                raise typer.Exit(code=0)
-            except (requests.RequestException, ValueError, ConnectionError) as exc:
-                console.print(f"[warning]⚠ LLM connection test failed: {exc}[/]")
-                with cli_helpers.handle_user_interruption("Configuration cancelled by user."):
-                    if is_interactive and not typer.confirm("Save configuration anyway?", default=True):
-                        console.print("[info]Configuration not saved[/]")
-                        raise typer.Exit(code=1)
-
-    config.dump()
-    console.print("[success]✓ Configuration saved successfully[/]")
-    console.print("[success]✓ GitHub token stored securely in system keyring[/]")
-    console.print()
-    _print_config_summary()
+    command = InitCommand(console)
+    command.execute(
+        pat=pat,
+        months=months,
+        enterprise_host=enterprise_host,
+        llm_endpoint=llm_endpoint,
+        llm_model=llm_model,
+        test_connection=test_connection,
+    )
 
 
 def _generate_artifacts(
@@ -900,41 +801,10 @@ def show_config() -> None:
     Shows your GitHub server URLs, LLM endpoint, and default settings.
     Sensitive values like tokens are masked for security.
     """
+    from .cli.commands.config_command import ConfigCommand
 
-    _print_config_summary()
-
-
-def _print_config_summary() -> None:
-    """Render the current configuration in either table or plain format."""
-
-    config = cli_helpers.load_config()
-    data = config.to_display_dict()
-
-    if Table is None:
-        console.print("GitHub Feedback Configuration")
-        for section, values in data.items():
-            console.print(f"[{section}]")
-            for key, value in values.items():
-                console.print(f"{key} = {value}")
-            console.print("")
-        return
-
-    table = Table(
-        title="GitHub Feedback Configuration",
-        box=box.ROUNDED,
-        title_style="title",
-        border_style="frame",
-        expand=True,
-        show_lines=True,
-    )
-    table.add_column("Section", style="label", no_wrap=True)
-    table.add_column("Values", style="value")
-
-    for section, values in data.items():
-        rendered_values = "\n".join(f"[label]{k}[/]: [value]{v}[/]" for k, v in values.items())
-        table.add_row(f"[accent]{section}[/]", rendered_values)
-
-    console.print(table)
+    command = ConfigCommand(console)
+    command.show()
 
 
 @config_app.command("set")
@@ -949,14 +819,10 @@ def config_set(
         gfa config set llm.endpoint https://api.openai.com/v1/chat/completions
         gfa config set defaults.months 6
     """
-    try:
-        config = Config.load()
-        config.set_value(key, value)
-        config.dump()
-        console.print(f"[success]✓ Configuration updated:[/] {key} = {value}")
-    except ValueError as exc:
-        console.print_error(exc)
-        raise typer.Exit(code=1) from exc
+    from .cli.commands.config_command import ConfigCommand
+
+    command = ConfigCommand(console)
+    command.set(key, value)
 
 
 @config_app.command("get")
@@ -969,13 +835,10 @@ def config_get(
         gfa config get llm.model
         gfa config get defaults.months
     """
-    try:
-        config = Config.load()
-        value = config.get_value(key)
-        console.print(f"{key} = {value}")
-    except ValueError as exc:
-        console.print_error(exc)
-        raise typer.Exit(code=1) from exc
+    from .cli.commands.config_command import ConfigCommand
+
+    command = ConfigCommand(console)
+    command.get(key)
 
 
 @config_app.command("hosts")
@@ -996,71 +859,10 @@ def config_hosts(
         gfa config hosts add https://github.company.com
         gfa config hosts remove https://github.company.com
     """
-    try:
-        config = Config.load()
+    from .cli.commands.config_command import ConfigCommand
 
-        if action == "list":
-            if not config.server.custom_enterprise_hosts:
-                console.print("[info]No custom enterprise hosts saved.[/]")
-                console.print("[dim]Add hosts using:[/] gfa config hosts add <host-url>")
-            else:
-                console.print("[accent]Custom Enterprise Hosts:[/]\n")
-                for idx, saved_host in enumerate(config.server.custom_enterprise_hosts, 1):
-                    console.print(f"  {idx}. {saved_host}")
-
-        elif action == "add":
-            if not host:
-                console.print("[danger]Error:[/] Host URL is required for 'add' action")
-                console.print("[info]Usage:[/] gfa config hosts add <host-url>")
-                raise typer.Exit(code=1)
-
-            # Validate and normalize host
-            host = host.strip()
-            if not host.startswith(("http://", "https://")):
-                host = f"https://{host}"
-
-            try:
-                validate_url(host, "Enterprise host")
-            except ValueError as exc:
-                console.print_validation_error(str(exc))
-                raise typer.Exit(code=1) from exc
-
-            host = host.rstrip("/")
-
-            if host in config.server.custom_enterprise_hosts:
-                console.print(f"[warning]Host '{host}' is already in your custom list[/]")
-            else:
-                config.server.custom_enterprise_hosts.append(host)
-                config.dump()
-                console.print(f"[success]✓ Added '{host}' to your custom host list[/]")
-
-        elif action == "remove":
-            if not host:
-                console.print("[danger]Error:[/] Host URL is required for 'remove' action")
-                console.print("[info]Usage:[/] gfa config hosts remove <host-url>")
-                raise typer.Exit(code=1)
-
-            # Normalize host for comparison
-            host = host.strip().rstrip("/")
-            if not host.startswith(("http://", "https://")):
-                host = f"https://{host}"
-
-            if host in config.server.custom_enterprise_hosts:
-                config.server.custom_enterprise_hosts.remove(host)
-                config.dump()
-                console.print(f"[success]✓ Removed '{host}' from your custom host list[/]")
-            else:
-                console.print(f"[warning]Host '{host}' not found in your custom list[/]")
-                console.print("[info]Use 'gfa config hosts list' to see saved hosts[/]")
-
-        else:
-            console.print_error(f"Unknown action '{action}'")
-            console.print("[info]Valid actions:[/] list, add, remove")
-            raise typer.Exit(code=1)
-
-    except ValueError as exc:
-        console.print_error(exc)
-        raise typer.Exit(code=1) from exc
+    command = ConfigCommand(console)
+    command.hosts(action, host)
 
 
 @app.command(name="list-repos")
@@ -1095,37 +897,10 @@ def list_repos(
         gfa list-repos --sort stars --limit 10
         gfa list-repos --org myorganization
     """
-    config = cli_helpers.load_config()
+    from .cli.commands.repository_command import RepositoryCommand
 
-    try:
-        collector = Collector(config)
-    except ValueError as exc:
-        console.print_error(exc)
-        raise typer.Exit(code=1) from exc
-
-    with console.status("[accent]Fetching repositories...", spinner="bouncingBar"):
-        if org:
-            repos = collector.list_org_repositories(org, sort)
-        else:
-            repos = collector.list_user_repositories(sort)
-
-    if not repos:
-        console.print("[warning]No repositories found.[/]")
-        if org:
-            console.print(f"[info]Organization:[/] {org}")
-        raise typer.Exit(code=0)
-
-    # Limit the results
-    repos = repos[:limit]
-
-    # Display repositories using helper function
-    create_repository_table(
-        repos=repos,
-        title=f"{'Organization' if org else 'Your'} Repositories",
-        include_rank=False,
-        include_activity=False,
-        console=console,
-    )
+    command = RepositoryCommand(console)
+    command.list_repos(sort=sort, limit=limit, org=org)
 
 
 @app.command(name="suggest-repos")
@@ -1160,38 +935,10 @@ def suggest_repos(
         gfa suggest-repos --limit 5 --days 30
         gfa suggest-repos --sort stars
     """
-    config = cli_helpers.load_config()
+    from .cli.commands.repository_command import RepositoryCommand
 
-    try:
-        collector = Collector(config)
-    except ValueError as exc:
-        console.print_error(exc)
-        raise typer.Exit(code=1) from exc
-
-    with console.status("[accent]Analyzing repositories...", spinner="bouncingBar"):
-        suggestions = collector.suggest_repositories(
-            limit=limit, min_activity_days=days, sort_by=sort
-        )
-
-    if not suggestions:
-        console.print("[warning]No repository suggestions found.[/]")
-        console.print(
-            f"[info]Try increasing the activity window with [accent]--days[/] (current: {days})"
-        )
-        raise typer.Exit(code=0)
-
-    # Display repository suggestions using helper function
-    create_repository_table(
-        repos=suggestions,
-        title="Suggested Repositories for Analysis",
-        include_rank=True,
-        include_activity=True,
-        console=console,
-    )
-    console.print_section_separator()
-    console.print(
-        "[info]To analyze a repository, use:[/] [accent]gfa feedback --repo <owner/name>[/]"
-    )
+    command = RepositoryCommand(console)
+    command.suggest_repos(limit=limit, days=days, sort=sort)
 
 
 @app.command(name="clear-cache")
@@ -1204,16 +951,19 @@ def clear_cache() -> None:
     Examples:
         gfa clear-cache
     """
-    from .api_client import GitHubApiClient
+    from .cli.commands.cache_command import CacheCommand
 
-    console.print("[info]Clearing API cache...[/]")
-    GitHubApiClient.clear_cache()
+    command = CacheCommand(console)
+    command.clear_cache()
 
 
 # Keep show-config as a deprecated alias for backward compatibility
 @app.command(name="show-config", hidden=True, deprecated=True)
 def show_config_deprecated() -> None:
     """Display current configuration settings (deprecated: use 'gfa config show')."""
+    from .cli.commands.config_command import ConfigCommand
+
     console.print("[warning]Note:[/] 'gfa show-config' is deprecated. Use 'gfa config show' instead.")
     console.print()
-    _print_config_summary()
+    command = ConfigCommand(console)
+    command.show()

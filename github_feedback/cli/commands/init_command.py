@@ -63,8 +63,8 @@ class InitCommand:
             enterprise_host, is_interactive
         )
 
-        # Validate inputs
-        self._validate_inputs(pat, months, llm_endpoint, enterprise_host)
+        # Validate inputs and get normalized enterprise_host
+        enterprise_host = self._validate_inputs(pat, months, llm_endpoint, enterprise_host)
 
         # Configure server URLs
         api_url, graphql_url, web_url = self._configure_server_urls(enterprise_host)
