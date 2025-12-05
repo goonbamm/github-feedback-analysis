@@ -127,7 +127,7 @@ def init(
     Interactive mode: Run without options to be prompted for each value.
     Non-interactive mode: Provide all required options for scripting.
     """
-    from .cli.commands.init_command import InitCommand
+    from ._cli.commands.init_command import InitCommand
 
     command = InitCommand(console)
     command.execute(
@@ -801,7 +801,7 @@ def show_config() -> None:
     Shows your GitHub server URLs, LLM endpoint, and default settings.
     Sensitive values like tokens are masked for security.
     """
-    from .cli.commands.config_command import ConfigCommand
+    from ._cli.commands.config_command import ConfigCommand
 
     command = ConfigCommand(console)
     command.show()
@@ -819,7 +819,7 @@ def config_set(
         gfa config set llm.endpoint https://api.openai.com/v1/chat/completions
         gfa config set defaults.months 6
     """
-    from .cli.commands.config_command import ConfigCommand
+    from ._cli.commands.config_command import ConfigCommand
 
     command = ConfigCommand(console)
     command.set(key, value)
@@ -835,7 +835,7 @@ def config_get(
         gfa config get llm.model
         gfa config get defaults.months
     """
-    from .cli.commands.config_command import ConfigCommand
+    from ._cli.commands.config_command import ConfigCommand
 
     command = ConfigCommand(console)
     command.get(key)
@@ -859,7 +859,7 @@ def config_hosts(
         gfa config hosts add https://github.company.com
         gfa config hosts remove https://github.company.com
     """
-    from .cli.commands.config_command import ConfigCommand
+    from ._cli.commands.config_command import ConfigCommand
 
     command = ConfigCommand(console)
     command.hosts(action, host)
@@ -897,7 +897,7 @@ def list_repos(
         gfa list-repos --sort stars --limit 10
         gfa list-repos --org myorganization
     """
-    from .cli.commands.repository_command import RepositoryCommand
+    from ._cli.commands.repository_command import RepositoryCommand
 
     command = RepositoryCommand(console)
     command.list_repos(sort=sort, limit=limit, org=org)
@@ -935,7 +935,7 @@ def suggest_repos(
         gfa suggest-repos --limit 5 --days 30
         gfa suggest-repos --sort stars
     """
-    from .cli.commands.repository_command import RepositoryCommand
+    from ._cli.commands.repository_command import RepositoryCommand
 
     command = RepositoryCommand(console)
     command.suggest_repos(limit=limit, days=days, sort=sort)
@@ -951,7 +951,7 @@ def clear_cache() -> None:
     Examples:
         gfa clear-cache
     """
-    from .cli.commands.cache_command import CacheCommand
+    from ._cli.commands.cache_command import CacheCommand
 
     command = CacheCommand(console)
     command.clear_cache()
@@ -961,7 +961,7 @@ def clear_cache() -> None:
 @app.command(name="show-config", hidden=True, deprecated=True)
 def show_config_deprecated() -> None:
     """Display current configuration settings (deprecated: use 'gfa config show')."""
-    from .cli.commands.config_command import ConfigCommand
+    from ._cli.commands.config_command import ConfigCommand
 
     console.print("[warning]Note:[/] 'gfa show-config' is deprecated. Use 'gfa config show' instead.")
     console.print()
