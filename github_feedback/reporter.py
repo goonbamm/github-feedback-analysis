@@ -72,29 +72,16 @@ class Reporter:
 
         console.log("Writing markdown report", f"path={report_path}")
 
-        # Load centralized CSS styles
-        css_path = Path(__file__).parent / "static" / "report_styles.css"
-        try:
-            css_content = css_path.read_text(encoding="utf-8")
-            font_styles = [
-                '<style>',
-                '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
-                css_content,
-                '</style>',
-                ''
-            ]
-        except FileNotFoundError:
-            # Fallback to basic styles if CSS file not found
-            console.log("Warning: CSS file not found, using fallback styles", level="warning")
-            font_styles = [
-                '<style>',
-                '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
-                '  * {',
-                '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
-                '  }',
-                '</style>',
-                ''
-            ]
+        # Add font styles at the beginning
+        font_styles = [
+            '<style>',
+            '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
+            '  * {',
+            '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+            '  }',
+            '</style>',
+            ''
+        ]
 
         # Build all sections using the new builders
         sections = [
@@ -153,29 +140,16 @@ class Reporter:
         # Store repo for use in link generation
         self._current_repo = metrics.repo
 
-        # Load centralized CSS styles
-        css_path = Path(__file__).parent / "static" / "report_styles.css"
-        try:
-            css_content = css_path.read_text(encoding="utf-8")
-            font_styles = [
-                '<style>',
-                '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
-                css_content,
-                '</style>',
-                ''
-            ]
-        except FileNotFoundError:
-            # Fallback to basic styles if CSS file not found
-            console.log("Warning: CSS file not found, using fallback styles", level="warning")
-            font_styles = [
-                '<style>',
-                '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
-                '  * {',
-                '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
-                '  }',
-                '</style>',
-                ''
-            ]
+        # Add font styles at the beginning
+        font_styles = [
+            '<style>',
+            '  @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap");',
+            '  * {',
+            '    font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+            '  }',
+            '</style>',
+            ''
+        ]
 
         # Build all sections using the new builders (same as generate_markdown)
         sections = [
