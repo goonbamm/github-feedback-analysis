@@ -299,7 +299,7 @@ class InitCommand:
 
     def _print_success_messages(self) -> None:
         """Print success messages after configuration is saved."""
-        from github_feedback._cli.formatters.display_formatter import print_config_summary
+        from github_feedback.cli.formatters.display_formatter import print_config_summary
 
         self.console.print("[success]✓ Configuration saved successfully[/]")
         self.console.print("[success]✓ GitHub token stored securely in system keyring[/]")
