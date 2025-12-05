@@ -310,15 +310,15 @@ class GameRenderer:
         bar_filled_width = mastery_percentage  # CSS에서 퍼센트로 사용
 
         # HTML 테이블로 스킬 카드 렌더링
-        lines.append('<div class="skill-card">')
+        lines.append('<div style="border: 2px solid #444; border-radius: 8px; padding: 16px; margin: 16px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">')
 
         # 스킬명 및 레벨
-        lines.append(f'  <div class="skill-card-title">')
-        lines.append(f'    {skill_emoji} {skill_name} <span class="skill-card-level-badge">Lv.{level}</span>')
+        lines.append(f'  <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;">')
+        lines.append(f'    {skill_emoji} {skill_name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">Lv.{level}</span>')
         lines.append(f'  </div>')
 
         # 별 표시
-        lines.append(f'  <div class="skill-card-stars">')
+        lines.append(f'  <div style="margin-bottom: 12px; font-size: 1.2em; color: #ffd700;">')
         lines.append(f'    {star_display}')
         lines.append(f'  </div>')
 
@@ -331,31 +331,31 @@ class GameRenderer:
         lines.append(f'  </table>')
 
         # 효과 설명
-        lines.append(f'  <div class="skill-card-info-box">')
-        lines.append(f'    <div class="skill-card-effect-title">💫 효과</div>')
-        lines.append(f'    <div class="skill-card-effect-text">{effect_description}</div>')
+        lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px; margin-bottom: 12px;">')
+        lines.append(f'    <div style="font-weight: bold; margin-bottom: 4px;">💫 효과</div>')
+        lines.append(f'    <div style="opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.6;">{effect_description}</div>')
         lines.append(f'  </div>')
 
         # 마스터리 바 (개선된 버전 with 애니메이션)
-        lines.append(f'  <div class="progress-container">')
-        lines.append(f'    <div class="progress-header">')
-        lines.append(f'      <span class="progress-label">마스터리</span>')
-        lines.append(f'      <span class="progress-value">{mastery_percentage}%</span>')
+        lines.append(f'  <div style="margin-bottom: 12px;">')
+        lines.append(f'    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">')
+        lines.append(f'      <span style="font-weight: bold; font-size: 0.95em;">마스터리</span>')
+        lines.append(f'      <span style="font-weight: bold; color: {COLOR_PALETTE["success_light"]}; font-size: 0.95em;">{mastery_percentage}%</span>')
         lines.append(f'    </div>')
-        lines.append(f'    <div class="progress-bar-bg">')
-        lines.append(f'      <div class="progress-bar-fill" style="width: {bar_filled_width}%;">')
-        lines.append(f'        <div class="progress-bar-shimmer"></div>')
+        lines.append(f'    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; height: 24px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">')
+        lines.append(f'      <div style="background: linear-gradient(90deg, {COLOR_PALETTE["success"]} 0%, {COLOR_PALETTE["success_dark"]} 100%); height: 100%; width: {bar_filled_width}%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);">')
+        lines.append(f'        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%); animation: shimmer 2s infinite;"></div>')
         lines.append(f'      </div>')
         lines.append(f'    </div>')
         lines.append(f'  </div>')
 
         # 습득 경로
         if evidence:
-            lines.append(f'  <div class="skill-card-info-box">')
-            lines.append(f'    <div class="skill-card-effect-title">📚 습득 경로</div>')
+            lines.append(f'  <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px;">')
+            lines.append(f'    <div style="font-weight: bold; margin-bottom: 8px;">📚 습득 경로</div>')
             lines.append(f'    <ol style="margin: 0; padding-left: 20px;">')
             for ev in evidence:  # 모든 증거 표시 (제한 제거)
-                lines.append(f'      <li class="skill-card-effect-text" style="margin-bottom: 4px;">{ev}</li>')
+                lines.append(f'      <li style="margin-bottom: 4px; opacity: 0.95; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; line-height: 1.6;">{ev}</li>')
             lines.append(f'    </ol>')
             lines.append(f'  </div>')
 
@@ -514,18 +514,18 @@ class GameRenderer:
         avg_stat = sum(stats.values()) / len(stats) if stats else 0
 
         # HTML 캐릭터 스탯 카드
-        lines.append('<div class="character-stats-card">')
+        lines.append('<div style="border: 3px solid #2d3748; border-radius: 12px; padding: 20px; margin: 20px 0; background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%); color: white; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">')
 
         # 헤더: 레벨, 타이틀, 파워
         level_display = f"Tier {level}" if use_tier_system else f"Lv.{level}"
-        lines.append(f'  <div class="character-header">')
+        lines.append(f'  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 2px solid #4a5568;">')
         lines.append(f'    <div>')
-        lines.append(f'      <div class="character-title">{rank_emoji} {level_display}: {title}</div>')
-        lines.append(f'      <div class="character-specialty">🏅 특성: {specialty_title}</div>')
+        lines.append(f'      <div style="font-size: 1.5em; font-weight: bold;">{rank_emoji} {level_display}: {title}</div>')
+        lines.append(f'      <div style="font-size: 1.1em; color: #fbbf24; margin-top: 4px;">🏅 특성: {specialty_title}</div>')
         lines.append(f'    </div>')
-        lines.append(f'    <div class="text-right">')
-        lines.append(f'      <div style="font-size: var(--font-size-sm); color: var(--color-gray-300);">총 파워</div>')
-        lines.append(f'      <div class="character-power">{int(avg_stat)}<span style="font-size: 0.6em; color: var(--color-gray-300);">/100</span></div>')
+        lines.append(f'    <div style="text-align: right;">')
+        lines.append(f'      <div style="font-size: 0.9em; color: #cbd5e0;">총 파워</div>')
+        lines.append(f'      <div style="font-size: 2em; font-weight: bold; color: #48bb78;">{int(avg_stat)}<span style="font-size: 0.6em; color: #cbd5e0;">/100</span></div>')
         lines.append(f'    </div>')
         lines.append(f'  </div>')
 
@@ -567,14 +567,14 @@ class GameRenderer:
             emoji = stat_emojis.get(stat_key, "📊")
             color = stat_colors.get(stat_key, "#6b7280")
 
-            lines.append(f'    <div class="stat-item">')
-            lines.append(f'      <div class="progress-header">')
-            lines.append(f'        <span class="progress-label">{emoji} {stat_name}</span>')
-            lines.append(f'        <span class="progress-value" style="color: {color};">{stat_value}/100</span>')
+            lines.append(f'    <div style="margin-bottom: 14px;">')
+            lines.append(f'      <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">')
+            lines.append(f'        <span style="font-weight: bold; font-size: 0.95em;">{emoji} {stat_name}</span>')
+            lines.append(f'        <span style="font-weight: bold; color: {color}; font-size: 0.95em;">{stat_value}/100</span>')
             lines.append(f'      </div>')
-            lines.append(f'      <div class="stat-bar-bg">')
-            lines.append(f'        <div class="progress-bar-fill" style="background: linear-gradient(90deg, {color} 0%, {color}dd 100%); width: {stat_value}%; box-shadow: 0 0 12px {color}80;">')
-            lines.append(f'          <div class="progress-bar-shimmer"></div>')
+            lines.append(f'      <div style="background: rgba(255,255,255,0.1); border-radius: 12px; height: 18px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">')
+            lines.append(f'        <div style="background: linear-gradient(90deg, {color} 0%, {color}dd 100%); height: 100%; width: {stat_value}%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 12px {color}80;">')
+            lines.append(f'          <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%); animation: shimmer 2.5s infinite;"></div>')
             lines.append(f'        </div>')
             lines.append(f'      </div>')
             lines.append(f'    </div>')
@@ -641,35 +641,36 @@ class GameRenderer:
         lines = []
 
         # 컨테이너 시작
-        lines.append('<div class="table-container">')
+        lines.append('<div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
 
         # 제목 및 설명
         if title:
-            lines.append(f'  <h4>{title}</h4>')
+            lines.append(f'  <h4 style="margin: 0 0 8px 0; color: #2d3748; font-size: 1.2em;">{title}</h4>')
         if description:
-            lines.append(f'  <p style="margin: 0 0 var(--spacing-3) 0; color: var(--color-gray-600); font-size: var(--font-size-sm);">{description}</p>')
+            lines.append(f'  <p style="margin: 0 0 12px 0; color: #718096; font-size: 0.9em;">{description}</p>')
 
         # 테이블 시작
-        lines.append('  <table class="report-table">')
+        lines.append('  <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">')
 
         # 헤더
         lines.append('    <thead>')
-        lines.append('      <tr>')
+        lines.append('      <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">')
         for header in headers:
-            lines.append(f'        <th>{header}</th>')
+            lines.append(f'        <th style="padding: 12px; text-align: left; font-weight: 600;">{header}</th>')
         lines.append('      </tr>')
         lines.append('    </thead>')
 
         # 바디
         lines.append('    <tbody>')
         for idx, row in enumerate(rows):
-            lines.append(f'      <tr>')
+            bg_color = '#f7fafc' if striped and idx % 2 == 0 else 'white'
+            lines.append(f'      <tr style="background: {bg_color}; border-bottom: 1px solid #e2e8f0;">')
             for cell in row:
                 cell_content = str(cell)
                 if escape_cells:
                     cell_content = html.escape(cell_content)
                 cell_with_links = GameRenderer._convert_markdown_links_to_html(cell_content)
-                lines.append(f'        <td>{cell_with_links}</td>')
+                lines.append(f'        <td style="padding: 10px; color: #2d3748;">{cell_with_links}</td>')
             lines.append('      </tr>')
         lines.append('    </tbody>')
 
@@ -697,7 +698,7 @@ class GameRenderer:
         lines = []
 
         # 그리드 컨테이너
-        lines.append(f'<div class="metrics-grid">')
+        lines.append(f'<div style="display: grid; grid-template-columns: repeat({columns}, 1fr); gap: 16px; margin: 16px 0;">')
 
         for metric in metrics:
             title = metric.get("title", "")
@@ -706,10 +707,10 @@ class GameRenderer:
             color = metric.get("color", "#667eea")
 
             # 카드
-            lines.append('  <div class="metric-card hover-lift">')
-            lines.append(f'    <div class="metric-emoji">{emoji}</div>')
-            lines.append(f'    <div class="metric-title">{title}</div>')
-            lines.append(f'    <div class="metric-value" style="color: {color};">{value}</div>')
+            lines.append('  <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">')
+            lines.append(f'    <div style="font-size: 2em; margin-bottom: 8px;">{emoji}</div>')
+            lines.append(f'    <div style="font-size: 0.9em; color: #718096; margin-bottom: 4px;">{title}</div>')
+            lines.append(f'    <div style="font-size: 1.8em; font-weight: bold; color: {color};">{value}</div>')
             lines.append('  </div>')
 
         lines.append('</div>')
@@ -739,12 +740,12 @@ class GameRenderer:
         """
         lines = []
 
-        lines.append(f'<div class="info-box" style="border-left-color: {border_color}; background: {bg_color};">')
-        lines.append(f'  <div class="info-box-header">')
-        lines.append(f'    <span class="info-box-icon">{emoji}</span>')
-        lines.append(f'    <h4 class="info-box-title">{title}</h4>')
+        lines.append(f'<div style="border-left: 4px solid {border_color}; background: {bg_color}; padding: 16px; margin: 16px 0; border-radius: 4px;">')
+        lines.append(f'  <div style="display: flex; align-items: center; margin-bottom: 8px;">')
+        lines.append(f'    <span style="font-size: 1.5em; margin-right: 8px;">{emoji}</span>')
+        lines.append(f'    <h4 style="margin: 0; color: #2d3748; font-size: 1.1em;">{title}</h4>')
         lines.append(f'  </div>')
-        lines.append(f'  <div class="info-box-content">{content}</div>')
+        lines.append(f'  <div style="color: #4a5568; line-height: 1.6; white-space: pre-wrap;">{content}</div>')
         lines.append('</div>')
         lines.append("")
 
@@ -767,7 +768,7 @@ class GameRenderer:
         """
         lines = []
 
-        lines.append(f'<div class="awards-grid">')
+        lines.append(f'<div style="display: grid; grid-template-columns: repeat({columns}, 1fr); gap: 16px; margin: 16px 0;">')
 
         for award in awards:
             category = award.get("category", "")
@@ -776,13 +777,13 @@ class GameRenderer:
             count = award.get("count", "0")
 
             # 어워드 카드
-            lines.append('  <div class="award-card">')
-            lines.append(f'    <div class="flex justify-between items-center mb-2">')
-            lines.append(f'      <span style="font-size: var(--font-size-4xl);">{emoji}</span>')
-            lines.append(f'      <span style="background: var(--color-warning-dark); color: white; padding: var(--spacing-1) var(--spacing-2); border-radius: var(--radius-full); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold);">{count}</span>')
+            lines.append('  <div style="border: 2px solid #fbbf24; border-radius: 8px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);">')
+            lines.append(f'    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">')
+            lines.append(f'      <span style="font-size: 2em;">{emoji}</span>')
+            lines.append(f'      <span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">{count}</span>')
             lines.append(f'    </div>')
-            lines.append(f'    <h4 style="margin: 0 0 var(--spacing-1) 0; color: #78350f; font-size: var(--font-size-lg);">{category}</h4>')
-            lines.append(f'    <p style="margin: 0; color: #92400e; font-size: var(--font-size-sm); line-height: var(--line-height-normal);">{description}</p>')
+            lines.append(f'    <h4 style="margin: 0 0 4px 0; color: #78350f; font-size: 1.1em;">{category}</h4>')
+            lines.append(f'    <p style="margin: 0; color: #92400e; font-size: 0.9em; line-height: 1.4;">{description}</p>')
             lines.append('  </div>')
 
         lines.append('</div>')
@@ -875,8 +876,8 @@ class GameRenderer:
             max_value = 1
 
         # 차트 컨테이너
-        lines.append('<div class="chart-container">')
-        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
 
         # SVG 라인 차트
         width = 800
@@ -977,8 +978,8 @@ class GameRenderer:
             return []
 
         # 차트 컨테이너
-        lines.append('<div class="chart-container">')
-        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
         lines.append('  <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap;">')
 
         # SVG 도넛 차트
@@ -1098,9 +1099,9 @@ class GameRenderer:
         }
 
         # 차트 컨테이너
-        lines.append('<div class="chart-container">')
-        lines.append(f'  <h4 class="chart-title">{title}</h4>')
-        lines.append('  <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--spacing-10);">')
+        lines.append('<div style="border: 2px solid ' + COLOR_PALETTE["gray_200"] + '; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
+        lines.append('  <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 40px;">')
 
         # SVG 레이더 차트
         center = size / 2
@@ -1209,19 +1210,19 @@ class GameRenderer:
         display_style = "none" if collapsed else "block"
         arrow_icon = "▶" if collapsed else "▼"
 
-        lines.append(f'<div class="collapsible-section">')
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["gray_200"]}; border-radius: 12px; margin: 16px 0; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">')
 
         # 헤더 (클릭 가능)
-        lines.append(f'  <div class="collapsible-header" onclick="toggleSection(\'{section_id}\')" role="button" tabindex="0" aria-expanded="{str(not collapsed).lower()}">')
-        lines.append(f'    <div class="collapsible-title-wrapper">')
-        lines.append(f'      <span class="collapsible-icon">{icon}</span>')
-        lines.append(f'      <h3 class="collapsible-title">{title}</h3>')
+        lines.append(f'  <div onclick="toggleSection(\'{section_id}\')" style="padding: 16px 20px; background: linear-gradient(135deg, {COLOR_PALETTE["bg_gradient_purple_start"]} 0%, {COLOR_PALETTE["bg_gradient_purple_end"]} 100%); color: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: opacity 0.2s;">')
+        lines.append(f'    <div style="display: flex; align-items: center; gap: 12px;">')
+        lines.append(f'      <span style="font-size: 1.5em;">{icon}</span>')
+        lines.append(f'      <h3 style="margin: 0; font-size: 1.3em;">{title}</h3>')
         lines.append(f'    </div>')
-        lines.append(f'    <span id="{section_id}-arrow" class="collapsible-arrow">{arrow_icon}</span>')
+        lines.append(f'    <span id="{section_id}-arrow" style="font-size: 1.2em; transition: transform 0.3s;">{arrow_icon}</span>')
         lines.append(f'  </div>')
 
         # 내용
-        lines.append(f'  <div id="{section_id}-content" class="collapsible-content" style="display: {display_style};">')
+        lines.append(f'  <div id="{section_id}-content" style="display: {display_style}; padding: 20px; animation: fadeIn 0.3s ease-out;">')
         lines.extend(content)
         lines.append(f'  </div>')
 
@@ -1274,15 +1275,15 @@ class GameRenderer:
         categories = list(set(item.get(filter_key, "기타") for item in items))
         categories.sort()
 
-        lines.append(f'<div class="chart-container">')
-        lines.append(f'  <h4 class="chart-title">{title}</h4>')
+        lines.append(f'<div style="border: 2px solid {COLOR_PALETTE["gray_200"]}; border-radius: 12px; padding: 24px; margin: 16px 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">')
+        lines.append(f'  <h4 style="margin: 0 0 20px 0; color: {COLOR_PALETTE["gray_800"]}; font-size: 1.3em;">{title}</h4>')
 
         # 필터 버튼
-        lines.append('  <div class="filter-buttons">')
-        lines.append(f'    <button onclick="filterItems(\'all\')" class="filter-btn active" data-filter="all">전체</button>')
+        lines.append('  <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">')
+        lines.append(f'    <button onclick="filterItems(\'all\')" class="filter-btn active" data-filter="all" style="padding: 8px 16px; border: 2px solid {COLOR_PALETTE["primary"]}; background: {COLOR_PALETTE["primary"]}; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s;">전체</button>')
 
         for cat in categories:
-            lines.append(f'    <button onclick="filterItems(\'{cat}\')" class="filter-btn" data-filter="{cat}">{cat}</button>')
+            lines.append(f'    <button onclick="filterItems(\'{cat}\')" class="filter-btn" data-filter="{cat}" style="padding: 8px 16px; border: 2px solid {COLOR_PALETTE["gray_300"]}; background: white; color: {COLOR_PALETTE["gray_700"]}; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s;">{cat}</button>')
 
         lines.append('  </div>')
 
@@ -1294,10 +1295,10 @@ class GameRenderer:
             name = item.get(display_key, "")
             desc = item.get(description_key, "")
 
-            lines.append(f'    <div class="list-item" data-category="{cat}">')
-            lines.append(f'      <div class="font-bold mb-2" style="color: var(--color-gray-800);">{name}</div>')
-            lines.append(f'      <div style="color: var(--color-gray-600); font-size: var(--font-size-sm);">{desc}</div>')
-            lines.append(f'      <div class="mt-2" style="color: var(--color-gray-500); font-size: var(--font-size-xs);">카테고리: {cat}</div>')
+            lines.append(f'    <div class="list-item" data-category="{cat}" style="padding: 16px; margin-bottom: 12px; background: {COLOR_PALETTE["gray_50"]}; border-radius: 8px; border-left: 4px solid {COLOR_PALETTE["primary"]}; transition: all 0.3s;">')
+            lines.append(f'      <div style="font-weight: bold; color: {COLOR_PALETTE["gray_800"]}; margin-bottom: 4px;">{name}</div>')
+            lines.append(f'      <div style="color: {COLOR_PALETTE["gray_600"]}; font-size: 0.9em;">{desc}</div>')
+            lines.append(f'      <div style="margin-top: 8px; color: {COLOR_PALETTE["gray_500"]}; font-size: 0.85em;">카테고리: {cat}</div>')
             lines.append('    </div>')
 
         lines.append('  </div>')
