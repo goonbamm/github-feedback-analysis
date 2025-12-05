@@ -23,25 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - LLM client now supports configurable retry attempts and delays
 - API client constructor now accepts cache configuration parameters
-- **[Phase 1.1 Refactoring]** Broke down monolithic `constants.py` into organized modules:
-  - `constants/analysis_thresholds.py` - Analysis thresholds and scoring
-  - `constants/api_config.py` - API configuration constants
-  - `constants/awards.py` - Award system constants
-  - `constants/limits.py` - Rate limits and constraints
-  - `constants/llm_config.py` - LLM configuration defaults
-  - `constants/messages.py` - User-facing message templates
-  - `constants/regex_patterns.py` - Compiled regex patterns
-  - `constants/types.py` - Type definitions
-  - `constants/ui_styles.py` - UI styling constants
-- **[Phase 1.2 Refactoring]** Restructured CLI layer for better separation of concerns:
-  - Created `cli/commands/` package with command implementations:
-    - `init_command.py` - Initialization command
-    - `config_command.py` - Configuration management
-    - `cache_command.py` - Cache management
-    - `repository_command.py` - Repository commands
-  - Created `cli/formatters/` package for output formatting
-  - Created `cli/orchestrators/` package for workflow coordination
-  - Improved maintainability and testability of CLI components
 
 ## [0.1.0] - 2024-11-13
 
