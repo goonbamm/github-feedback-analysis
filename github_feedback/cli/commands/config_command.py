@@ -30,7 +30,7 @@ class ConfigCommand:
         Shows your GitHub server URLs, LLM endpoint, and default settings.
         Sensitive values like tokens are masked for security.
         """
-        from github_feedback._cli.formatters.display_formatter import print_config_summary
+        from github_feedback.cli.formatters.display_formatter import print_config_summary
 
         print_config_summary(self.console)
 
