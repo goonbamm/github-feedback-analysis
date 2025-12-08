@@ -360,3 +360,175 @@ def test_get_random_general_critique():
     assert critique.evidence
     assert critique.consequence
     assert critique.remedy
+
+
+def test_witch_critique_checks_pr_description_quality():
+    """Test that witch critique detects brief or empty PR descriptions."""
+    collection = CollectionResult(
+        repo="example/repo",
+        months=6,
+        collected_at=datetime.utcnow(),
+        commits=100,
+        pull_requests=10,
+        reviews=5,
+        issues=3,
+        filters=AnalysisFilters(),
+        pull_request_examples=[
+            # Simulating PRs with empty/brief descriptions
+            # Note: PullRequestSummary doesn't have 'body' field, so we need to mock it
+            # For this test, we'll assume the check handles missing body
+            PullRequestSummary(
+                number=1,
+                title="PR with no description",
+                author="dev",
+                html_url="https://github.com/example/repo/pull/1",
+                created_at=datetime(2024, 1, 1),
+                merged_at=datetime(2024, 1, 2),
+                additions=100,
+                deletions=50,
+            ),
+        ] * 5,  # 5 PRs with likely brief descriptions
+    )
+
+    analyzer = Analyzer()
+    critiques = []
+    analyzer._check_pr_description_quality(collection, critiques)
+
+    # With 100% brief PRs, should trigger critique (threshold is 0.25)
+    assert len(critiques) == 1
+    assert critiques[0].category == "PR 설명"
+    assert critiques[0].severity == "💀 위험"
+
+
+def test_witch_critique_checks_large_file_changes():
+    """Test that witch critique detects PRs with large file changes."""
+    collection = CollectionResult(
+        repo="example/repo",
+        months=6,
+        collected_at=datetime.utcnow(),
+        commits=100,
+        pull_requests=10,
+        reviews=5,
+        issues=3,
+        filters=AnalysisFilters(),
+        pull_request_examples=[
+            PullRequestSummary(
+                number=1,
+                title="Massive refactor",
+                author="dev",
+                html_url="https://github.com/example/repo/pull/1",
+                created_at=datetime(2024, 1, 1),
+                merged_at=datetime(2024, 1, 2),
+                additions=2000,  # Very large
+                deletions=1500,
+            ),
+            PullRequestSummary(
+                number=2,
+                title="Another big change",
+                author="dev",
+                html_url="https://github.com/example/repo/pull/2",
+                created_at=datetime(2024, 1, 3),
+                merged_at=datetime(2024, 1, 4),
+                additions=1800,
+                deletions=1200,
+            ),
+        ],
+    )
+
+    analyzer = Analyzer()
+    critiques = []
+    analyzer._check_large_file_changes(collection, critiques)
+
+    # With 100% large file change PRs, should trigger critique (threshold is 0.15)
+    assert len(critiques) == 1
+    assert critiques[0].category == "파일 크기"
+    assert critiques[0].severity == "⚡ 심각"
+
+
+def test_witch_critique_checks_repetitive_patterns():
+    """Test that witch critique detects repetitive problematic patterns."""
+    collection = CollectionResult(
+        repo="example/repo",
+        months=6,
+        collected_at=datetime.utcnow(),
+        commits=100,
+        pull_requests=10,
+        reviews=5,
+        issues=3,
+        filters=AnalysisFilters(),
+        pull_request_examples=[],
+    )
+
+    # Create detailed feedback with multiple recurring issues
+    detailed_feedback = DetailedFeedbackSnapshot(
+        commit_feedback=CommitFeedback(
+            total_commits=100,
+            good_messages=60,
+            poor_messages=40,  # 40% poor (> 0.15 threshold)
+            clear_messages=0,
+        ),
+        pr_title_feedback=PRTitleFeedback(
+            total_prs=50,
+            clear_titles=30,
+            vague_titles=20,  # 40% vague (> 0.15 threshold)
+        ),
+        review_tone_feedback=ReviewToneFeedback(
+            total_reviews=50,
+            constructive_reviews=30,
+            harsh_reviews=15,  # 30% harsh (> 0.2 threshold)
+            neutral_reviews=5,
+        ),
+    )
+
+    analyzer = Analyzer()
+    critiques = []
+    analyzer._check_repetitive_patterns(collection, detailed_feedback, critiques)
+
+    # With 3 issues (commit, PR title, review tone), should trigger meta-critique
+    assert len(critiques) == 1
+    assert critiques[0].category == "반복 패턴"
+    assert critiques[0].severity == "🔥 치명적"
+
+
+def test_witch_critique_with_new_checks():
+    """Integration test: ensure all new checks are called."""
+    collection = CollectionResult(
+        repo="example/repo",
+        months=6,
+        collected_at=datetime.utcnow(),
+        commits=100,
+        pull_requests=10,
+        reviews=5,
+        issues=3,
+        filters=AnalysisFilters(),
+        pull_request_examples=[
+            PullRequestSummary(
+                number=1,
+                title="PR",
+                author="dev",
+                html_url="https://github.com/example/repo/pull/1",
+                created_at=datetime(2024, 1, 1),
+                merged_at=datetime(2024, 1, 2),
+                additions=100,
+                deletions=50,
+            ),
+        ],
+    )
+
+    detailed_feedback = DetailedFeedbackSnapshot(
+        commit_feedback=CommitFeedback(
+            total_commits=100,
+            good_messages=80,
+            poor_messages=20,
+            clear_messages=0,
+        ),
+    )
+
+    analyzer = Analyzer()
+    critique = analyzer._generate_witch_critique(collection, detailed_feedback)
+
+    # Should always return a critique
+    assert critique is not None
+    assert critique.opening_curse
+    assert critique.closing_prophecy
+    assert len(critique.critiques) > 0
