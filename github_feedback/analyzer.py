@@ -472,6 +472,7 @@ class Analyzer:
         self._check_commit_message_quality(detailed_feedback, critiques)
         self._check_pr_size(collection, critiques)
         self._check_pr_title_quality(detailed_feedback, critiques)
+        self._check_pr_description_quality(collection, critiques)  # NEW
         self._check_review_quality(collection, detailed_feedback, critiques)
         self._check_activity_consistency(collection, critiques)
         self._check_documentation_culture(collection, critiques)
@@ -479,6 +480,8 @@ class Analyzer:
         self._check_branch_management(collection, critiques)
         self._check_issue_tracking(collection, critiques)
         self._check_collaboration_diversity(collection, critiques)
+        self._check_large_file_changes(collection, critiques)  # NEW
+        self._check_repetitive_patterns(collection, detailed_feedback, critiques)  # NEW
 
         # If no specific critiques, add fallback so witch always appears
         if not critiques:
@@ -818,6 +821,127 @@ class Analyzer:
                 )
             )
 
+    def _check_pr_description_quality(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check PR description quality and add critique if too brief or empty.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples:
+            return
+
+        # Count PRs with empty or very short descriptions
+        min_description_length = 20  # Minimum meaningful description length
+        brief_prs = [pr for pr in collection.pull_request_examples
+                     if len(getattr(pr, 'body', '') or '') < min_description_length]
+
+        brief_ratio = len(brief_prs) / len(collection.pull_request_examples)
+        if brief_ratio > CRITIQUE_THRESHOLDS.get('brief_pr_description_ratio', 0.3):
+            critiques.append(
+                WitchCritiqueItem(
+                    category="PR 설명",
+                    severity="💀 위험",
+                    critique=f"PR의 {brief_ratio*100:.0f}%가 설명이 없거나 너무 짧아. '뭘 왜 바꿨는지'를 쓰라는 게 그렇게 어려워?",
+                    evidence=f"{len(collection.pull_request_examples)}개 PR 중 {len(brief_prs)}개가 설명 부실",
+                    consequence="리뷰어가 컨텍스트 파악하느라 시간 낭비, 리뷰 품질 하락, 나중에 히스토리 추적 불가.",
+                    remedy="PR 설명에 최소한 (1)변경 이유 (2)구현 방법 (3)테스트 방법을 포함해. 템플릿 활용해."
+                )
+            )
+
+    def _check_large_file_changes(
+        self,
+        collection: CollectionResult,
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check for PRs with excessively large single file changes.
+
+        Args:
+            collection: Collection of repository data
+            critiques: List to append critique to if issues found
+        """
+        if not collection.pull_request_examples:
+            return
+
+        # This is a heuristic: if a PR has very high additions/deletions
+        # but low file count, it suggests large single file changes
+        large_single_file_prs = []
+        for pr in collection.pull_request_examples:
+            total_changes = pr.additions + pr.deletions
+            # If total changes > 1000 and we can infer likely single large file
+            # (This is approximate - in real implementation would need file-level data)
+            if total_changes > 1000:
+                large_single_file_prs.append(pr)
+
+        if len(large_single_file_prs) > len(collection.pull_request_examples) * 0.15:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="파일 크기",
+                    severity="⚡ 심각",
+                    critique=f"거대한 파일 변경이 {len(large_single_file_prs)}개나 발견됐어. 한 파일에 천 줄 넘게 고치는 게 정상이라고 생각해?",
+                    evidence=f"{len(large_single_file_prs)}개 PR에서 대규모 단일 파일 변경 의심",
+                    consequence="리뷰 불가능, 버그 숨기 쉬움, 머지 충돌 지옥, 코드 베이스 유지보수 악몽.",
+                    remedy="큰 파일은 기능별로 분리해. 리팩토링은 단계별로 나눠서. 한 PR = 한 가지 목적."
+                )
+            )
+
+    def _check_repetitive_patterns(
+        self,
+        collection: CollectionResult,
+        detailed_feedback: Optional[DetailedFeedbackSnapshot],
+        critiques: List[WitchCritiqueItem]
+    ) -> None:
+        """Check for repetitive problematic patterns across commits and PRs.
+
+        Args:
+            collection: Collection of repository data
+            detailed_feedback: Optional detailed feedback snapshot
+            critiques: List to append critique to if issues found
+        """
+        # Check if multiple issues are consistently present
+        issues_found = []
+
+        # Check commit message issues
+        if detailed_feedback and detailed_feedback.commit_feedback:
+            commit_fb = detailed_feedback.commit_feedback
+            if commit_fb.total_commits > 0:
+                poor_ratio = commit_fb.poor_messages / commit_fb.total_commits
+                if poor_ratio > 0.15:
+                    issues_found.append("커밋 메시지")
+
+        # Check PR title issues
+        if detailed_feedback and detailed_feedback.pr_title_feedback:
+            pr_fb = detailed_feedback.pr_title_feedback
+            if pr_fb.total_prs > 0:
+                vague_ratio = pr_fb.vague_titles / pr_fb.total_prs
+                if vague_ratio > 0.15:
+                    issues_found.append("PR 제목")
+
+        # Check review tone issues
+        if detailed_feedback and detailed_feedback.review_tone_feedback:
+            review_fb = detailed_feedback.review_tone_feedback
+            if review_fb.total_reviews > 0:
+                harsh_ratio = review_fb.harsh_reviews / review_fb.total_reviews
+                if harsh_ratio > 0.2:
+                    issues_found.append("리뷰 톤")
+
+        # If multiple patterns detected, add a meta-critique
+        if len(issues_found) >= 3:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="반복 패턴",
+                    severity="🔥 치명적",
+                    critique=f"{', '.join(issues_found)} 등 여러 영역에서 같은 실수를 반복하고 있어. 배우는 게 없는 거야?",
+                    evidence=f"{len(issues_found)}가지 문제 패턴이 지속적으로 관찰됨",
+                    consequence="성장 정체, 팀의 신뢰 상실, 시니어 개발자로의 진급 불가, 똑같은 실수 무한 반복.",
+                    remedy="패턴을 깨. 체크리스트 만들어서 PR 올리기 전에 확인해. 과거 피드백 다시 읽어봐."
+                )
+            )
+
     def _get_random_general_critique(self, collection: CollectionResult) -> WitchCritiqueItem:
         """Get a random general critique for developers with no specific issues.
 
@@ -877,6 +1001,54 @@ class Analyzer:
                 evidence="전체 개발 활동 검토",
                 consequence="테스트 없는 리팩토링은 자살행위. 언젠가 배포하고 밤새 롤백하는 날 올 거야.",
                 remedy="TDD는 아니어도, 핵심 로직은 테스트 작성해. Coverage 60% 이상 목표로."
+            ),
+            WitchCritiqueItem(
+                category="코드 리뷰 참여",
+                severity="💫 조언",
+                critique="남의 코드 리뷰하는 시간도 네 실력 향상에 중요해. 혼자만 코딩하면 시야가 좁아져.",
+                evidence=f"PR {collection.pull_requests}개, 리뷰 {collection.reviews}개 활동",
+                consequence="다른 사람의 좋은 패턴 배울 기회를 놓치고, 팀에서 고립되고, 네 PR도 리뷰 못 받아.",
+                remedy="매일 최소 2개 PR 리뷰해. 코멘트에 '왜 그렇게 생각하는지' 이유 포함해."
+            ),
+            WitchCritiqueItem(
+                category="커뮤니케이션",
+                severity="💫 조언",
+                critique="코드만 잘 짜면 다야? PR 설명, 커밋 메시지도 커뮤니케이션이야. 글쓰기 실력도 개발자 역량이라고.",
+                evidence="전체 활동 패턴 분석",
+                consequence="의도 전달 실패, 리뷰어 시간 낭비, 프로젝트 히스토리 추적 불가, 협업 효율 감소.",
+                remedy="PR 템플릿 만들어 써. 커밋 메시지에 맥락 담아. '왜'를 설명하는 습관 들여."
+            ),
+            WitchCritiqueItem(
+                category="점진적 개선",
+                severity="💫 조언",
+                critique="완벽한 코드를 한 번에 짜려고 하지 마. 작게 시작해서 점진적으로 개선하는 게 프로야.",
+                evidence=f"{collection.commits}개 커밋 패턴 분석",
+                consequence="큰 변경은 리뷰 안 되고, 버그 많고, 롤백 어렵고, 팀 협업 방해돼.",
+                remedy="작은 단위로 자주 커밋. 리팩토링은 단계별로. 'Make it work, make it right, make it fast' 순서 지켜."
+            ),
+            WitchCritiqueItem(
+                category="기술 부채",
+                severity="💫 조언",
+                critique="'나중에 고치지 뭐'라고 생각하는 기술 부채들, 쌓이고 있지 않아? 나중은 절대 안 와.",
+                evidence="코드 변경 패턴 검토",
+                consequence="기술 부채는 복리로 쌓여. 나중엔 손댈 수도 없는 레거시 괴물이 돼.",
+                remedy="매 스프린트 20%는 리팩토링에 투자. TODO 주석 남기지 말고 바로 이슈로 등록."
+            ),
+            WitchCritiqueItem(
+                category="성능 최적화",
+                severity="💫 조언",
+                critique="성능 문제는 '나중에' 고치면 된다고? 아키텍처 잘못 잡으면 나중엔 손도 못 대.",
+                evidence="전체 개발 활동 분석",
+                consequence="사용자 이탈, 서버 비용 폭증, 나중에 전면 재작성, 시간 돈 날림.",
+                remedy="병목 지점 프로파일링해. N+1 쿼리 잡아. 캐싱 전략 세워. 측정하지 않고 최적화하지 마."
+            ),
+            WitchCritiqueItem(
+                category="보안 의식",
+                severity="💫 조언",
+                critique="보안은 '남 일'이 아니야. 네가 짠 코드 하나가 전체 시스템 해킹당하는 입구가 될 수 있어.",
+                evidence="코드 리뷰 패턴 분석",
+                consequence="데이터 유출, 법적 책임, 회사 신뢰 추락, 경력에 치명타.",
+                remedy="입력값 검증 필수. SQL 인젝션, XSS 방어. 민감 정보 로그 남기지 마. 의존성 정기 업데이트."
             ),
         ]
 
