@@ -33,6 +33,20 @@ class GitHubApiClient:
     - Error handling
     """
 
+    # Endpoint-specific cache TTL mapping (in seconds)
+    # Different endpoints have different data volatility
+    CACHE_TTL_MAP = {
+        'commits': 86400,      # 24 hours - commits are immutable
+        'tags': 86400,         # 24 hours - tags rarely change
+        'branches': 7200,      # 2 hours - branches can be updated
+        'pulls': 1800,         # 30 minutes - PRs change frequently
+        'issues': 1800,        # 30 minutes - issues change frequently
+        'reviews': 3600,       # 1 hour - reviews are semi-stable
+        'comments': 3600,      # 1 hour - comments are semi-stable
+        'files': 7200,         # 2 hours - file lists are relatively stable
+        'default': 3600,       # 1 hour - default for unknown endpoints
+    }
+
     def __init__(
         self,
         config: Config,
@@ -47,6 +61,7 @@ class GitHubApiClient:
             session: Optional requests session for connection pooling
             enable_cache: Whether to enable request caching (default: True)
             cache_expire_after: Cache expiration time in seconds (default: 3600)
+                Note: This is overridden by endpoint-specific TTLs in CACHE_TTL_MAP
 
         Raises:
             ConfigurationError: If PAT is not configured
@@ -68,6 +83,54 @@ class GitHubApiClient:
             "Accept": "application/vnd.github+json",
         }
 
+    def _get_cache_ttl(self, path: str) -> int:
+        """Get cache TTL for a specific endpoint path.
+
+        Args:
+            path: API endpoint path (e.g., "repos/owner/repo/commits")
+
+        Returns:
+            Cache TTL in seconds based on endpoint type
+        """
+        path_lower = path.lower()
+        for key, ttl in self.CACHE_TTL_MAP.items():
+            if key in path_lower:
+                return ttl
+        return self.CACHE_TTL_MAP['default']
+
+    def _optimize_sqlite_cache(self, cache_path: Path) -> None:
+        """Optimize SQLite cache database for better performance.
+
+        Applies SQLite PRAGMAs and creates indexes for faster queries.
+
+        Args:
+            cache_path: Path to the cache database (without .sqlite extension)
+        """
+        import sqlite3
+
+        db_path = Path(str(cache_path) + ".sqlite")
+        if not db_path.exists():
+            return  # Cache DB doesn't exist yet
+
+        try:
+            conn = sqlite3.connect(str(db_path), timeout=5)
+            cursor = conn.cursor()
+
+            # Performance optimizations via PRAGMAs
+            cursor.execute("PRAGMA journal_mode=WAL")       # Write-Ahead Logging for concurrency
+            cursor.execute("PRAGMA synchronous=NORMAL")      # Balance between safety and performance
+            cursor.execute("PRAGMA cache_size=-64000")       # 64MB memory cache
+            cursor.execute("PRAGMA temp_store=MEMORY")       # Keep temp tables in memory
+            cursor.execute("PRAGMA mmap_size=268435456")     # 256MB memory-mapped I/O
+
+            conn.commit()
+            conn.close()
+
+            logger.debug("SQLite cache optimized with WAL mode and performance PRAGMAs")
+        except sqlite3.Error as e:
+            # Don't fail if optimization fails - just log warning
+            logger.warning(f"Failed to optimize SQLite cache: {e}")
+
     def _get_session(self) -> requests.Session:
         """Get or create requests session with optional caching.
 
@@ -81,19 +144,38 @@ class GitHubApiClient:
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 cache_path = cache_dir / "api_cache"
 
-                # Create cached session
+                # Build URL-specific expiration map
+                # This allows different TTLs for different endpoints
+                from requests_cache import DO_NOT_CACHE
+                urls_expire_after = {}
+
+                # For commits and tags, use longer cache
+                for endpoint in ['commits', 'tags']:
+                    urls_expire_after[f'*/{endpoint}*'] = self.CACHE_TTL_MAP[endpoint]
+
+                # For frequently changing data, use shorter cache
+                for endpoint in ['pulls', 'issues']:
+                    urls_expire_after[f'*/{endpoint}*'] = self.CACHE_TTL_MAP[endpoint]
+
+                # Create cached session with endpoint-specific TTLs
                 # Note: 304 (Not Modified) is excluded from allowable_codes because
                 # it has an empty body and can cause JSON parsing errors
                 self.session = requests_cache.CachedSession(
                     cache_name=str(cache_path),
                     backend="sqlite",
-                    expire_after=self.cache_expire_after,
+                    expire_after=self.cache_expire_after,  # Default TTL
+                    urls_expire_after=urls_expire_after,   # Endpoint-specific TTLs
                     allowable_codes=[200, 301, 302],
                     # Don't cache POST/PUT/DELETE/PATCH requests
                     allowable_methods=["GET", "HEAD"],
                 )
+
+                # Optimize SQLite cache database performance
+                self._optimize_sqlite_cache(cache_path)
+
                 logger.debug(
-                    f"Initialized cached session (expire_after={self.cache_expire_after}s)"
+                    f"Initialized cached session with endpoint-specific TTLs "
+                    f"(default={self.cache_expire_after}s, commits/tags=24h, pulls/issues=30m)"
                 )
             else:
                 self.session = requests.Session()

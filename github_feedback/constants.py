@@ -247,9 +247,9 @@ DISPLAY_LIMITS = {
 
 # Parallel processing configuration
 PARALLEL_CONFIG = {
-    'max_workers_data_collection': 3,  # Concurrent data collection tasks (Phase 1)
-    'max_workers_pr_data': 2,  # Concurrent PR data processing tasks (Phase 2)
-    'max_workers_llm_analysis': 4,  # Concurrent LLM analysis tasks
+    'max_workers_data_collection': 5,  # Concurrent data collection tasks (Phase 1) - increased from 3
+    'max_workers_pr_data': 4,  # Concurrent PR data processing tasks (Phase 2) - increased from 2
+    'max_workers_llm_analysis': 6,  # Concurrent LLM analysis tasks - increased from 4
     'max_workers_yearend': 3,  # Concurrent year-end data collection tasks
     'max_workers_pr_review': 3,  # Concurrent PR review tasks
     'collection_timeout': 120,  # Timeout for data collection in seconds
@@ -401,7 +401,7 @@ HTTP_STATUS = {
 
 # Thread pool configuration
 THREAD_POOL_CONFIG = {
-    'max_workers_pr_fetch': 5,
+    'max_workers_pr_fetch': 8,  # Increased from 5 for faster parallel PR fetching
     'max_workers_commit_branches': 3,
     'test_connection_timeout': 10,
 }
