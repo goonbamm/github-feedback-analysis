@@ -648,6 +648,174 @@ class PersonalDevelopmentAnalysis:
 
 
 @dataclass(slots=True)
+class StreakData:
+    """Contribution streak information and calendar heatmap data."""
+
+    current_streak: int = 0  # Current consecutive days with contributions
+    longest_streak: int = 0  # Longest streak in the analysis period
+    total_active_days: int = 0  # Total days with activity
+    daily_contributions: Dict[str, int] = field(default_factory=dict)  # date -> count
+    streak_badges: List[str] = field(default_factory=list)  # Streak-related achievements
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise streak data."""
+        return {
+            "current_streak": self.current_streak,
+            "longest_streak": self.longest_streak,
+            "total_active_days": self.total_active_days,
+            "daily_contributions": self.daily_contributions,
+            "streak_badges": self.streak_badges,
+        }
+
+
+@dataclass(slots=True)
+class PeriodComparison:
+    """Comparison between two time periods."""
+
+    metric_name: str
+    past_value: float
+    present_value: float
+    change_percent: float
+    trend: str  # "improving", "declining", "stable"
+    insight: str = ""
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise period comparison."""
+        return {
+            "metric_name": self.metric_name,
+            "past_value": self.past_value,
+            "present_value": self.present_value,
+            "change_percent": self.change_percent,
+            "trend": self.trend,
+            "insight": self.insight,
+        }
+
+
+@dataclass(slots=True)
+class TimeMachineComparison:
+    """Past vs present comparison for growth visualization."""
+
+    past_period_label: str  # e.g., "3 months ago"
+    present_period_label: str  # e.g., "Last 3 months"
+    comparisons: List[PeriodComparison] = field(default_factory=list)
+    overall_growth_summary: str = ""
+    biggest_improvement: str = ""
+    needs_attention: str = ""
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise time machine comparison."""
+        return {
+            "past_period_label": self.past_period_label,
+            "present_period_label": self.present_period_label,
+            "comparisons": [c.to_dict() for c in self.comparisons],
+            "overall_growth_summary": self.overall_growth_summary,
+            "biggest_improvement": self.biggest_improvement,
+            "needs_attention": self.needs_attention,
+        }
+
+
+@dataclass(slots=True)
+class WorkHourDistribution:
+    """Distribution of work across different hours of the day."""
+
+    hour_distribution: Dict[int, int] = field(default_factory=dict)  # hour (0-23) -> count
+    peak_hours: List[int] = field(default_factory=list)  # Most active hours
+    work_style: str = ""  # "Early Bird", "Night Owl", "Balanced", etc.
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise work hour distribution."""
+        return {
+            "hour_distribution": self.hour_distribution,
+            "peak_hours": self.peak_hours,
+            "work_style": self.work_style,
+        }
+
+
+@dataclass(slots=True)
+class FileActivity:
+    """Activity statistics for frequently modified files."""
+
+    filepath: str
+    modifications: int
+    lines_added: int = 0
+    lines_deleted: int = 0
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise file activity."""
+        return {
+            "filepath": self.filepath,
+            "modifications": self.modifications,
+            "lines_added": self.lines_added,
+            "lines_deleted": self.lines_deleted,
+        }
+
+
+@dataclass(slots=True)
+class FunStatistics:
+    """Fun and engaging statistics for entertainment."""
+
+    work_hours: Optional[WorkHourDistribution] = None
+    commit_keywords: Dict[str, int] = field(default_factory=dict)  # keyword -> frequency
+    top_modified_files: List[FileActivity] = field(default_factory=list)
+    weekend_warrior_score: float = 0.0  # Percentage of weekend activity
+    avg_pr_size: str = ""  # "Small", "Medium", "Large", "XL"
+    fun_facts: List[str] = field(default_factory=list)  # Random interesting facts
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise fun statistics."""
+        result: Dict[str, object] = {
+            "commit_keywords": self.commit_keywords,
+            "top_modified_files": [f.to_dict() for f in self.top_modified_files],
+            "weekend_warrior_score": self.weekend_warrior_score,
+            "avg_pr_size": self.avg_pr_size,
+            "fun_facts": self.fun_facts,
+        }
+        if self.work_hours:
+            result["work_hours"] = self.work_hours.to_dict()
+        return result
+
+
+@dataclass(slots=True)
+class PredictionItem:
+    """Individual prediction about future activity."""
+
+    metric: str
+    current_value: float
+    predicted_value: float
+    timeframe: str  # "Next month", "Next quarter", etc.
+    confidence: str  # "High", "Medium", "Low"
+    reasoning: str = ""
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise prediction item."""
+        return {
+            "metric": self.metric,
+            "current_value": self.current_value,
+            "predicted_value": self.predicted_value,
+            "timeframe": self.timeframe,
+            "confidence": self.confidence,
+            "reasoning": self.reasoning,
+        }
+
+
+@dataclass(slots=True)
+class PredictionInsights:
+    """AI-based predictions and personalized challenges."""
+
+    predictions: List[PredictionItem] = field(default_factory=list)
+    suggested_challenges: List[str] = field(default_factory=list)
+    motivational_message: str = ""
+
+    def to_dict(self) -> Dict[str, object]:
+        """Serialise prediction insights."""
+        return {
+            "predictions": [p.to_dict() for p in self.predictions],
+            "suggested_challenges": self.suggested_challenges,
+            "motivational_message": self.motivational_message,
+        }
+
+
+@dataclass(slots=True)
 class MetricSnapshot:
     """Computed metrics ready for reporting."""
 
@@ -672,3 +840,7 @@ class MetricSnapshot:
     witch_critique: Optional[WitchCritique] = None  # Harsh but constructive critique (always generated since v1.x)
     since_date: Optional[datetime] = None  # Actual analysis start date
     until_date: Optional[datetime] = None  # Actual analysis end date
+    streak_data: Optional[StreakData] = None  # Contribution streak information
+    time_machine: Optional[TimeMachineComparison] = None  # Past vs present comparison
+    fun_statistics: Optional[FunStatistics] = None  # Fun stats like work hours, word clouds
+    predictions: Optional[PredictionInsights] = None  # AI-based predictions

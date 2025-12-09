@@ -87,6 +87,17 @@ AWARD_TIERS = {
     "night_owl": [
         (0.3, "🦉 나이트 아울 상 (레어) — 활동의 30% 이상을 심야에 수행하며 밤의 코더로 활약했습니다.", 3),
     ],
+    "weekend_warrior": [
+        (0.25, "🏖️ 주말 전사 상 (레어) — 활동의 25% 이상을 주말에 수행하며 쉬는 날도 코딩했습니다.", 3),
+    ],
+    "code_deleter": [
+        (1.2, "🗑️ 코드 삭제 마스터 상 (에픽) — 추가보다 20% 이상 많은 삭제로 진정한 리팩터링을 완수했습니다.", 2),
+    ],
+    "streak_keeper": [
+        (30, "🔥 스트릭 키퍼 상 (에픽) — 30일 이상 연속으로 기여하며 불타는 열정을 보여줬습니다.", 2),
+        (14, "🔥 스트릭 워리어 상 (레어) — 14일 이상 연속 기여로 꾸준함을 입증했습니다.", 3),
+        (7, "🔥 주간 스트릭 상 — 7일 이상 연속 기여로 일관성을 보여줬습니다.", 4),
+    ],
 }
 
 
@@ -405,6 +416,42 @@ class ThemeBasedAwardStrategy(AwardStrategy):
         return awards
 
 
+class FunStatisticsAwardStrategy(AwardStrategy):
+    """Strategy for fun statistics-based awards (weekend warrior, code deleter, etc.)."""
+
+    def calculate(self, collection: CollectionResult) -> List[Tuple[str, int]]:
+        """Calculate fun statistics awards with priorities."""
+        awards = []
+
+        if not collection.pull_request_examples:
+            return awards
+
+        # Code deleter award (refactoring success - more deletions than additions)
+        total_additions = sum(pr.additions for pr in collection.pull_request_examples)
+        total_deletions = sum(pr.deletions for pr in collection.pull_request_examples)
+
+        if total_additions > 0:
+            deletion_ratio = total_deletions / total_additions
+            self._add_tier_award(awards, "code_deleter", deletion_ratio)
+
+        return awards
+
+    @staticmethod
+    def _add_tier_award(awards: List[Tuple[str, int]], category: str, value: float) -> None:
+        """Add tier-based award with priority if value meets threshold."""
+        if category not in AWARD_TIERS:
+            return
+
+        for tier_data in AWARD_TIERS[category]:
+            threshold = tier_data[0]
+            award_text = tier_data[1]
+            priority = tier_data[2]
+
+            if value >= threshold:
+                awards.append((award_text, priority))
+                break
+
+
 class DefaultAwardStrategy(AwardStrategy):
     """Strategy for default award when no other awards are given."""
 
@@ -436,6 +483,7 @@ class AwardCalculator:
             RoleBasedAwardStrategy(),
             QualityAwardStrategy(),
             ThemeBasedAwardStrategy(),
+            FunStatisticsAwardStrategy(),
         ]
         self.max_awards = max_awards
 
