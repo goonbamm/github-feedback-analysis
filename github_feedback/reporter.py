@@ -13,12 +13,17 @@ from .retrospective_builders import RetrospectiveBuilder
 from .section_builders.awards_builder import AwardsBuilder
 from .section_builders.character_stats_builder import CharacterStatsBuilder
 from .section_builders.dashboard_builder import DashboardBuilder
+from .section_builders.fun_stats_builder import FunStatsBuilder
 from .section_builders.highlights_builder import HighlightsBuilder
 from .section_builders.monthly_trends_builder import MonthlyTrendsBuilder
+from .section_builders.prediction_builder import PredictionBuilder
 from .section_builders.skill_tree_builder import SkillTreeBuilder
 from .section_builders.spotlight_builder import SpotlightBuilder
+from .section_builders.storytelling_builder import StorytellingBuilder
+from .section_builders.streak_builder import StreakBuilder
 from .section_builders.summary_builder import SummaryBuilder
 from .section_builders.tech_stack_builder import TechStackBuilder
+from .section_builders.time_machine_builder import TimeMachineBuilder
 from .section_builders.toc_builder import TOCBuilder
 from .section_builders.witch_critique_builder import WitchCritiqueBuilder
 
@@ -93,23 +98,33 @@ class Reporter:
             DashboardBuilder(metrics).build(),
             # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
-            # 5. Skill Tree - Game-style skill representation
+            # 5. Contribution Streak - NEW! Streak system with heatmap
+            StreakBuilder(metrics).build(),
+            # 6. Skill Tree - Game-style skill representation
             SkillTreeBuilder(metrics).build(),
-            # 6. Awards Cabinet - Celebrate achievements first!
+            # 7. Awards Cabinet - Celebrate achievements first!
             AwardsBuilder(metrics).build(),
-            # 7. Growth Highlights - Show the story
+            # 8. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 8. Monthly Trends - Show patterns
+            # 9. Time Machine - NEW! Past vs present comparison
+            TimeMachineBuilder(metrics).build(),
+            # 10. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 9. Detailed Feedback - Actionable insights
+            # 11. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 10. Deep Retrospective - Comprehensive analysis
+            # 12. Fun Statistics - NEW! Entertaining insights
+            FunStatsBuilder(metrics).build(),
+            # 13. Future Predictions - NEW! AI-based predictions
+            PredictionBuilder(metrics).build(),
+            # 14. Storytelling - NEW! RPG quest narrative
+            StorytellingBuilder(metrics).build(),
+            # 15. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 11. Witch's Critique - Harsh but constructive feedback
+            # 16. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 12. Spotlight Examples - Concrete evidence
+            # 17. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 13. Tech Stack - Technical breadth
+            # 18. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 
@@ -161,23 +176,33 @@ class Reporter:
             DashboardBuilder(metrics).build(),
             # 4. Character Stats - Gamified visualization
             CharacterStatsBuilder(metrics).build(),
-            # 5. Skill Tree - Game-style skill representation
+            # 5. Contribution Streak - NEW! Streak system with heatmap
+            StreakBuilder(metrics).build(),
+            # 6. Skill Tree - Game-style skill representation
             SkillTreeBuilder(metrics).build(),
-            # 6. Awards Cabinet - Celebrate achievements first!
+            # 7. Awards Cabinet - Celebrate achievements first!
             AwardsBuilder(metrics).build(),
-            # 7. Growth Highlights - Show the story
+            # 8. Growth Highlights - Show the story
             HighlightsBuilder(metrics).build(),
-            # 8. Monthly Trends - Show patterns
+            # 9. Time Machine - NEW! Past vs present comparison
+            TimeMachineBuilder(metrics).build(),
+            # 10. Monthly Trends - Show patterns
             MonthlyTrendsBuilder(metrics).build(),
-            # 9. Detailed Feedback - Actionable insights
+            # 11. Detailed Feedback - Actionable insights
             FeedbackBuilder(metrics, self.web_url).build(),
-            # 10. Deep Retrospective - Comprehensive analysis
+            # 12. Fun Statistics - NEW! Entertaining insights
+            FunStatsBuilder(metrics).build(),
+            # 13. Future Predictions - NEW! AI-based predictions
+            PredictionBuilder(metrics).build(),
+            # 14. Storytelling - NEW! RPG quest narrative
+            StorytellingBuilder(metrics).build(),
+            # 15. Deep Retrospective - Comprehensive analysis
             RetrospectiveBuilder(metrics).build(),
-            # 11. Witch's Critique - Harsh but constructive feedback
+            # 16. Witch's Critique - Harsh but constructive feedback
             WitchCritiqueBuilder(metrics).build(),
-            # 12. Spotlight Examples - Concrete evidence
+            # 17. Spotlight Examples - Concrete evidence
             SpotlightBuilder(metrics).build(),
-            # 13. Tech Stack - Technical breadth
+            # 18. Tech Stack - Technical breadth
             TechStackBuilder(metrics).build(),
         ]
 

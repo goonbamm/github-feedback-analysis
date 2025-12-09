@@ -32,9 +32,13 @@ from .builders import (
 from .helpers import PeriodFormatter
 from .trends import (
     CollaborationNetworkBuilder,
+    FunStatisticsAnalyzer,
     MonthlyInsightsGenerator,
     MonthlyTrendsBuilder,
+    PredictionAnalyzer,
+    StreakAnalyzer,
     TechStackAnalyzer,
+    TimeMachineAnalyzer,
 )
 from .witch_critique import WitchCritiqueGenerator
 from .year_end import YearEndReviewBuilder
@@ -124,6 +128,22 @@ class Analyzer:
         witch_generator = WitchCritiqueGenerator()
         witch_critique = witch_generator.generate(collection, detailed_feedback)
 
+        # Generate streak data (placeholder - needs actual daily contribution data)
+        # TODO: Modify collector to track daily contributions for accurate streak calculation
+        daily_contributions = StreakAnalyzer.build_from_monthly_trends(monthly_trends_data or [])
+        streak_data = StreakAnalyzer.analyze(daily_contributions, collection)
+
+        # Generate time machine comparison (placeholder - needs past period data)
+        # TODO: Implement historical data collection for accurate past comparison
+        time_machine = None  # Will be populated when we have past data
+
+        # Generate fun statistics (placeholder - needs actual commit timestamps and file data)
+        # TODO: Modify collector to track timestamps and file changes
+        fun_statistics = FunStatisticsAnalyzer.analyze(collection)
+
+        # Generate predictions
+        predictions = PredictionAnalyzer.analyze(collection, monthly_trends)
+
         # Create initial metrics snapshot
         metrics_snapshot = MetricSnapshot(
             repo=collection.repo,
@@ -146,6 +166,10 @@ class Analyzer:
             witch_critique=witch_critique,
             since_date=collection.since_date,
             until_date=collection.until_date,
+            streak_data=streak_data,
+            time_machine=time_machine,
+            fun_statistics=fun_statistics,
+            predictions=predictions,
         )
 
         # Generate comprehensive retrospective analysis
