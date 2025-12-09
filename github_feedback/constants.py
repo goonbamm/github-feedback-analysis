@@ -590,51 +590,52 @@ BADGE_THRESHOLDS = {
 # =============================================================================
 
 # Thresholds for identifying code quality issues
+# Lowered to be more sensitive and catch more issues
 CRITIQUE_THRESHOLDS = {
     # Commit message quality
-    'poor_commit_ratio': 0.20,  # 20% poor messages triggers critique (lowered from 0.25 for stricter standard)
+    'poor_commit_ratio': 0.15,  # 15% poor messages triggers critique (lowered from 0.20 for more sensitivity)
 
     # PR size thresholds
-    'large_pr_lines': 500,  # PRs larger than this are considered large (lowered from 1000)
-    'large_pr_ratio': 0.2,  # 20% large PRs triggers critique (lowered from 0.3)
-    'recommended_pr_size': 300,  # Recommended max PR size
+    'large_pr_lines': 400,  # PRs larger than this are considered large (lowered from 500 for more sensitivity)
+    'large_pr_ratio': 0.15,  # 15% large PRs triggers critique (lowered from 0.2 for more sensitivity)
+    'recommended_pr_size': 250,  # Recommended max PR size (lowered from 300)
 
     # PR title quality
-    'vague_title_ratio': 0.15,  # 15% vague titles triggers critique (lowered from 0.2 for stricter standard)
+    'vague_title_ratio': 0.12,  # 12% vague titles triggers critique (lowered from 0.15 for more sensitivity)
 
-    # PR description quality (NEW)
-    'brief_pr_description_ratio': 0.25,  # 25% brief/empty PR descriptions triggers critique
+    # PR description quality
+    'brief_pr_description_ratio': 0.20,  # 20% brief/empty PR descriptions triggers critique (lowered from 0.25)
     'min_description_length': 20,  # Minimum meaningful description length in characters
 
     # Review quality
-    'neutral_review_ratio': 0.35,  # 35% neutral reviews triggers critique (lowered from 0.4 for stricter standard)
+    'neutral_review_ratio': 0.30,  # 30% neutral reviews triggers critique (lowered from 0.35 for more sensitivity)
     'review_pr_ratio': 0.5,  # Reviews should be at least 50% of PRs
 
     # Activity consistency
-    'min_commits_per_month': 5,  # Minimum commits per month for consistency
+    'min_commits_per_month': 4,  # Minimum commits per month for consistency (lowered from 5)
 
     # Documentation thresholds
-    'min_doc_pr_ratio': 0.08,  # At least 8% of PRs should be documentation (raised from 0.05)
+    'min_doc_pr_ratio': 0.10,  # At least 10% of PRs should be documentation (raised from 0.08 for higher standards)
 
     # Test coverage thresholds
-    'min_test_pr_ratio': 0.15,  # At least 15% of PRs should include tests (raised from 0.1)
+    'min_test_pr_ratio': 0.18,  # At least 18% of PRs should include tests (raised from 0.15 for higher standards)
 
     # Branch management
-    'max_commits_per_pr': 12,  # PRs with more than 12 commits may need better branch management (lowered from 15)
+    'max_commits_per_pr': 10,  # PRs with more than 10 commits may need better branch management (lowered from 12)
 
     # Issue tracking
-    'min_issue_ratio': 0.12,  # Issues should be at least 12% of total activity (raised from 0.1)
+    'min_issue_ratio': 0.15,  # Issues should be at least 15% of total activity (raised from 0.12 for higher standards)
 
     # Collaboration diversity
     'min_unique_reviewers': 2,  # Should have at least 2 unique reviewers
 
-    # Large file changes (NEW)
-    'large_file_change_lines': 1000,  # Single file changes larger than this are problematic
-    'large_file_pr_ratio': 0.15,  # 15% PRs with large file changes triggers critique
+    # Large file changes
+    'large_file_change_lines': 800,  # Single file changes larger than this are problematic (lowered from 1000)
+    'large_file_pr_ratio': 0.12,  # 12% PRs with large file changes triggers critique (lowered from 0.15)
 
-    # Repetitive patterns (NEW)
+    # Repetitive patterns
     'repetitive_issue_threshold': 3,  # Number of recurring issues to trigger meta-critique
-    'min_issue_ratio_for_pattern': 0.15,  # Minimum ratio to consider an issue as recurring
+    'min_issue_ratio_for_pattern': 0.12,  # Minimum ratio to consider an issue as recurring (lowered from 0.15)
 }
 
 # =============================================================================

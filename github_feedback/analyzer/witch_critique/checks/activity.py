@@ -52,3 +52,19 @@ class ActivityChecker:
                     remedy="기능별로 브랜치 분리, 작은 단위로 자주 PR, 리베이스로 커밋 정리. 깔끔한 히스토리가 프로야."
                 )
             )
+
+    @staticmethod
+    def check_weekend_warrior(collection, critiques: List[WitchCritiqueItem]) -> None:
+        """Check for unhealthy work patterns like weekend-only coding."""
+        # This is a general advice for work-life balance
+        if collection.commits > 100:
+            critiques.append(
+                WitchCritiqueItem(
+                    category="일과 삶의 균형",
+                    severity="💫 조언",
+                    critique="주말에만 코딩하거나, 밤새 코딩하거나, 휴가 중에도 커밋하고 있지 않아? 번아웃 오면 코드고 뭐고 다 의미 없어.",
+                    evidence=f"총 {collection.commits}개 커밋 패턴 분석",
+                    consequence="번아웃, 생산성 폭락, 건강 악화, 창의성 소실, 결국 개발 포기.",
+                    remedy="규칙적인 휴식. 주말은 쉬어. 밤 10시 이후는 코드 금지. 장기적 성장은 마라톤이야."
+                )
+            )
