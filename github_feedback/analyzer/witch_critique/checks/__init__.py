@@ -8,6 +8,10 @@ from .documentation import DocumentationChecker
 from .testing import TestingChecker
 from .collaboration import CollaborationChecker
 from .patterns import PatternChecker
+from .code_style import CodeStyleChecker
+from .performance import PerformanceChecker
+from .error_handling import ErrorHandlingChecker
+from .security import SecurityChecker
 
 __all__ = [
     "CommitQualityChecker",
@@ -18,4 +22,8 @@ __all__ = [
     "TestingChecker",
     "CollaborationChecker",
     "PatternChecker",
+    "CodeStyleChecker",
+    "PerformanceChecker",
+    "ErrorHandlingChecker",
+    "SecurityChecker",
 ]

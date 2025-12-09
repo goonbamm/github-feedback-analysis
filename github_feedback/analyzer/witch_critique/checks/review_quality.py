@@ -49,3 +49,22 @@ class ReviewQualityChecker:
                     remedy="하루에 최소 2개 PR은 리뷰해. 남의 코드 보는 게 최고의 학습이야."
                 )
             )
+
+    @staticmethod
+    def check_review_depth(collection, critiques: List[WitchCritiqueItem]) -> None:
+        """Check if reviews are substantive or just rubber-stamping."""
+        if collection.reviews > 0 and collection.pull_requests > 0:
+            review_to_pr_ratio = collection.reviews / collection.pull_requests
+
+            # If review ratio is too low (less than 0.3), not engaging enough
+            if review_to_pr_ratio < 0.3:
+                critiques.append(
+                    WitchCritiqueItem(
+                        category="리뷰 깊이",
+                        severity="💀 위험",
+                        critique=f"리뷰가 PR의 {review_to_pr_ratio*100:.0f}%밖에 안 돼? 팀 동료들 코드에 관심 없어? 혼자 개발하는 줄 아는구나.",
+                        evidence=f"PR {collection.pull_requests}개 대비 리뷰 {collection.reviews}개",
+                        consequence="팀 코드베이스 품질 하락, 지식 공유 없음, 혼자만의 왕국 건설, 버스 팩터 1.",
+                        remedy="동료 PR 적극적으로 리뷰. 질문하고 배워. 지식 공유가 팀 성장의 핵심."
+                    )
+                )

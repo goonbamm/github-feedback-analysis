@@ -37,3 +37,32 @@ class DocumentationChecker:
                     remedy="README 업데이트, API 문서화, 아키텍처 다이어그램 추가. 코드만큼 문서도 중요해."
                 )
             )
+
+    @staticmethod
+    def check_api_documentation(collection, critiques: List[WitchCritiqueItem]) -> None:
+        """Check for API and interface documentation."""
+        if not collection.pull_request_examples:
+            return
+
+        # Count API/interface related PRs
+        api_keywords = ['api', 'endpoint', 'interface', 'swagger', 'openapi', 'graphql', '인터페이스']
+        api_prs = [pr for pr in collection.pull_request_examples
+                   if any(kw in pr.title.lower() for kw in api_keywords)]
+
+        # If there are API changes but no documentation
+        if len(api_prs) > 3:
+            doc_keywords = ['doc', 'readme', '문서', 'documentation']
+            api_with_docs = [pr for pr in api_prs
+                            if any(kw in pr.title.lower() for kw in doc_keywords)]
+
+            if len(api_with_docs) == 0:
+                critiques.append(
+                    WitchCritiqueItem(
+                        category="API 문서화",
+                        severity="⚡ 심각",
+                        critique=f"API 관련 PR이 {len(api_prs)}개나 있는데 문서는? 사용자들이 어떻게 쓰는지 텔레파시로 알아?",
+                        evidence=f"{len(api_prs)}개 API PR 중 문서화된 것 없음",
+                        consequence="잘못된 사용, Support 문의 폭주, 개발자 신뢰 상실, API 방치.",
+                        remedy="Swagger/OpenAPI 도입. 예제 코드 제공. 엔드포인트마다 설명 추가."
+                    )
+                )
