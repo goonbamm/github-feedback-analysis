@@ -41,10 +41,9 @@ class TOCBuilder(SectionBuilder):
         sections.append(("한눈에 보는 요약", "📊", "한눈에-보는-요약"))
         sections.append(("핵심 지표 대시보드", "📊", "핵심-지표-대시보드"))
         sections.append(("저장소 캐릭터 스탯", "🎮", "저장소-캐릭터-스탯"))
+        sections.append(("스킬 트리", "🌳", "스킬-트리"))  # Always shown - skills are derived dynamically
 
         # Conditional sections
-        if self.metrics.skill_tree:
-            sections.append(("스킬 트리", "🌳", "스킬-트리"))
 
         if self.metrics.awards:
             sections.append(("Awards Cabinet", "🏆", "awards-cabinet"))
@@ -61,8 +60,8 @@ class TOCBuilder(SectionBuilder):
         if self.metrics.retrospective:
             sections.append(("Deep Retrospective", "🔍", "deep-retrospective"))
 
-        if hasattr(self.metrics, 'witch_critique') and self.metrics.witch_critique:
-            sections.append(("마녀의 신랄한 평가", "🧙‍♀️", "마녀의-신랄한-평가"))
+        # Witch critique is always generated, even when no specific issues are found
+        sections.append(("마녀의 독설", "🔮", "마녀의-독설"))
 
         if self.metrics.spotlight_examples:
             sections.append(("Spotlight Examples", "🌟", "spotlight-examples"))
