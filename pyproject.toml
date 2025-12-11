@@ -30,9 +30,6 @@ test = ["pytest>=7.4"]
 [project.scripts]
 gfa = "github_feedback.cli.main:app"
 
-[tool.setuptools]
-packages = {find = {}}
-
 [tool.setuptools.packages.find]
 include = ["github_feedback*"]
 
