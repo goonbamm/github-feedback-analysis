@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from typing import List
 
-from github_feedback.models import (
+from github_feedback.core.models import (
     CollectionResult,
     MonthlyTrend,
     PredictionInsights,

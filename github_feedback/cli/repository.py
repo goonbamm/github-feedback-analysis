@@ -17,14 +17,14 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     box = None
 
 from .collector import Collector
-from .console import Console
-from .constants import (
+from ..core.console import Console
+from ..core.constants import (
     ERROR_MESSAGES,
     INFO_MESSAGES,
     SPINNERS,
     TABLE_CONFIG,
 )
-from .utils import validate_repo_format
+from ..core.utils import validate_repo_format
 
 console = Console()
 

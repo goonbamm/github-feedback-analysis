@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from .models import (
+from .core.models import (
     CollaborationNetwork,
     DetailedFeedbackSnapshot,
     MetricSnapshot,
@@ -392,7 +392,7 @@ class RetrospectiveAnalyzer:
             direction = "stable"
 
         # Determine significance
-        from .constants import RETROSPECTIVE_CHANGE_THRESHOLDS
+        from .core.constants import RETROSPECTIVE_CHANGE_THRESHOLDS
         abs_change_pct = abs(change_pct)
         if abs_change_pct > RETROSPECTIVE_CHANGE_THRESHOLDS['major_change_pct']:
             significance = "major"
@@ -540,7 +540,7 @@ class RetrospectiveAnalyzer:
         assessments = []
 
         # Assess commit impact
-        from .constants import IMPACT_ASSESSMENT_THRESHOLDS
+        from .core.constants import IMPACT_ASSESSMENT_THRESHOLDS
         total_commits = metrics.stats.get("commits", {}).get("total", 0)
         if total_commits > 0:
             if total_commits > IMPACT_ASSESSMENT_THRESHOLDS['commits_high_impact']:

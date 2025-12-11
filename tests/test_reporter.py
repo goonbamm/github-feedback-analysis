@@ -6,8 +6,8 @@ from datetime import datetime
 
 import pytest
 
-from github_feedback.models import AnalysisStatus, MetricSnapshot
-from github_feedback.reporter import Reporter
+from github_feedback.core.models import AnalysisStatus, MetricSnapshot
+from github_feedback.reporters.reporter import Reporter
 
 
 @pytest.fixture

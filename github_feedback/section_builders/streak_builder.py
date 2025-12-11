@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List
 
 from github_feedback.game_elements import GameRenderer
-from github_feedback.models import MetricSnapshot
+from github_feedback.core.models import MetricSnapshot
 
 from .base_builder import SectionBuilder
 

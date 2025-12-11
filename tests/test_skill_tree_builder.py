@@ -2,7 +2,7 @@
 
 import pytest
 from github_feedback.section_builders.skill_tree_builder import SkillTreeBuilder
-from github_feedback.models import (
+from github_feedback.core.models import (
     MetricSnapshot,
     DetailedFeedbackSnapshot,
     CommitFeedback,

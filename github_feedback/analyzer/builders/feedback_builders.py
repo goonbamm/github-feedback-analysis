@@ -7,7 +7,7 @@ from typing import Dict, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-from github_feedback.models import (
+from github_feedback.core.models import (
     CommitMessageFeedback,
     DetailedFeedbackSnapshot,
     GrowthIndicator,

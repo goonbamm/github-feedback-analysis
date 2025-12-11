@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-from github_feedback.models import CollectionResult, StreakData
+from github_feedback.core.models import CollectionResult, StreakData
 
 
 class StreakAnalyzer:

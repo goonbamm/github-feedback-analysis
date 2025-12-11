@@ -10,8 +10,8 @@ import pytest
 import typer
 
 from github_feedback import cli
-from github_feedback.config import Config
-from github_feedback.models import AnalysisFilters
+from github_feedback.core.config import Config
+from github_feedback.core.models import AnalysisFilters
 
 
 class DummyStatus:
@@ -52,7 +52,7 @@ class DummyMetrics:
         self.repo = repo
         self.months = 6
         self.generated_at = datetime.now(timezone.utc)
-        from github_feedback.models import AnalysisStatus
+        from github_feedback.core.models import AnalysisStatus
 
         self.status = AnalysisStatus.ANALYSED
         self.summary: Dict[str, str] = {}
@@ -450,7 +450,7 @@ def test_collect_detailed_feedback_with_empty_data(monkeypatch: pytest.MonkeyPat
     """Test that _collect_detailed_feedback handles empty datasets gracefully."""
     from github_feedback.cli import _collect_detailed_feedback
     from github_feedback.analyzer import Analyzer
-    from github_feedback.collector import Collector
+    from github_feedback.collectors.collector import Collector
     from unittest.mock import Mock
 
     # Mock collector that returns empty data
@@ -495,7 +495,7 @@ def test_collect_detailed_feedback_llm_fallback(monkeypatch: pytest.MonkeyPatch)
     """Test fallback when LLM is unavailable."""
     from github_feedback.cli import _collect_detailed_feedback
     from github_feedback.analyzer import Analyzer
-    from github_feedback.collector import Collector
+    from github_feedback.collectors.collector import Collector
     from unittest.mock import Mock, patch
     import requests
 
@@ -542,7 +542,7 @@ def test_collect_detailed_feedback_timeout(monkeypatch: pytest.MonkeyPatch) -> N
     """Test timeout handling in parallel collection."""
     from github_feedback.cli import _collect_detailed_feedback
     from github_feedback.analyzer import Analyzer
-    from github_feedback.collector import Collector
+    from github_feedback.collectors.collector import Collector
     from unittest.mock import Mock
     import time
 

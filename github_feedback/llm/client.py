@@ -12,8 +12,8 @@ from typing import Any
 
 import requests
 
-from .console import Console
-from .constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
+from ..core.console import Console
+from ..core.constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
 from .hybrid_analysis import HybridAnalyzer
 from .llm_cache import (
     DEFAULT_CACHE_EXPIRE_DAYS,
@@ -29,7 +29,7 @@ from .llm_heuristics import (
 )
 from .llm_metrics import LLMCallMetrics, get_global_collector
 from .llm_validation import LLMResponseValidator
-from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from ..core.models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .prompts import (
     get_award_summary_quote_system_prompt,
     get_award_summary_quote_user_prompt,
@@ -43,7 +43,7 @@ from .prompts import (
     get_review_tone_analysis_system_prompt,
     get_review_tone_analysis_user_prompt,
 )
-from .utils import limit_items, truncate_patch
+from ..core.utils import limit_items, truncate_patch
 
 logger = logging.getLogger(__name__)
 console = Console()

@@ -7,9 +7,9 @@ pytest.importorskip("requests")
 
 import requests
 
-from github_feedback.collector import Collector
-from github_feedback.config import Config
-from github_feedback.models import AnalysisFilters
+from github_feedback.collectors.collector import Collector
+from github_feedback.core.config import Config
+from github_feedback.core.models import AnalysisFilters
 
 
 def test_collector_filters_bots_and_counts_resources(monkeypatch):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .constants import DAYS_PER_MONTH_APPROX, DAYS_PER_YEAR, TABLE_CONFIG
+from .core.constants import DAYS_PER_MONTH_APPROX, DAYS_PER_YEAR, TABLE_CONFIG
 
 try:
     from rich import box

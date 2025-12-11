@@ -7,8 +7,8 @@ import pytest
 
 pytest.importorskip("requests")
 
-from github_feedback.collector import Collector
-from github_feedback.config import Config
+from github_feedback.collectors.collector import Collector
+from github_feedback.core.config import Config
 from github_feedback.repository_manager import RepositoryManager
 
 
@@ -229,7 +229,7 @@ def test_repository_manager_format_repository_summary():
     config = Config()
     config.auth.pat = "dummy-token"
 
-    from github_feedback.api_client import GitHubApiClient
+    from github_feedback.api.client import GitHubApiClient
 
     api_client = GitHubApiClient(config)
     repo_manager = RepositoryManager(api_client)
@@ -255,7 +255,7 @@ def test_repository_manager_format_repository_summary_truncates_long_description
     config = Config()
     config.auth.pat = "dummy-token"
 
-    from github_feedback.api_client import GitHubApiClient
+    from github_feedback.api.client import GitHubApiClient
 
     api_client = GitHubApiClient(config)
     repo_manager = RepositoryManager(api_client)
@@ -282,7 +282,7 @@ def test_repository_manager_calculate_suggestion_score_archived_penalty():
     config = Config()
     config.auth.pat = "dummy-token"
 
-    from github_feedback.api_client import GitHubApiClient
+    from github_feedback.api.client import GitHubApiClient
 
     api_client = GitHubApiClient(config)
     repo_manager = RepositoryManager(api_client)

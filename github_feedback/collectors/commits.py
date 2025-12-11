@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 
 from .api_params import build_commits_params, build_pagination_params
 from .base_collector import BaseCollector
-from .constants import THREAD_POOL_CONFIG
-from .models import AnalysisFilters
+from ..core.constants import THREAD_POOL_CONFIG
+from ..core.models import AnalysisFilters
 
 logger = logging.getLogger(__name__)
 

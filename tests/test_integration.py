@@ -2,17 +2,17 @@
 
 import pytest
 
-from github_feedback.api_client import GitHubApiClient
-from github_feedback.analytics_collector import AnalyticsCollector
-from github_feedback.base_collector import BaseCollector
-from github_feedback.collector import Collector
-from github_feedback.commit_collector import CommitCollector
-from github_feedback.config import Config
-from github_feedback.exceptions import ConfigurationError
+from github_feedback.api.client import GitHubApiClient
+from github_feedback.collectors.analytics import AnalyticsCollector
+from github_feedback.collectors.base import BaseCollector
+from github_feedback.collectors.collector import Collector
+from github_feedback.collectors.commits import CommitCollector
+from github_feedback.core.config import Config
+from github_feedback.core.exceptions import ConfigurationError
 from github_feedback.filters import FilterHelper, LANGUAGE_EXTENSION_MAP
-from github_feedback.issue_collector import IssueCollector
-from github_feedback.pr_collector import PullRequestCollector
-from github_feedback.review_collector import ReviewCollector
+from github_feedback.collectors.issues import IssueCollector
+from github_feedback.collectors.prs import PullRequestCollector
+from github_feedback.collectors.reviews import ReviewCollector
 
 
 def test_collector_facade_initialization(monkeypatch):

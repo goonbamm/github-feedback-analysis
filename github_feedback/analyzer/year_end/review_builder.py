@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github_feedback.models import CollectionResult, PullRequest
+    from github_feedback.core.models import CollectionResult, PullRequest
 
-from github_feedback.constants import ACTIVITY_THRESHOLDS, DISPLAY_LIMITS
-from github_feedback.models import YearEndReview
+from github_feedback.core.constants import ACTIVITY_THRESHOLDS, DISPLAY_LIMITS
+from github_feedback.core.models import YearEndReview
 from github_feedback.analyzer.helpers import ActivityMessageBuilder, InsightExtractor
 
 

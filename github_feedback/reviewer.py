@@ -11,11 +11,11 @@ from typing import Iterable, List, Optional, Tuple
 import requests
 
 from .collector import Collector
-from .console import Console
-from .constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS
+from .core.console import Console
+from .core.constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS
 from .llm import LLMClient
-from .models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
-from .utils import truncate_patch
+from .core.models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from .core.utils import truncate_patch
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class Reviewer:
 
     def _ensure_target_dir(self, repo: str, number: int) -> Path:
         """Create and return the target directory for PR review files."""
-        from .utils import FileSystemManager
+        from .core.utils import FileSystemManager
 
         target_dir = self._target_dir(repo, number)
         return FileSystemManager.ensure_directory(target_dir)

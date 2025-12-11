@@ -9,9 +9,9 @@ from typing import Optional
 
 from .analyzer import Analyzer
 from .collector import Collector
-from .config import Config
-from .console import Console
-from .models import AnalysisFilters
+from ..core.config import Config
+from ..core.console import Console
+from ..core.models import AnalysisFilters
 from .year_in_review_reporter import RepositoryAnalysis
 
 console = Console()
@@ -323,7 +323,7 @@ def _save_detailed_feedback_to_metrics(
     console.print(f"[dim]💾 Saving detailed feedback to metrics.json...[/]")
     metrics_path = _get_year_in_review_metrics_path(output_dir, repo_name)
     legacy_metrics_path = _get_legacy_year_in_review_metrics_path(output_dir, repo_name)
-    from .utils import FileSystemManager
+    from ..core.utils import FileSystemManager
 
     metrics_dir = metrics_path.parent
     FileSystemManager.ensure_directory(metrics_dir)

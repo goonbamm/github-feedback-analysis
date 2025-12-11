@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from github_feedback.review_reporter import ReviewReporter
+from github_feedback.reporters.review_reporter import ReviewReporter
 
 
 def _write_review(tmp_path, repo: str, number: int, *, overview: str = "") -> None:

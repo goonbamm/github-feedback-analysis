@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from .console import Console
+from ..core.console import Console
 from .feedback_builders import FeedbackBuilder
-from .models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from .retrospective_builders import RetrospectiveBuilder
 from .section_builders.awards_builder import AwardsBuilder
 from .section_builders.character_stats_builder import CharacterStatsBuilder
@@ -40,7 +40,7 @@ class Reporter:
     web_url: str = "https://github.com"  # Base URL for GitHub links (configurable for enterprise)
 
     def ensure_structure(self) -> None:
-        from .utils import FileSystemManager
+        from ..core.utils import FileSystemManager
 
         FileSystemManager.ensure_directory(self.output_dir)
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from github_feedback.constants import API_DEFAULTS
+from github_feedback.core.constants import API_DEFAULTS
 
 
 def build_list_params(

@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Dict, List, Optional, Set
 
-from github_feedback.models import (
+from github_feedback.core.models import (
     CollectionResult,
     FileActivity,
     FunStatistics,

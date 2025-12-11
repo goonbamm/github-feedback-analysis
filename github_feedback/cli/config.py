@@ -17,11 +17,11 @@ except ModuleNotFoundError:
     Table = None
     box = None
 
-from . import cli_helpers
-from . import cli_repository
-from .config import Config
-from .console import Console
-from .utils import validate_pat_format, validate_url, validate_months
+from . import helpers
+from . import repository
+from ..core.config import Config
+from ..core.console import Console
+from ..core.utils import validate_pat_format, validate_url, validate_months
 
 console = Console()
 

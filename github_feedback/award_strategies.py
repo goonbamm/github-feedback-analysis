@@ -10,8 +10,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Tuple, Any
 
-from .models import CollectionResult
-from .constants import (
+from .core.models import CollectionResult
+from .core.constants import (
     AWARD_CONSISTENCY_THRESHOLDS,
     AWARD_BALANCED_THRESHOLDS,
     AWARD_PR_THRESHOLDS,

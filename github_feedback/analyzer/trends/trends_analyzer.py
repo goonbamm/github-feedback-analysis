@@ -5,13 +5,13 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional
 
-from github_feedback.constants import (
+from github_feedback.core.constants import (
     ACTIVITY_THRESHOLDS,
     CONSISTENCY_THRESHOLDS,
     DISPLAY_LIMITS,
     TREND_THRESHOLDS,
 )
-from github_feedback.models import (
+from github_feedback.core.models import (
     CollaborationNetwork,
     MonthlyTrend,
     MonthlyTrendInsights,

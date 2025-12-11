@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github_feedback.models import CollectionResult, DetailedFeedbackSnapshot, WitchCritiqueItem
+    from github_feedback.core.models import CollectionResult, DetailedFeedbackSnapshot, WitchCritiqueItem
 
-from github_feedback.models import WitchCritiqueItem
+from github_feedback.core.models import WitchCritiqueItem
 
 
 class CodeStyleChecker:

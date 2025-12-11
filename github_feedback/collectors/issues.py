@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from .api_params import build_list_params
 from .base_collector import BaseCollector
 from .filters import FilterHelper
-from .models import AnalysisFilters
+from ..core.models import AnalysisFilters
 
 
 class IssueCollector(BaseCollector):

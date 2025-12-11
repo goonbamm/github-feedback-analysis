@@ -11,10 +11,10 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 import requests
 import requests_cache
 
-from .config import Config
-from .console import Console
-from .constants import HTTP_STATUS, HTTP_STATUS_CODES, RETRY_CONFIG
-from .exceptions import ApiError, AuthenticationError, ConfigurationError
+from ..core.config import Config
+from ..core.console import Console
+from ..core.constants import HTTP_STATUS, HTTP_STATUS_CODES, RETRY_CONFIG
+from ..core.exceptions import ApiError, AuthenticationError, ConfigurationError
 
 logger = logging.getLogger(__name__)
 console = Console()

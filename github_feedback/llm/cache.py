@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .constants import SECONDS_PER_DAY
+from ..core.constants import SECONDS_PER_DAY
 
 logger = logging.getLogger(__name__)
 

@@ -36,7 +36,7 @@ class PeriodFormatter:
             return PeriodFormatter.LABEL_MAP[months]
 
         # Handle years and remaining months
-        from github_feedback.constants import MONTHS_FOR_YEAR_DISPLAY, MONTHS_PER_YEAR
+        from github_feedback.core.constants import MONTHS_FOR_YEAR_DISPLAY, MONTHS_PER_YEAR
         if months >= MONTHS_FOR_YEAR_DISPLAY:
             years = months // MONTHS_PER_YEAR
             remaining_months = months % MONTHS_PER_YEAR
