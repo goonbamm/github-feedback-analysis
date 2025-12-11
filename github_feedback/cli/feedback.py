@@ -10,10 +10,10 @@ import typer
 
 from . import helpers as cli_helpers
 from . import repository as cli_repository
-from . import metrics
-from . import data_collection
-from . import yearinreview
-from . import report_integration
+from . import metrics as cli_metrics
+from . import data_collection as cli_data_collection
+from . import yearinreview as cli_yearinreview
+from . import report_integration as cli_report_integration
 from ..analyzer import Analyzer
 from ..collectors.collector import Collector
 from ..core.config import Config
