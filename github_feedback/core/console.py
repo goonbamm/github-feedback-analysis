@@ -112,18 +112,48 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envs
     class Console:  # type: ignore[override]
         """Minimal stand-in for :class:`rich.console.Console`."""
 
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """Initialize fallback console with verbose/quiet mode support."""
+            self._verbose = False
+            self._quiet = False
+
+        def set_verbose(self, verbose: bool) -> None:
+            """Enable or disable verbose output."""
+            self._verbose = verbose
+
+        def set_quiet(self, quiet: bool) -> None:
+            """Enable or disable quiet mode."""
+            self._quiet = quiet
+
+        def is_verbose(self) -> bool:
+            """Check if verbose mode is enabled."""
+            return self._verbose
+
+        def is_quiet(self) -> bool:
+            """Check if quiet mode is enabled."""
+            return self._quiet
+
         def print(self, *values: Any, **kwargs: Any) -> None:  # noqa: D401 - mimic rich API
-            text = " ".join(str(value) for value in values)
-            if kwargs:
-                kw_text = " ".join(f"{key}={value}" for key, value in kwargs.items())
-                if text:
-                    text = f"{text} {kw_text}"
-                else:
-                    text = kw_text
-            print(text)
+            if not self._quiet:
+                text = " ".join(str(value) for value in values)
+                if kwargs:
+                    kw_text = " ".join(f"{key}={value}" for key, value in kwargs.items())
+                    if text:
+                        text = f"{text} {kw_text}"
+                    else:
+                        text = kw_text
+                print(text)
 
         def log(self, *values: Any, **kwargs: Any) -> None:
-            self.print(*values, **kwargs)
+            if self._verbose and not self._quiet:
+                text = " ".join(str(value) for value in values)
+                if kwargs:
+                    kw_text = " ".join(f"{key}={value}" for key, value in kwargs.items())
+                    if text:
+                        text = f"{text} {kw_text}"
+                    else:
+                        text = kw_text
+                print(text)
 
         @contextmanager
         def status(self, message: str, **_: Any) -> Generator[None, None, None]:
