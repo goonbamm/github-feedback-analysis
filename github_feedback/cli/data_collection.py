@@ -13,15 +13,15 @@ import typer
 
 from .analyzer import Analyzer
 from .collector import Collector
-from .config import Config
-from .console import Console
-from .constants import (
+from ..core.config import Config
+from ..core.console import Console
+from ..core.constants import (
     COLLECTION_LIMITS,
     PARALLEL_CONFIG,
     TaskType,
 )
 from .llm import LLMClient
-from .models import AnalysisFilters, DetailedFeedbackSnapshot
+from ..core.models import AnalysisFilters, DetailedFeedbackSnapshot
 
 # Import helper functions from cli_helpers
 from .cli_helpers import run_parallel_tasks, validate_collected_data

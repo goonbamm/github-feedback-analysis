@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .constants import VALIDATION_THRESHOLDS
+from .core.constants import VALIDATION_THRESHOLDS
 
 logger = logging.getLogger(__name__)
 

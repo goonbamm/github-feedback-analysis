@@ -28,10 +28,13 @@ dependencies = [
 test = ["pytest>=7.4"]
 
 [project.scripts]
-gfa = "github_feedback.cli:app"
+gfa = "github_feedback.cli.main:app"
 
 [tool.setuptools]
-packages = ["github_feedback"]
+packages = {find = {}}
+
+[tool.setuptools.packages.find]
+include = ["github_feedback*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

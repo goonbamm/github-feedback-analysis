@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from .constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS, REGEX_PATTERNS
+from ..core.constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS, REGEX_PATTERNS
 
 
 class HeuristicAnalyzer:

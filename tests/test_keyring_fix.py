@@ -7,7 +7,7 @@ from pathlib import Path
 # Add the package to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from github_feedback.config import Config, _setup_keyring_fallback
+from github_feedback.core.config import Config, _setup_keyring_fallback
 import keyring
 
 def test_keyring_fallback():

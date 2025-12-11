@@ -22,10 +22,10 @@ try:  # pragma: no cover - optional rich dependency
 except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     Progress = None
 
-from .config import Config
-from .console import Console
-from .constants import TaskType
-from .exceptions import (
+from ..core.config import Config
+from ..core.console import Console
+from ..core.constants import TaskType
+from ..core.exceptions import (
     CollectionError,
     CollectionTimeoutError,
     LLMAnalysisError,

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .console import Console
+from ..core.console import Console
 
 console = Console()
 
@@ -337,7 +337,7 @@ def write_integrated_report(output_dir: Path, content: str) -> Path:
     Raises:
         RuntimeError: If file operations fail
     """
-    from .utils import FileSystemManager
+    from ..core.utils import FileSystemManager
 
     try:
         FileSystemManager.ensure_directory(output_dir)

@@ -13,11 +13,11 @@ import requests
 from .analytics_collector import AnalyticsCollector
 from .api_client import GitHubApiClient
 from .commit_collector import CommitCollector
-from .config import Config
-from .console import Console
-from .constants import DAYS_PER_MONTH_APPROX, PARALLEL_CONFIG
+from ..core.config import Config
+from ..core.console import Console
+from ..core.constants import DAYS_PER_MONTH_APPROX, PARALLEL_CONFIG
 from .issue_collector import IssueCollector
-from .models import (
+from ..core.models import (
     AnalysisFilters,
     CollectionResult,
     PullRequestReviewBundle,

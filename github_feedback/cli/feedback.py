@@ -8,23 +8,23 @@ from typing import List, Optional, Tuple
 
 import typer
 
-from . import cli_helpers
-from . import cli_repository
-from . import cli_metrics
-from . import cli_data_collection
-from . import cli_yearinreview
-from . import cli_report_integration
+from . import helpers
+from . import repository
+from . import metrics
+from . import data_collection
+from . import yearinreview
+from . import report_integration
 from .analyzer import Analyzer
 from .collector import Collector
-from .config import Config
-from .console import Console
-from .constants import PARALLEL_CONFIG, TaskType
+from ..core.config import Config
+from ..core.console import Console
+from ..core.constants import PARALLEL_CONFIG, TaskType
 from .llm import LLMClient
-from .models import AnalysisFilters, MetricSnapshot
+from ..core.models import AnalysisFilters, MetricSnapshot
 from .reporter import Reporter
 from .review_reporter import ReviewReporter
 from .reviewer import Reviewer
-from .utils import validate_repo_format
+from ..core.utils import validate_repo_format
 
 console = Console()
 
@@ -608,7 +608,7 @@ def feedback(
     # Collect detailed feedback
     console.print()
     console.rule("Phase 2: Detailed Feedback Analysis")
-    from github_feedback.constants import DAYS_PER_MONTH_APPROX
+    from github_feedback.core.constants import DAYS_PER_MONTH_APPROX
     since = datetime.now(timezone.utc) - timedelta(days=DAYS_PER_MONTH_APPROX * max(months, 1))
     detailed_feedback_snapshot = cli_data_collection.collect_detailed_feedback(
         collector, analyzer, config, repo_input, since, filters, author

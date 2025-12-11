@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Sequence, Set
 
-from .models import AnalysisFilters
+from .core.models import AnalysisFilters
 
 # Language extension mapping
 LANGUAGE_EXTENSION_MAP: Dict[str, str] = {

@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from github_feedback.api_client import GitHubApiClient
+from github_feedback.api.client import GitHubApiClient
 
 
 class RepositoryManager:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from github_feedback.models import (
+from github_feedback.core.models import (
     CollectionResult,
     PeriodComparison,
     TimeMachineComparison,

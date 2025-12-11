@@ -6,9 +6,9 @@ import random
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github_feedback.models import CollectionResult, DetailedFeedbackSnapshot
+    from github_feedback.core.models import CollectionResult, DetailedFeedbackSnapshot
 
-from github_feedback.models import WitchCritique, WitchCritiqueItem
+from github_feedback.core.models import WitchCritique, WitchCritiqueItem
 
 from .checks import (
     ActivityChecker,

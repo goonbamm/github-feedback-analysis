@@ -7,9 +7,9 @@ from typing import Any, Dict, List
 
 from .api_client import GitHubApiClient
 from .api_params import build_pagination_params
-from .config import Config
+from ..core.config import Config
 from .filters import FilterHelper
-from .models import AnalysisFilters
+from ..core.models import AnalysisFilters
 
 
 class BaseCollector:

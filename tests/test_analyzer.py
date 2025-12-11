@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from github_feedback.analyzer import Analyzer
-from github_feedback.models import (
+from github_feedback.core.models import (
     AnalysisFilters,
     CollectionResult,
     PullRequestSummary,

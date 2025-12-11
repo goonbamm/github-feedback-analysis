@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Dict, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github_feedback.models import CollectionResult
+    from github_feedback.core.models import CollectionResult
 
-from github_feedback.constants import COLLECTION_LIMITS
+from github_feedback.core.constants import COLLECTION_LIMITS
 from github_feedback.analyzer.helpers import PeriodFormatter
 
 

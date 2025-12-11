@@ -12,8 +12,8 @@ import requests
 
 from .api_params import build_list_params, build_pagination_params
 from .base_collector import BaseCollector
-from .constants import THREAD_POOL_CONFIG
-from .models import (
+from ..core.constants import THREAD_POOL_CONFIG
+from ..core.models import (
     AnalysisFilters,
     PullRequestFile,
     PullRequestReviewBundle,

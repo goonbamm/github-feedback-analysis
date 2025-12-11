@@ -26,8 +26,8 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     box = None
 
 from .analyzer import Analyzer
-from .console import Console
-from .models import AnalysisStatus, DetailedFeedbackSnapshot, MetricSnapshot
+from ..core.console import Console
+from ..core.models import AnalysisStatus, DetailedFeedbackSnapshot, MetricSnapshot
 
 console = Console()
 
@@ -272,7 +272,7 @@ def persist_metrics(output_dir: Path, metrics_data: dict, filename: str = "metri
     output_dir = output_dir.expanduser()
 
     # Create directory with error handling
-    from .utils import FileSystemManager
+    from ..core.utils import FileSystemManager
 
     try:
         FileSystemManager.ensure_directory(output_dir)

@@ -7,12 +7,12 @@ from pathlib import Path
 
 import typer
 
-from .console import Console
+from ..core.console import Console
 
 # Import CLI command modules
-from . import cli_config
-from . import cli_feedback
-from . import cli_repos
+from . import config
+from . import feedback
+from . import repos
 
 # Create Typer app instances
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")

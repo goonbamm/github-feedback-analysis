@@ -11,9 +11,9 @@ import requests
 
 from .api_params import build_pagination_params
 from .base_collector import BaseCollector
-from .console import Console
-from .constants import THREAD_POOL_CONFIG
-from .models import AnalysisFilters
+from ..core.console import Console
+from ..core.constants import THREAD_POOL_CONFIG
+from ..core.models import AnalysisFilters
 
 logger = logging.getLogger(__name__)
 console = Console()

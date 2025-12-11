@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, NamedTuple, Optional
 
 from github_feedback.award_strategies import AwardCalculator
-from github_feedback.console import Console
-from github_feedback.models import (
+from github_feedback.core.console import Console
+from github_feedback.core.models import (
     AnalysisStatus,
     CollectionResult,
     DetailedFeedbackSnapshot,

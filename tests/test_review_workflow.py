@@ -9,11 +9,11 @@ import pytest
 
 requests = pytest.importorskip("requests")
 
-from github_feedback.collector import Collector
-from github_feedback.config import Config
-from github_feedback.models import PullRequestFile, PullRequestReviewBundle, ReviewPoint, ReviewSummary
+from github_feedback.collectors.collector import Collector
+from github_feedback.core.config import Config
+from github_feedback.core.models import PullRequestFile, PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from github_feedback.reviewer import Reviewer
-from github_feedback.llm import (
+from github_feedback.llm.client import (
     LLMClient,
     MAX_FILES_WITH_PATCH_SNIPPETS,
     MAX_PATCH_LINES_PER_FILE,

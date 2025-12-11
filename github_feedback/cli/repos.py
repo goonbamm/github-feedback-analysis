@@ -6,9 +6,9 @@ from typing import Optional
 
 import typer
 
-from . import cli_helpers
+from . import helpers
 from .collector import Collector
-from .console import Console
+from ..core.console import Console
 from .repository_display import create_repository_table
 
 console = Console()

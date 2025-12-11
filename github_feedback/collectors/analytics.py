@@ -12,10 +12,10 @@ import requests
 
 from .api_params import build_commits_params, build_list_params, build_pagination_params
 from .base_collector import BaseCollector
-from .console import Console
-from .constants import THREAD_POOL_CONFIG
+from ..core.console import Console
+from ..core.constants import THREAD_POOL_CONFIG
 from .filters import FilterHelper
-from .models import AnalysisFilters
+from ..core.models import AnalysisFilters
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -155,7 +155,7 @@ class AnalyticsCollector(BaseCollector):
             return local_counts, files_analyzed, files_with_language
 
         # Parallelize file fetching for recent PRs
-        from .constants import COLLECTION_LIMITS
+        from ..core.constants import COLLECTION_LIMITS
         max_prs = COLLECTION_LIMITS['max_prs_to_process']
         prs_to_process = pr_metadata[:max_prs]
         completed_count = 0
