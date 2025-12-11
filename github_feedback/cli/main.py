@@ -232,7 +232,7 @@ def main_callback(
     ),
 ) -> None:
     """CLI entry-point callback for shared initialisation."""
-    from .christmas_theme import is_christmas_season, get_christmas_banner
+    from ..christmas_theme import is_christmas_season, get_christmas_banner
 
     # Set console modes
     console.set_verbose(verbose)
