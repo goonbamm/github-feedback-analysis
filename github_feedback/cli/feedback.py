@@ -8,8 +8,8 @@ from typing import List, Optional, Tuple
 
 import typer
 
-from . import helpers
-from . import repository
+from . import helpers as cli_helpers
+from . import repository as cli_repository
 from . import metrics
 from . import data_collection
 from . import yearinreview

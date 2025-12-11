@@ -6,7 +6,7 @@ from typing import Optional
 
 import typer
 
-from . import helpers
+from . import helpers as cli_helpers
 from ..collectors.collector import Collector
 from ..core.console import Console
 from ..repository_display import create_repository_table
