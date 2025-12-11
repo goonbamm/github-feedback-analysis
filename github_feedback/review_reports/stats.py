@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List
 
-from ..constants import (
+from ..core.constants import (
     STAT_WEIGHTS_CODE_QUALITY,
     STAT_WEIGHTS_COLLABORATION,
     STAT_WEIGHTS_GROWTH,

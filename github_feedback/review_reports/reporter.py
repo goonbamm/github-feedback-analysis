@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 from typing import List
 
-from ..console import Console
+from ..core.console import Console
 from ..game_elements import GameRenderer
-from ..llm import LLMClient
+from ..llm.client import LLMClient
 from ..prompts import get_team_report_system_prompt, get_team_report_user_prompt
 from .analysis import PersonalDevelopmentAnalyzer
 from .data_loader import ReviewDataLoader, StoredReview
@@ -56,7 +56,7 @@ class ReviewReporter:
         report_text = self._generate_report_text(repo_input, reviews)
 
         # Save report
-        from ..utils import FileSystemManager
+        from ..core.utils import FileSystemManager
 
         repo_dir = self.data_loader._repo_dir(repo_input)
         FileSystemManager.ensure_directory(repo_dir)

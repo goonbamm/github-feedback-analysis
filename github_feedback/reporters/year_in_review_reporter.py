@@ -5,7 +5,7 @@
 """
 
 # Backward compatibility: Re-export from refactored modules
-from .year_in_review import (
+from ..year_in_review import (
     EQUIPMENT_SLOTS,
     RepositoryAnalysis,
     TECH_CATEGORIES,

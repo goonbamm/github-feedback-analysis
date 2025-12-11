@@ -14,23 +14,23 @@ import requests
 
 from ..core.console import Console
 from ..core.constants import HEURISTIC_THRESHOLDS, LLM_DEFAULTS, TEXT_LIMITS, THREAD_POOL_CONFIG
-from .hybrid_analysis import HybridAnalyzer
-from .llm_cache import (
+from ..hybrid_analysis import HybridAnalyzer
+from .cache import (
     DEFAULT_CACHE_EXPIRE_DAYS,
     get_cache_key,
     load_from_cache,
     save_to_cache,
 )
-from .llm_heuristics import (
+from .heuristics import (
     CommitMessageAnalyzer,
     IssueQualityAnalyzer,
     PRTitleAnalyzer,
     ReviewToneAnalyzer,
 )
-from .llm_metrics import LLMCallMetrics, get_global_collector
-from .llm_validation import LLMResponseValidator
+from .metrics import LLMCallMetrics, get_global_collector
+from .validation import LLMResponseValidator
 from ..core.models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
-from .prompts import (
+from ..prompts import (
     get_award_summary_quote_system_prompt,
     get_award_summary_quote_user_prompt,
     get_commit_analysis_system_prompt,
@@ -837,7 +837,7 @@ class LLMClient:
         Returns:
             Dictionary with personal development analysis
         """
-        from .prompts import (
+        from ..prompts import (
             get_communication_analysis_prompt,
             get_code_quality_analysis_prompt,
             get_growth_assessment_prompt,

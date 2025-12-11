@@ -9,8 +9,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
-from .api_params import build_pagination_params
-from .base_collector import BaseCollector
+from ..api.params import build_pagination_params
+from .base import BaseCollector
 from ..core.console import Console
 from ..core.constants import THREAD_POOL_CONFIG
 from ..core.models import AnalysisFilters

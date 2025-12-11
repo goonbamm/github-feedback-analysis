@@ -3,9 +3,9 @@
 import html
 from typing import List
 
-from ..constants import REGEX_PATTERNS, SKILL_MASTERY
+from ..core.constants import REGEX_PATTERNS, SKILL_MASTERY
 from ..game_elements import GameRenderer
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from .base_builder import SectionBuilder
 
 

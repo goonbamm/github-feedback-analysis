@@ -20,7 +20,7 @@ class GameRendererBase:
         Returns:
             나누어진 텍스트 줄 리스트
         """
-        from ...utils import display_width
+        from ...core.utils import display_width
 
         if display_width(text) <= max_width:
             return [text]

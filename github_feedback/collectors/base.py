@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List
 
-from .api_client import GitHubApiClient
-from .api_params import build_pagination_params
+from ..api.client import GitHubApiClient
+from ..api.params import build_pagination_params
 from ..core.config import Config
-from .filters import FilterHelper
+from ..filters import FilterHelper
 from ..core.models import AnalysisFilters
 
 

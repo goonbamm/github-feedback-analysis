@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from typing import List
 
-from ..console import Console
-from ..llm import LLMClient
-from ..models import (
+from ..core.console import Console
+from ..llm.client import LLMClient
+from ..core.models import (
     GrowthIndicator,
     ImprovementArea,
     PersonalDevelopmentAnalysis,

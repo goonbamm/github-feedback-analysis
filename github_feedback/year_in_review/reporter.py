@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import List
 
-from ..console import Console
+from ..core.console import Console
 from ..game_elements import get_animation_styles
 from .models import RepositoryAnalysis
 from .sections.character_stats import generate_character_stats
@@ -24,7 +24,7 @@ class YearInReviewReporter:
     """Generate comprehensive year-in-review reports."""
 
     def __init__(self, output_dir: Path = Path("reports/year-in-review")) -> None:
-        from ..utils import FileSystemManager
+        from ..core.utils import FileSystemManager
 
         self.output_dir = output_dir
         FileSystemManager.ensure_directory(self.output_dir)

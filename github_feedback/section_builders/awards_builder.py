@@ -2,9 +2,9 @@
 
 from typing import List
 
-from ..constants import AWARD_CATEGORIES, AWARD_KEYWORDS
+from ..core.constants import AWARD_CATEGORIES, AWARD_KEYWORDS
 from ..game_elements import GameRenderer
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from .base_builder import SectionBuilder
 
 

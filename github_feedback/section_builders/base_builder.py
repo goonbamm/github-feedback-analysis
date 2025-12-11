@@ -2,7 +2,7 @@
 
 from typing import Any, Callable, List
 
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 
 
 class MarkdownSectionBuilder:

@@ -3,9 +3,9 @@
 import html
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from ..constants import DISPLAY_LIMITS
+from ..core.constants import DISPLAY_LIMITS
 from ..game_elements import GameRenderer
-from ..models import (
+from ..core.models import (
     CommitMessageFeedback,
     IssueFeedback,
     MetricSnapshot,

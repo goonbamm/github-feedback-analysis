@@ -25,7 +25,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     Text = None
     box = None
 
-from .analyzer import Analyzer
+from ..analyzer import Analyzer
 from ..core.console import Console
 from ..core.models import AnalysisStatus, DetailedFeedbackSnapshot, MetricSnapshot
 

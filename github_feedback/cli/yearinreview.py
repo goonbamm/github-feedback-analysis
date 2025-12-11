@@ -7,12 +7,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .analyzer import Analyzer
-from .collector import Collector
+from ..analyzer import Analyzer
+from ..collectors.collector import Collector
 from ..core.config import Config
 from ..core.console import Console
 from ..core.models import AnalysisFilters
-from .year_in_review_reporter import RepositoryAnalysis
+from ..year_in_review.models import RepositoryAnalysis
 
 console = Console()
 

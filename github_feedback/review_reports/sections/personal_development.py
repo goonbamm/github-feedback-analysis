@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import List
 
-from ...constants import REGEX_PATTERNS
+from ...core.constants import REGEX_PATTERNS
 from ...game_elements import GameRenderer
-from ...models import PersonalDevelopmentAnalysis
+from ...core.models import PersonalDevelopmentAnalysis
 from ..data_loader import StoredReview
 
 # Legacy alias for backward compatibility
