@@ -8,7 +8,7 @@ from typing import Any, Generator
 try:  # pragma: no cover - exercised implicitly
     from rich.console import Console as RichConsole
     from rich.theme import Theme
-    from .christmas_theme import is_christmas_season, get_christmas_theme
+    from ..christmas_theme import is_christmas_season, get_christmas_theme
 
     _default_theme = Theme(
         {
