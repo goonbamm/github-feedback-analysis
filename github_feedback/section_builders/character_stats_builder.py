@@ -3,7 +3,7 @@
 from typing import Dict, List
 
 from ..game_elements import GameRenderer, LevelCalculator
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from .base_builder import SectionBuilder
 
 

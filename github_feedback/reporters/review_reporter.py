@@ -5,7 +5,7 @@
 """
 
 # Backward compatibility: Re-export from refactored modules
-from .review_reports import (
+from ..review_reports import (
     PersonalDevelopmentAnalyzer,
     ReviewDataLoader,
     ReviewReporter,

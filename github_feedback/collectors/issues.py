@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .api_params import build_list_params
-from .base_collector import BaseCollector
-from .filters import FilterHelper
+from ..api.params import build_list_params
+from .base import BaseCollector
+from ..filters import FilterHelper
 from ..core.models import AnalysisFilters
 
 

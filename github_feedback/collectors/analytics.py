@@ -10,11 +10,11 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 
 import requests
 
-from .api_params import build_commits_params, build_list_params, build_pagination_params
-from .base_collector import BaseCollector
+from ..api.params import build_commits_params, build_list_params, build_pagination_params
+from .base import BaseCollector
 from ..core.console import Console
 from ..core.constants import THREAD_POOL_CONFIG
-from .filters import FilterHelper
+from ..filters import FilterHelper
 from ..core.models import AnalysisFilters
 
 logger = logging.getLogger(__name__)

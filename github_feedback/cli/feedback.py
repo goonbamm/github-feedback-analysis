@@ -14,16 +14,16 @@ from . import metrics
 from . import data_collection
 from . import yearinreview
 from . import report_integration
-from .analyzer import Analyzer
-from .collector import Collector
+from ..analyzer import Analyzer
+from ..collectors.collector import Collector
 from ..core.config import Config
 from ..core.console import Console
 from ..core.constants import PARALLEL_CONFIG, TaskType
-from .llm import LLMClient
+from ..llm.client import LLMClient
 from ..core.models import AnalysisFilters, MetricSnapshot
-from .reporter import Reporter
-from .review_reporter import ReviewReporter
-from .reviewer import Reviewer
+from ..reporters.reporter import Reporter
+from ..reporters.review_reporter import ReviewReporter
+from ..reviewer import Reviewer
 from ..core.utils import validate_repo_format
 
 console = Console()
@@ -312,7 +312,8 @@ def run_year_in_review_analysis(
         output_dir: Output directory for reports
         year: Specific year to analyze (default: current year)
     """
-    from .year_in_review_reporter import YearInReviewReporter, RepositoryAnalysis
+    from ..year_in_review.reporter import YearInReviewReporter
+    from ..year_in_review.models import RepositoryAnalysis
 
     if year is None:
         year = datetime.now().year
@@ -447,7 +448,7 @@ def analyze_single_repository_for_year_review(
     Returns:
         RepositoryAnalysis object or None if analysis fails
     """
-    from .year_in_review_reporter import RepositoryAnalysis
+    from ..year_in_review.models import RepositoryAnalysis
 
     return cli_yearinreview.analyze_single_repository_for_year_review(
         config=config,

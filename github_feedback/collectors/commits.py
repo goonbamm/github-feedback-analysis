@@ -8,8 +8,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Set
 
-from .api_params import build_commits_params, build_pagination_params
-from .base_collector import BaseCollector
+from ..api.params import build_commits_params, build_pagination_params
+from .base import BaseCollector
 from ..core.constants import THREAD_POOL_CONFIG
 from ..core.models import AnalysisFilters
 

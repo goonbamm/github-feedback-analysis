@@ -3,7 +3,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from ..game_elements import COLOR_PALETTE, GameRenderer
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from .base_builder import SectionBuilder
 
 

@@ -2,8 +2,8 @@
 
 from typing import Any, List, Optional
 
-from ..console import Console
-from ..models import MetricSnapshot
+from ..core.console import Console
+from ..core.models import MetricSnapshot
 from .base_builder import SectionBuilder
 
 console = Console()

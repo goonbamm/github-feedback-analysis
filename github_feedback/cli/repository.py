@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when rich is missing
     Table = None
     box = None
 
-from .collector import Collector
+from ..collectors.collector import Collector
 from ..core.console import Console
 from ..core.constants import (
     ERROR_MESSAGES,

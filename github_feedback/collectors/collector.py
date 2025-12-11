@@ -10,22 +10,22 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
-from .analytics_collector import AnalyticsCollector
-from .api_client import GitHubApiClient
-from .commit_collector import CommitCollector
+from .analytics import AnalyticsCollector
+from ..api.client import GitHubApiClient
+from .commits import CommitCollector
 from ..core.config import Config
 from ..core.console import Console
 from ..core.constants import DAYS_PER_MONTH_APPROX, PARALLEL_CONFIG
-from .issue_collector import IssueCollector
+from .issues import IssueCollector
 from ..core.models import (
     AnalysisFilters,
     CollectionResult,
     PullRequestReviewBundle,
     PullRequestSummary,
 )
-from .pr_collector import PullRequestCollector
-from .repository_manager import RepositoryManager
-from .review_collector import ReviewCollector
+from .prs import PullRequestCollector
+from ..repository_manager import RepositoryManager
+from .reviews import ReviewCollector
 
 logger = logging.getLogger(__name__)
 console = Console()

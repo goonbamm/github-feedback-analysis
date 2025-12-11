@@ -11,8 +11,8 @@ from typing import Any, Optional
 import requests
 import typer
 
-from .analyzer import Analyzer
-from .collector import Collector
+from ..analyzer import Analyzer
+from ..collectors.collector import Collector
 from ..core.config import Config
 from ..core.console import Console
 from ..core.constants import (
@@ -20,11 +20,11 @@ from ..core.constants import (
     PARALLEL_CONFIG,
     TaskType,
 )
-from .llm import LLMClient
+from ..llm.client import LLMClient
 from ..core.models import AnalysisFilters, DetailedFeedbackSnapshot
 
 # Import helper functions from cli_helpers
-from .cli_helpers import run_parallel_tasks, validate_collected_data
+from .helpers import run_parallel_tasks, validate_collected_data
 
 console = Console()
 logger = logging.getLogger(__name__)

@@ -153,7 +153,7 @@ def init(
         console.print()
         with console.status("[accent]Testing LLM connection...", spinner="dots"):
             try:
-                from .llm import LLMClient
+                from ..llm.client import LLMClient
                 test_client = LLMClient(
                     endpoint=llm_endpoint,
                     model=llm_model,

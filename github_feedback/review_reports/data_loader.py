@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
-from ..console import Console
-from ..models import ReviewPoint
+from ..core.console import Console
+from ..core.models import ReviewPoint
 
 console = Console()
 

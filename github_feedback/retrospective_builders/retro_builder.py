@@ -3,9 +3,9 @@
 import html
 from typing import List
 
-from ..constants import DISPLAY_LIMITS
+from ..core.constants import DISPLAY_LIMITS
 from ..game_elements import GameRenderer
-from ..models import MetricSnapshot
+from ..core.models import MetricSnapshot
 from ..section_builders.base_builder import SectionBuilder
 
 

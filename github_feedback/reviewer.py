@@ -10,10 +10,10 @@ from typing import Iterable, List, Optional, Tuple
 
 import requests
 
-from .collector import Collector
+from .collectors.collector import Collector
 from .core.console import Console
 from .core.constants import HEURISTIC_THRESHOLDS, TEXT_LIMITS
-from .llm import LLMClient
+from .llm.client import LLMClient
 from .core.models import PullRequestReviewBundle, ReviewPoint, ReviewSummary
 from .core.utils import truncate_patch
 
