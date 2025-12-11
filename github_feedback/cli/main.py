@@ -10,9 +10,9 @@ import typer
 from ..core.console import Console
 
 # Import CLI command modules
-from . import config
-from . import feedback
-from . import repos
+from . import config as cli_config
+from . import feedback as cli_feedback
+from . import repos as cli_repos
 
 # Create Typer app instances
 app = typer.Typer(help="Analyze GitHub repositories and generate feedback reports.")

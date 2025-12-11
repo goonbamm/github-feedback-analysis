@@ -17,8 +17,8 @@ except ModuleNotFoundError:
     Table = None
     box = None
 
-from . import helpers
-from . import repository
+from . import helpers as cli_helpers
+from . import repository as cli_repository
 from ..core.config import Config
 from ..core.console import Console
 from ..core.utils import validate_pat_format, validate_url, validate_months
