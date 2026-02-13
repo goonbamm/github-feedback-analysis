@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -170,6 +171,52 @@ def run_parallel_tasks(
     total = len(tasks)
     timeout_occurred = False
 
+    def _run_with_futures(
+        futures: dict[Any, tuple[str, str]],
+        on_success: Callable[[str, str], None],
+        on_failure: Callable[[str, str, str], None],
+    ) -> None:
+        nonlocal timeout_occurred
+
+        start_times = {future: time.monotonic() for future in futures}
+        pending = set(futures)
+
+        while pending:
+            done, pending = wait(pending, timeout=0.1, return_when=FIRST_COMPLETED)
+
+            for future in done:
+                key, label = futures[future]
+                try:
+                    results[key] = future.result()
+                    on_success(key, label)
+                except Exception as e:
+                    error, default_result, status_indicator = handle_task_exception(
+                        e, key, label, timeout, task_type
+                    )
+                    console.print(f"[warning]{status_indicator} {error}", style="warning")
+                    results[key] = default_result
+                    on_failure(key, label, status_indicator)
+                    if status_indicator == "⚠":
+                        timeout_occurred = True
+
+            timed_out_futures = {
+                future
+                for future in pending
+                if time.monotonic() - start_times[future] > timeout
+            }
+            for future in timed_out_futures:
+                pending.remove(future)
+                future.cancel()
+
+                key, label = futures[future]
+                error, default_result, status_indicator = handle_task_exception(
+                    TimeoutError(), key, label, timeout, task_type
+                )
+                console.print(f"[warning]{status_indicator} {error}", style="warning")
+                results[key] = default_result
+                on_failure(key, label, status_indicator)
+                timeout_occurred = True
+
     # Use Rich Progress bar if available
     if Progress is not None:
         with Progress(
@@ -191,23 +238,14 @@ def run_parallel_tasks(
                     for key, (func, args, label) in tasks.items()
                 }
 
-                for future in as_completed(futures, timeout=timeout):
-                    key, label = futures[future]
-                    try:
-                        results[key] = future.result(timeout=timeout)
-                        progress.update(task_id, advance=1, description=f"[green]✓ {label}")
-                    except Exception as e:
-                        error, default_result, status_indicator = handle_task_exception(
-                            e, key, label, timeout, task_type
-                        )
-                        console.print(f"[warning]{status_indicator} {error}", style="warning")
-                        results[key] = default_result
-                        color = "yellow" if status_indicator == "⚠" else "red"
-                        progress.update(task_id, advance=1, description=f"[{color}]{status_indicator} {label}")
+                def rich_success(_key: str, label: str) -> None:
+                    progress.update(task_id, advance=1, description=f"[green]✓ {label}")
 
-                        # Track if timeout occurred
-                        if status_indicator == "⚠":
-                            timeout_occurred = True
+                def rich_failure(_key: str, label: str, status_indicator: str) -> None:
+                    color = "yellow" if status_indicator == "⚠" else "red"
+                    progress.update(task_id, advance=1, description=f"[{color}]{status_indicator} {label}")
+
+                _run_with_futures(futures, rich_success, rich_failure)
     else:
         # Fallback to simple progress without Rich
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -217,22 +255,15 @@ def run_parallel_tasks(
             }
 
             completed = 0
-            for future in as_completed(futures, timeout=timeout):
-                key, label = futures[future]
-                try:
-                    results[key] = future.result(timeout=timeout)
-                    completed += 1
-                    console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
-                except Exception as e:
-                    error, default_result, status_indicator = handle_task_exception(
-                        e, key, label, timeout, task_type
-                    )
-                    console.print(f"[warning]{status_indicator} {error}", style="warning")
-                    results[key] = default_result
+            def simple_success(_key: str, label: str) -> None:
+                nonlocal completed
+                completed += 1
+                console.print(f"[success]✓ {label} completed ({completed}/{total})", style="success")
 
-                    # Track if timeout occurred
-                    if status_indicator == "⚠":
-                        timeout_occurred = True
+            def simple_failure(_key: str, _label: str, _status_indicator: str) -> None:
+                return None
+
+            _run_with_futures(futures, simple_success, simple_failure)
 
     # Display guidance if timeout occurred
     if timeout_occurred:
