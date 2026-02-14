@@ -315,7 +315,7 @@ class Config:
             backup: If True and config file exists, create a backup before overwriting.
         """
 
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create backup if file exists and backup is requested
         if backup and path.exists():
